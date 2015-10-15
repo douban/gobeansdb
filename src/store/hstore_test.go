@@ -44,7 +44,7 @@ func init() {
 }
 
 func setupTest(casename string, numhome int) {
-	config = HStoreConfig{}
+	initDefaultConfig()
 	// dir = time.Now().Format("20060102T030405")
 	dir = fmt.Sprintf("%s/%s", *tBase, casename)
 	logger.Infof("test in %s", dir)
@@ -74,11 +74,10 @@ func (g *kvgen) gen(i int) (keyhash uint64, key string, payload *Payload) {
 }
 
 func TestHStoreEmpty(t *testing.T) {
+	initDefaultConfig()
 	gen := kvgen{}
 	setupTest("HStoreEmpty", 1)
 	defer clearTest()
-
-	initDefaultConfig()
 	config.NumBucket = 16
 	config.Buckets = make([]int, 16)
 	config.Buckets[0] = 1

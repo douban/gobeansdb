@@ -38,28 +38,28 @@ func TestParse(t *testing.T) {
 }
 
 func TestHTree(t *testing.T) {
-	initDefaultConfig()
-	config.TreeDepth = 2
+
 	pos := 0xfe
 	for h := 2; h <= 6; h++ {
+		initDefaultConfig()
+		config.TreeDepth = 2
 		config.TreeHeight = h
 		config.init()
-		t.Logf("testing height %d %x %d", config.TreeDepth, pos, h)
 		testHTree(t, 1, pos)
 	}
 
-	config.TreeDepth = 1
 	pos = 0xf
 	for h := 2; h <= 7; h++ {
+		initDefaultConfig()
+		config.TreeDepth = 1
 		config.TreeHeight = h
 		config.init()
-		t.Logf("testing height %d %x %d", config.TreeDepth, pos, h)
 		testHTree(t, 2, pos)
 	}
 }
 
 func testHTree(t *testing.T, seq, treepos int) {
-
+	t.Logf("testing height %d %x %d", config.TreeDepth, treepos, config.TreeHeight)
 	depth := config.TreeDepth
 	height := config.TreeHeight
 	tree := newHTree(depth, treepos, height)
@@ -188,6 +188,7 @@ type HTreeBench struct {
 }
 
 func (hb *HTreeBench) init() {
+	initDefaultConfig()
 	*htreeConfig = hb.HTreeConfig
 	config.NumBucket = 1
 	config.init()
@@ -369,6 +370,7 @@ func TestLoadHints(b *testing.T) {
 	config.NumBucket = *tNumbucket
 	config.TreeHeight = *tHeigth
 	config.init()
+
 	pos, err := strconv.ParseInt(*tPos, 16, 32)
 	if err != nil {
 		b.Fatalf("%s", err.Error())

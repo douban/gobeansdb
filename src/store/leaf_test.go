@@ -48,9 +48,15 @@ func TestLeafEnlarge(t *testing.T) {
 }
 
 func TestLeaf(t *testing.T) {
+	initDefaultConfig()
 	var ni NodeInfo
+
+	config.NumBucket = 256
+	config.init()
 	ni.path = []int{0xf, 0xe}
-	lenKHash := KHASH_LENS[len(ni.path)]
+	// lenKHash := KHASH_LENS[len(ni.path)]
+	// t.Logf("%d %d", lenKHash, config.TreeKeyHashLen)
+	lenKHash := config.TreeKeyHashLen
 	lenItem := lenKHash + 10
 
 	var leaf bytesLeaf

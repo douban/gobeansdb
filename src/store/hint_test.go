@@ -100,7 +100,7 @@ func genSortedHintItems(n int) []*hintItem {
 }
 
 func testMerge(t *testing.T, nsrc int) {
-	setupTest(fmt.Sprintf("%s/%d", "TestHintRW", nsrc), 1)
+	setupTest(fmt.Sprintf("%s_%d", "TestHintMerge", nsrc), 1)
 	defer clearTest()
 
 	n := 10

@@ -79,13 +79,13 @@ func TestDataCompatibility(t *testing.T) {
 }
 
 func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint32) {
-	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq), seq)
+	initDefaultConfig()
+	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq), 1)
 	defer clearTest()
 	dataConfig.MaxFileSize = 256 * uint32(recordPerFile) * recsize
-	config.TreeDepth = 0
+	config.init()
 
 	p := &Payload{Value: value}
-
 	ds := NewdataStore(config.Homes[0])
 
 	for i := 0; i < recordPerFile+1; i++ {
@@ -105,11 +105,4 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 	}
 	checkFileSize(t, 0, dataConfig.MaxFileSize)
 	checkFileSize(t, 1, 256*recsize)
-
-	/*
-		s.GC(0, 0, 2)
-
-		checkFileSize(t, 1, 0)
-		checkFileSize(t, 0, 256*recsize)
-	*/
 }

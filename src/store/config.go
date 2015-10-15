@@ -35,6 +35,7 @@ var (
 )
 
 func initDefaultConfig() {
+	config = HStoreConfig{}
 	config.HintConfig = defaultHintConfig
 	config.HTreeConfig = defaultHTreeConfig
 	config.DataConfig = defaultDataConfig
