@@ -58,12 +58,13 @@ func bytesToKhash(b []byte) (khash uint64) {
 	return binary.LittleEndian.Uint64(b)
 }
 
-func (leaf bytesLeaf) find(req *HTreeReq, ni *NodeInfo, lenKHash int) int {
+func (leaf bytesLeaf) find(req *HTreeReq, ni *NodeInfo) int {
+	lenKHash := config.TreeKeyHashLen
+	lenItem := lenKHash + 10
 	size := len(leaf)
 	var khashBytes [8]byte
 	khashToBytes(khashBytes[0:], req.ki.KeyHash)
 	kb := khashBytes[:lenKHash]
-	lenItem := lenKHash + 10
 	n := len(leaf) / lenItem
 	if n < LEN_USE_C_FIND {
 		for i := 0; i < size; i += lenItem {
@@ -102,8 +103,9 @@ func (leaf bytesLeaf) enlarge2(size int) []byte {
 }
 
 func (leaf bytesLeaf) Set(req *HTreeReq, ni *NodeInfo) (oldm HTreeItem, exist bool, newLeaf bytesLeaf) {
-	lenKHash := KHASH_LENS[len(ni.path)]
-	idx := leaf.find(req, ni, lenKHash)
+	lenKHash := config.TreeKeyHashLen
+	// lenKHash = KHASH_LENS[len(ni.path)]
+	idx := leaf.find(req, ni)
 	exist = (idx >= 0)
 	var dst []byte
 	var tmp []byte
@@ -123,29 +125,29 @@ func (leaf bytesLeaf) Set(req *HTreeReq, ni *NodeInfo) (oldm HTreeItem, exist bo
 }
 
 func (leaf bytesLeaf) Get(req *HTreeReq, ni *NodeInfo) (exist bool) {
-	lenKHash := KHASH_LENS[len(ni.path)]
-	idx := leaf.find(req, ni, lenKHash)
+	idx := leaf.find(req, ni)
 	exist = (idx >= 0)
 	if exist {
-		bytesToItem(leaf[idx+lenKHash:], &req.item)
+		//TODO
+		bytesToItem(leaf[idx+config.TreeKeyHashLen:], &req.item)
 	}
 	return
 }
 
 func (leaf bytesLeaf) Iter(f ItemFunc, ni *NodeInfo) {
-	lenKHash := KHASH_LENS[len(ni.path)]
-	size := len(leaf)
+	lenKHash := config.TreeKeyHashLen
 	lenItem := lenKHash + 10
+	mask := config.TreeKeyHashMask
+
+	nodeKHash := uint64(getNodeKhash(ni.path)) << 32 & (^config.TreeKeyHashMask)
 	var m HTreeItem
 	var khash uint64
-
-	mask := ((uint64(1) << (uint32(lenKHash) * 8)) - 1)
-	nodeKHash := uint64(getNodeKhash(ni.path)) << 32 & (^mask)
+	size := len(leaf)
 	for i := 0; i < size; i += lenItem {
 		bytesToItem(leaf[i+lenKHash:], &m)
 		khash = bytesToKhash(leaf[i:])
 		khash &= mask
-		khash += nodeKHash
+		khash |= nodeKHash
 		f(khash, &m)
 	}
 	return

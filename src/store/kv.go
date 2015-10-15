@@ -7,7 +7,6 @@ import (
 )
 
 const (
-
 	MAX_KEY_LEN          = 250
 	FLAG_COMPRESS        = 0x00010000
 	FLAG_CLIENT_COMPRESS = 0x00000010
@@ -23,7 +22,7 @@ type Meta struct {
 }
 
 type HTreeReq struct {
-	ki  *KeyInfo
+	ki *KeyInfo
 	Meta
 	Position
 	item HTreeItem
@@ -217,9 +216,20 @@ func getKeyInfo(key []byte, keyhash uint64, keyIsPath bool) (ki *KeyInfo) {
 	return
 }
 
+func (ki *KeyInfo) getKeyHash() {
+	v := ki.KeyPath
+	shift := uint(60)
+	ki.KeyHash = 0
+	for i := 0; i < len(v); i++ {
+		ki.KeyHash |= (uint64(v[i]) << shift)
+		shift -= 4
+	}
+}
+
 func (ki *KeyInfo) prepare() {
 	if ki.KeyIsPath {
 		ki.KeyPath = ParsePathString(ki.StringKey, ki.KeyPathBuf[:16])
+		ki.getKeyHash()
 		if len(ki.KeyPath) < config.TreeDepth {
 			ki.BucketID = -1
 			return

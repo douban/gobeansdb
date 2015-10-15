@@ -54,7 +54,9 @@ type CommonConfig struct {
 }
 
 type DerivedConfig struct {
-	TreeDepth int // from NumBucket
+	TreeDepth       int // from NumBucket
+	TreeKeyHashMask uint64
+	TreeKeyHashLen  int
 }
 
 type LocalConfig struct {
@@ -97,4 +99,7 @@ func (c *HStoreConfig) init() {
 		c.TreeHeight = 8 - c.TreeDepth
 	}
 
+	c.TreeKeyHashLen = KHASH_LENS[c.TreeDepth+c.TreeHeight-1]
+	shift := 64 - uint32(c.TreeKeyHashLen)*8
+	c.TreeKeyHashMask = (uint64(0xffffffffffffffff) << shift) >> shift
 }

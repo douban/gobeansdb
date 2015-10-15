@@ -13,7 +13,6 @@ import (
 	"time"
 )
 
-
 func TestHash(t *testing.T) {
 	h := Fnv1a([]byte("test"))
 	if h != uint32(2949673445) {
@@ -39,10 +38,12 @@ func TestParse(t *testing.T) {
 }
 
 func TestHTree(t *testing.T) {
+	initDefaultConfig()
 	config.TreeDepth = 2
 	pos := 0xfe
 	for h := 2; h <= 6; h++ {
 		config.TreeHeight = h
+		config.init()
 		t.Logf("testing height %d %x %d", config.TreeDepth, pos, h)
 		testHTree(t, 1, pos)
 	}
@@ -51,12 +52,14 @@ func TestHTree(t *testing.T) {
 	pos = 0xf
 	for h := 2; h <= 7; h++ {
 		config.TreeHeight = h
+		config.init()
 		t.Logf("testing height %d %x %d", config.TreeDepth, pos, h)
 		testHTree(t, 2, pos)
 	}
 }
 
 func testHTree(t *testing.T, seq, treepos int) {
+
 	depth := config.TreeDepth
 	height := config.TreeHeight
 	tree := newHTree(depth, treepos, height)
@@ -139,13 +142,12 @@ func testHTree(t *testing.T, seq, treepos int) {
 	ki.prepare()
 	tree.set(ki, &meta, pos)
 
+	// list root
 	ki.KeyIsPath = true
 	ki.StringKey = fmt.Sprintf("%x", treepos)
 	ki.Key = []byte(ki.StringKey)
 	ki.prepare()
-	return
 
-	// list
 	htreeConfig.ThresholdListKey += 2
 	items, nodes := tree.listDir(ki)
 	if !(len(nodes) == 0 && len(items) == N+1) {
@@ -157,14 +159,14 @@ func testHTree(t *testing.T, seq, treepos int) {
 		t.Fatalf("items:%v, nodes:%v, N = %d, \n level0:%v \n level1: %v ", items, nodes, N, tree.levels[0], tree.levels[1])
 	}
 
-
 	ki.StringKey = fmt.Sprintf("%016x", keyhash)
 	ki.Key = []byte(ki.StringKey)
 	ki.prepare()
 	items, nodes = tree.listDir(ki)
 	if !(len(nodes) == 0 && len(items) == 1) {
-		t.Fatalf("items:%v, nodes:%v", items, nodes)
+		t.Fatalf("%s items:%v, nodes:%v", ki.StringKey, items, nodes)
 	}
+	return
 }
 
 type HTreeBench struct {

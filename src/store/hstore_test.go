@@ -104,7 +104,6 @@ func TestHStoreEmpty(t *testing.T) {
 	}
 
 	// get
-
 	for i := 0; i < N; i++ {
 		keyhash, key, payload := gen.gen(i)
 		payload2, pos, err := store.Get([]byte(key), keyhash, false)

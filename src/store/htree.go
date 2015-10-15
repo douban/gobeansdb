@@ -11,7 +11,9 @@ const (
 	MAX_DEPTH   = 8
 )
 
-var KHASH_LENS = [8]int{8, 8, 7, 7, 6, 6, 5, 5}
+var (
+	KHASH_LENS = [8]int{8, 8, 7, 7, 6, 6, 5, 5}
+)
 
 type HTree struct {
 	sync.Mutex
@@ -21,7 +23,7 @@ type HTree struct {
 
 	// runtime
 	levels  [][]Node
-	leafs []bytesLeaf
+	leafs   []bytesLeaf
 	maxLeaf int
 
 	// tmp, to avoid alloc
@@ -29,11 +31,11 @@ type HTree struct {
 }
 
 type Node struct {
-	count   uint32
+	count uint32
 	// size    uint32 //including deleted
 	hash    uint16
 	isValid bool
-	c_count uint8  // TODO: remove later
+	c_count uint8 // TODO: remove later
 }
 
 type NodeInfo struct {
@@ -96,9 +98,9 @@ func (tree *HTree) setLeaf(req *HTreeReq, ni *NodeInfo) {
 func (tree *HTree) getLeaf(ki *KeyInfo, ni *NodeInfo) {
 	ni.level = len(tree.levels) - 1
 	ni.offset = 0
-	ni.path = ki.KeyPath[tree.depth:]
+	path := ki.KeyPath[tree.depth:]
 	for level := 1; level < len(tree.levels); level += 1 {
-		ni.offset = ni.offset*16 + ni.path[level-1]
+		ni.offset = ni.offset*16 + path[level-1]
 	}
 	ni.node = &tree.levels[ni.level][ni.offset]
 	ni.path = ki.KeyPath[:tree.depth+ni.level]
@@ -109,13 +111,13 @@ func (tree *HTree) getLeafAndInvalidNodes(ki *KeyInfo, ni *NodeInfo) {
 	ni.level = len(tree.levels) - 1
 
 	ni.offset = 0
-	ni.path = ki.KeyPath[tree.depth:]
+	path := ki.KeyPath[tree.depth:]
 	tree.levels[0][0].isValid = false
 	for level := 1; level < len(tree.levels)-1; level += 1 {
-		ni.offset = ni.offset*16 + ni.path[level-1]
+		ni.offset = ni.offset*16 + path[level-1]
 		tree.levels[level][ni.offset].isValid = false
 	}
-	ni.offset = ni.offset*16 + ni.path[ni.level-1]
+	ni.offset = ni.offset*16 + path[ni.level-1]
 	ni.node = &tree.levels[ni.level][ni.offset]
 	ni.path = ki.KeyPath[:tree.depth+ni.level]
 	return
@@ -204,11 +206,10 @@ func (tree *HTree) updateNodes(level, offset int) (node *Node) {
 	return
 }
 
-func (tree *HTree) collectItems(ni *NodeInfo, items []HTreeItem, filterpath []int) []HTreeItem {
-	var pathBuf [16]int
-	if ni.level >= len(tree.levels)-1 {
+func (tree *HTree) collectItems(ni *NodeInfo, items []HTreeItem, filterkeyhash, filtermask uint64) []HTreeItem {
+	if ni.level >= len(tree.levels)-1 { // leaf
 		f := func(h uint64, m *HTreeItem) {
-			if filterpath == nil || isSamePath(ParsePathUint64(h, pathBuf[:16]), filterpath, len(filterpath)) {
+			if (filtermask & h) == filterkeyhash {
 				items = append(items, *m)
 			}
 		}
@@ -223,16 +224,17 @@ func (tree *HTree) collectItems(ni *NodeInfo, items []HTreeItem, filterpath []in
 			c.offset = ni.offset*16 + i
 			c.node = &tree.levels[c.level][c.offset]
 			c.path[tree.depth+ni.level] = i
-			items = tree.collectItems(&c, items, filterpath)
+			items = tree.collectItems(&c, items, filterkeyhash, filtermask)
 		}
 	}
 	return items
 }
 
-func (tree *HTree) listDir(ki *KeyInfo) (items []HTreeItem, nodes []Node) {
+func (tree *HTree) listDir(ki *KeyInfo) (items []HTreeItem, nodes []*Node) {
 	var ni NodeInfo
 	if len(ki.KeyPath) == tree.depth {
 		ni.node = &tree.levels[0][0]
+		ni.path = []int{0xf, 0xe}
 	} else {
 		tree.getNode(ki, &ni)
 	}
@@ -240,19 +242,16 @@ func (tree *HTree) listDir(ki *KeyInfo) (items []HTreeItem, nodes []Node) {
 	node := ni.node
 	tree.updateNodes(ni.level, ni.offset)
 	if ni.level >= len(tree.levels)-1 || node.count < htreeConfig.ThresholdListKey {
-		// TODO: should use buffer(outside ListDir), since the count is limited
-		items = make([]HTreeItem, 0, node.count) // FIXME: item maybe deleted!
-		filterpath := ki.KeyPath
-		if ni.level+tree.depth == len(ki.Key) {
-			filterpath = nil
-		}
-		items = tree.collectItems(&ni, items, filterpath)
+		items = make([]HTreeItem, 0, node.count+64) // item deleted not counted
+		var filtermask uint64 = 0xffffffffffffffff
+		shift := uint(64 - len(ki.StringKey)*4)
+		filtermask = (filtermask >> shift) << shift
+		items = tree.collectItems(&ni, items, ki.KeyHash, filtermask)
 		return
 	} else {
-		nodes = make([]Node, 16)
+		nodes = make([]*Node, 16)
 		for i := 0; i < 16; i++ {
-			// TODO: avoid copy
-			nodes[i] = tree.levels[ni.level+1][ni.offset*16+i]
+			nodes[i] = &tree.levels[ni.level+1][ni.offset*16+i]
 		}
 	}
 	return
