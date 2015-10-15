@@ -189,6 +189,8 @@ type HTreeBench struct {
 
 func (hb *HTreeBench) init() {
 	*htreeConfig = hb.HTreeConfig
+	config.NumBucket = 1
+	config.init()
 	hb.tree = newHTree(config.TreeDepth, hb.treepos, config.TreeHeight)
 	hb.base = uint64(0)
 	hb.step = uint64(1<<(uint32(8-config.TreeHeight+1)*4)) << 32 // (0x00000100 << 32) given depthbench = 6
@@ -363,10 +365,15 @@ func TestLoadHints(b *testing.T) {
 	}
 	runtime.GOMAXPROCS(8)
 
+	initDefaultConfig()
+	config.NumBucket = *tNumbucket
+	config.TreeHeight = *tHeigth
+	config.init()
 	pos, err := strconv.ParseInt(*tPos, 16, 32)
 	if err != nil {
 		b.Fatalf("%s", err.Error())
 	}
+
 	files, _ := filepath.Glob(filepath.Join(*tDataDir, "*"+".hint.s"))
 	logger.Infof("to load %d files", len(files))
 	var pf *os.File
@@ -378,7 +385,7 @@ func TestLoadHints(b *testing.T) {
 		}()
 	}
 
-	tree := newHTree(*tDepth, int(pos), *tHeigth)
+	tree := newHTree(config.TreeDepth, int(pos), config.TreeHeight)
 	totalNumKey := 0
 	sort.Sort(sort.StringSlice(files))
 	for i, file := range files {

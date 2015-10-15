@@ -13,11 +13,11 @@ var (
 	tBase     = flag.String("base", "/tmp/test_gobeansdb", "base dir of test")
 	tNotClear = flag.Bool("notclear", false, "dump meta and key when Testcompatibility")
 
-	// HTree config
-	tDepth    = flag.Int("depth", 0, "")
-	tHeigth   = flag.Int("height", 4, "heigh of HTree (a single root is 1)")
-	tLeafSize = flag.Int("leafsize", 30, "#item of a leaf")
-	tPos      = flag.String("pos", "0", "hexString, e.g. ff")
+	// HTree config in TestLoadHints
+	tNumbucket = flag.Int("buckets", 16, "#bucket : 1, 16, 256")
+	tHeigth    = flag.Int("height", 4, "heigh of HTree (a single root is 1)")
+	tLeafSize  = flag.Int("leafsize", 30, "#item of a leaf")
+	tPos       = flag.String("pos", "0", "hexString, e.g. ff")
 
 	// profile
 	tKeysPerGC = flag.Int("gckeys", 0, "gc per # keys added")
