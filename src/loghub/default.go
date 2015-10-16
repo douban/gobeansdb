@@ -9,7 +9,7 @@ var (
 )
 
 func init() {
-	logger := log.New(os.Stderr, "", log.LstdFlags)
+	logger := log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
 	Default = New("", &defaultHub{logger}, DEBUG)
 }
 
