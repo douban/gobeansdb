@@ -408,8 +408,10 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 		totalNumKey += numKey
 		logger.Infof("%03d: #allkey %d, #key %d, #key_total %d", i, numAll, numKey, totalNumKey)
 		logger.Infof("%03d: max rss before gc: %d", i, GetMaxRSS())
-		FreeMem()
-		logger.Infof("%03d: max rss after gc: %d", i, GetMaxRSS())
+		//FreeMem()
+		//logger.Infof("%03d: max rss after gc: %d", i, GetMaxRSS())
+		r.close()
+		r = nil
 	}
 
 	if *tPort == 0 {

@@ -45,13 +45,6 @@ type NodeInfo struct {
 	path   []int
 }
 
-func itemHash(h uint64, m *HTreeItem) uint16 {
-	if m.ver < 0 {
-		return 0
-	}
-	return m.vhash * uint16(h>>32) // TODO: test is
-}
-
 func newHTree(depth, pos, height int) *HTree {
 	if depth+height > MAX_DEPTH {
 		panic("HTree too high")
@@ -82,17 +75,19 @@ func (tree *HTree) getHex(khash uint64, level int) int {
 
 func (tree *HTree) setLeaf(req *HTreeReq, ni *NodeInfo) {
 	node := ni.node
-	leaf := tree.leafs[ni.offset]
-	oldm, ok, newleaf := leaf.Set(req, ni)
+	oldm, ok, newleaf := tree.leafs[ni.offset].Set(req, ni)
 	tree.leafs[ni.offset] = newleaf
+
+	vhash := uint16(0)
 	if req.item.ver > 0 {
-		node.hash += itemHash(req.item.keyhash, &req.item)
+		vhash += req.item.vhash
 		node.count += 1
 	}
 	if ok && oldm.ver > 0 {
-		node.hash += itemHash(req.item.keyhash, &oldm)
+		vhash -= oldm.vhash
 		node.count -= 1
 	}
+	node.hash += vhash * uint16(req.ki.KeyHash>>32)
 }
 
 func (tree *HTree) getLeaf(ki *KeyInfo, ni *NodeInfo) {
