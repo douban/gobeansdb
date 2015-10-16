@@ -210,6 +210,7 @@ func (tree *HTree) collectItems(ni *NodeInfo, items []HTreeItem, filterkeyhash, 
 	if ni.level >= len(tree.levels)-1 { // leaf
 		f := func(h uint64, m *HTreeItem) {
 			if (filtermask & h) == filterkeyhash {
+				m.keyhash = h
 				items = append(items, *m)
 			}
 		}
@@ -258,10 +259,8 @@ func (tree *HTree) listDir(ki *KeyInfo) (items []HTreeItem, nodes []*Node) {
 }
 
 func (tree *HTree) ListDir(ki *KeyInfo) (ret []byte, err error) {
-	if err != nil {
-		return nil, err
-	}
 	if len(ki.Key) < tree.depth {
+
 		return nil, fmt.Errorf("bad dir path to list: too short")
 	}
 	tree.Lock()

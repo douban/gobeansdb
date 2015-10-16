@@ -277,11 +277,9 @@ func BenchmarkHTreeSetSlow(b *testing.B) {
 	WriteHeapProfile("BenchmarkHTreeSetSlow")
 }
 
-func tLoadAHint(tree *HTree, r *hintFileReader) (numKey int, e error) {
-	var ki KeyInfo
+func tLoadAHint(tree *HTree, r *hintFileReader) (numKey, numAll int, e error) {
 	meta := Meta{Ver: 1, ValueHash: 255}
 	var pos Position
-
 	for {
 		item, err := r.next()
 		if err != nil {
@@ -292,13 +290,14 @@ func tLoadAHint(tree *HTree, r *hintFileReader) (numKey int, e error) {
 		if item == nil {
 			return
 		}
+		numAll++
 		if item.ver > 0 {
-			ki.KeyHash = item.keyhash
+			ki := getKeyInfo([]byte(item.key), item.keyhash, false)
 			meta.ValueHash = item.vhash
 			meta.Ver = item.ver
 			pos.Offset = item.pos
 			ki.prepare()
-			tree.set(&ki, &meta, pos)
+			tree.set(ki, &meta, pos)
 			numKey++
 			if *tKeysPerGC > 0 && numKey%(*tKeysPerGC) == 0 {
 				FreeMem()
@@ -324,7 +323,7 @@ func tSetHTreeFromChan(tree *HTree, khashs chan uint64) {
 	}
 }
 
-func tLoadAHintP(tree *HTree, r *hintFileReader) (numKey int, e error) {
+func tLoadAHintP(tree *HTree, r *hintFileReader) (numKey, numAll int, e error) {
 	numKey = 0
 	N := 1000000
 	khashs := make(chan uint64, N)
@@ -345,6 +344,7 @@ func tLoadAHintP(tree *HTree, r *hintFileReader) (numKey int, e error) {
 				khashs <- item.keyhash
 				numKey++
 			}
+			numAll++
 		}
 		nG := 16
 		for i := 0; i < nG; i++ {
@@ -360,7 +360,7 @@ func tLoadAHintP(tree *HTree, r *hintFileReader) (numKey int, e error) {
 	return
 }
 
-func TestLoadHints(b *testing.T) {
+func TestRebuildHtreeFromHints(b *testing.T) {
 	if *tDataDir == "" {
 		return
 	}
@@ -391,21 +391,22 @@ func TestLoadHints(b *testing.T) {
 	totalNumKey := 0
 	sort.Sort(sort.StringSlice(files))
 	for i, file := range files {
-		logger.Infof("loading: ", file)
+		logger.Infof("loading: %s", file)
 		r := newHintFileReader(file, 0, 1024*1024)
 		r.open()
 		numKey := 0
+		numAll := 0
 		var e error
 		if *tParallel == 0 {
-			numKey, e = tLoadAHint(tree, r)
+			numKey, numAll, e = tLoadAHint(tree, r)
 		} else {
-			numKey, e = tLoadAHintP(tree, r)
+			numKey, numAll, e = tLoadAHintP(tree, r)
 		}
 		if e != nil {
 			return
 		}
 		totalNumKey += numKey
-		logger.Infof("%03d: #key %d, #key_total %d", i, numKey, totalNumKey)
+		logger.Infof("%03d: #allkey %d, #key %d, #key_total %d", i, numAll, numKey, totalNumKey)
 		logger.Infof("%03d: max rss before gc: %d", i, GetMaxRSS())
 		FreeMem()
 		logger.Infof("%03d: max rss after gc: %d", i, GetMaxRSS())
@@ -430,10 +431,12 @@ func TestLoadHints(b *testing.T) {
 
 // list bucket[:d], bucket[:d+1], bucket[:d+1]..
 func ListAll(tree *HTree, bucket string) {
+	logger.Debugf("list all %s", bucket)
 	ki := getKeyInfo([]byte(bucket), 0, true)
 	for i := tree.depth; i < 16; i++ {
-		ki.Key = []byte(bucket[:i])
+		ki.StringKey = bucket[:i]
 		ki.prepare()
+		// logger.Debugf("list %#v", ki)
 		s, err := tree.ListDir(ki)
 		if err != nil {
 			logger.Fatalf("list @%s\n%s", ki.StringKey, err)

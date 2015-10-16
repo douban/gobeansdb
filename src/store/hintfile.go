@@ -73,6 +73,7 @@ func (reader *hintFileReader) open() (err error) {
 	}
 	reader.indexOffset = int64(binary.LittleEndian.Uint64(h[:8]))
 	reader.numKey = int(binary.LittleEndian.Uint32(h[8:12]))
+	logger.Debugf("%#v", reader.hintFileMeta)
 	fileInfo, _ := reader.fd.Stat()
 	reader.size = fileInfo.Size()
 	reader.offset = HINTFILE_HEAD_SIZE
