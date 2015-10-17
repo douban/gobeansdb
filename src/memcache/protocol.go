@@ -23,6 +23,15 @@ const (
 
 var AllocLimit = 1024 * 4
 
+func isSpace(r rune) bool {
+	return r == ' '
+}
+
+func splitKeys(s string) []string {
+	// s[:len(s) - 2] remove "\r\n"
+	return strings.FieldsFunc(s[:len(s)-2], isSpace)
+}
+
 type Item struct {
 	Flag    int
 	Exptime int
@@ -123,8 +132,8 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 	if !strings.HasSuffix(s, "\r\n") {
 		return errors.New("not completed command")
 	}
-	// s[:len(s) - 2] remove "\r\n"
-	parts := strings.Split(s[:len(s)-2], " ")
+
+	parts := splitKeys(s)
 	if len(parts) < 1 {
 		return errors.New("invalid cmd")
 	}
@@ -251,7 +260,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			log.Print("read response line failed", e)
 			return e
 		}
-		parts := strings.Split(s[:len(s)-2], " ")
+		parts := splitKeys(s)
 		if len(parts) < 1 {
 			return errors.New("invalid response")
 		}
