@@ -16,16 +16,6 @@ type Storage interface {
 	Len() int
 }
 
-type DistributeStorage interface {
-	Get(key string) (*Item, []string, error)
-	GetMulti(keys []string) (map[string]*Item, []string, error)
-	Set(key string, item *Item, noreply bool) (bool, []string, error)
-	Append(key string, value []byte) (bool, []string, error)
-	Incr(key string, value int) (int, []string, error)
-	Delete(key string) (bool, []string, error)
-	Len() int
-}
-
 type mapStore struct {
 	lock sync.Mutex
 	data map[string]*Item
