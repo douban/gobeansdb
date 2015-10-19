@@ -67,11 +67,12 @@ var reqTests = []reqTest{
 		"get  " + strings.Repeat("a", 300) + " \r\n",
 		"CLIENT_ERROR key too long\r\n",
 	},
-	// TODO:
+	/* no need to keep origin order
 	reqTest{
 		"get  abc  cdf\r\n",
 		"VALUE abc 2 2\r\nok\r\nVALUE cdf 0 2\r\nok\r\nEND\r\n",
 	},
+	*/
 	// reqTest{
 	//     "cas abc -5 10 0 134020434\r\n\r\n",
 	//     "STORED\r\n",
