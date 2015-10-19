@@ -36,7 +36,7 @@ func (c *ServerConn) Shutdown() {
 	c.closeAfterReply = true
 }
 
-func (c *ServerConn) Serve(store Storage, stats *Stats) (e error) {
+func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) {
 	rbuf := bufio.NewReader(c.rwc)
 	wbuf := bufio.NewWriter(c.rwc)
 
@@ -48,7 +48,7 @@ func (c *ServerConn) Serve(store Storage, stats *Stats) (e error) {
 		}
 
 		t := time.Now()
-		resp, _ := req.Process(store, stats)
+		resp, _ := req.Process(storageClient, stats)
 		if resp == nil {
 			break
 		}
@@ -77,7 +77,7 @@ type Server struct {
 	sync.Mutex
 	addr  string
 	l     net.Listener
-	store Storage
+	store StorageClient
 	conns map[string]*ServerConn
 	stats *Stats
 	stop  bool
@@ -85,7 +85,7 @@ type Server struct {
 
 func NewServer(store Storage) *Server {
 	s := new(Server)
-	s.store = store
+	s.store = store.Client()
 	s.conns = make(map[string]*ServerConn, 1024)
 	s.stats = NewStats()
 	return s

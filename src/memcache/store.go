@@ -7,6 +7,10 @@ import (
 )
 
 type Storage interface {
+	Client() StorageClient
+}
+
+type StorageClient interface {
 	Get(key string) (*Item, error)
 	GetMulti(keys []string) (map[string]*Item, error)
 	Set(key string, item *Item, noreply bool) (bool, error)
@@ -14,6 +18,7 @@ type Storage interface {
 	Incr(key string, value int) (int, error)
 	Delete(key string) (bool, error)
 	Len() int
+	Close()
 }
 
 type mapStore struct {
@@ -25,6 +30,13 @@ func NewMapStore() *mapStore {
 	s := new(mapStore)
 	s.data = make(map[string]*Item)
 	return s
+}
+
+func (s *mapStore) Client() StorageClient {
+	return s
+}
+func (s *mapStore) Close() {
+	return
 }
 
 func (s *mapStore) Get(key string) (*Item, error) {
