@@ -16,7 +16,7 @@ import (
 
 const VERSION = "0.1.0"
 
-const (
+var (
 	MaxKeyLength  = 200
 	MaxBodyLength = 1024 * 1024 * 50
 )
