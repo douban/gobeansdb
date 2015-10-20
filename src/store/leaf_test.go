@@ -52,7 +52,7 @@ func TestLeaf(t *testing.T) {
 	var ni NodeInfo
 
 	config.NumBucket = 256
-	config.init()
+	config.Init()
 	ni.path = []int{0xf, 0xe}
 	// lenKHash := KHASH_LENS[len(ni.path)]
 	// t.Logf("%d %d", lenKHash, config.TreeKeyHashLen)

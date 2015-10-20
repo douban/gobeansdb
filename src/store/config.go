@@ -10,29 +10,32 @@ var (
 
 var (
 	defaultHintConfig = HintConfig{
-		SplitCount:         1 << 20,
-		SplitSize:          50 * (1 << 20), // 50M
-		IndexIntervalBytes: (4 << 10),      // 4KB
-		SecondsBeforeDump:  60,
+		SplitCount:        1 << 20,
+		IndexIntervalSize: 4 << 10,
+		SecondsBeforeDump: 60,
 	}
 
 	defaultHTreeConfig HTreeConfig = HTreeConfig{
 		ThresholdListKey: 64 * 4,
 		ThresholdBigHash: 64 * 4,
-		TreeHeight:       -1,
+		TreeHeight:       0,
 	}
 	defaultDataConfig = DataConfig{
 		MaxKeySize:   250,
-		MaxValueSize: 50 * (1 << 20),   // 50M
-		MaxFileSize:  4000 * (1 << 20), // 4000M
-		FlushPeriod:  5,                // 5s
-		FlushSize:    4 * (1 << 20),    // 4M
+		MaxValueSize: 50 << 20,
+		MaxFileSize:  4000 << 20,
+		FlushPeriod:  5, // 5s
+		FlushSize:    4 << 20,
 	}
 
 	htreeConfig = &config.HTreeConfig
 	hintConfig  = &config.HintConfig
 	dataConfig  = &config.DataConfig
 )
+
+func SetConfig(c HStoreConfig) {
+	config = c
+}
 
 func initDefaultConfig() {
 	config = HStoreConfig{}
@@ -42,52 +45,74 @@ func initDefaultConfig() {
 }
 
 type HStoreConfig struct {
-	route.RouteConfig
-	LocalConfig
-	CommonConfig
-	DerivedConfig
+	route.RouteConfig `yaml:"-"`
+	LocalConfig       `yaml:"local,omitempty"`
+	GlobalConfig      `yaml:"global,omitempty"`
 }
 
-type CommonConfig struct {
-	DataConfig
-	HintConfig
-	HTreeConfig
+type GlobalConfig struct {
+	DataConfig  `yaml:"data,omitempty"`
+	HintConfig  `yaml:"hint,omitempty"`
+	HTreeConfig `yaml:"htree,omitempty"`
 }
 
-type DerivedConfig struct {
+type HtreeDerivedConfig struct {
 	TreeDepth       int // from NumBucket
 	TreeKeyHashMask uint64
 	TreeKeyHashLen  int
 }
 
 type LocalConfig struct {
-	Homes       []string
-	maxOldChunk int
-	maxChunk    int // <= 255, for test
+	Hostname    string   `yaml:",omitempty"`
+	Homes       []string `yaml:",omitempty"`
+	maxOldChunk int      `yaml:",omitempty"`
+	maxChunk    int      `yaml:",omitempty"` // may <= 255, for test
+}
+
+type DataConfigYaml struct {
+	MaxValueSizeMB int    `yaml:",omitempty"`
+	MaxFileSizeMB  uint32 `yaml:",omitempty"`
+	FlushSizeMB    int    `yaml:",omitempty"`
 }
 
 type DataConfig struct {
-	MaxKeySize   int
-	MaxValueSize int
-	MaxFileSize  uint32
-	FlushPeriod  int
-	FlushSize    int
+	MaxKeySize     int    `yaml:",omitempty"`
+	MaxFileSize    uint32 `yaml:"-"`
+	MaxValueSize   int    `yaml:"-"`
+	FlushPeriod    int    `yaml:",omitempty"`
+	FlushSize      int    `yaml:"-"`
+	DataConfigYaml `yaml:",inline"`
 }
 
 type HTreeConfig struct {
-	ThresholdListKey uint32
-	ThresholdBigHash uint32
-	TreeHeight       int
+	ThresholdListKey   uint32 `yaml:",omitempty"`
+	ThresholdBigHash   uint32 `yaml:",omitempty"`
+	TreeHeight         int    `yaml:",omitempty"`
+	HtreeDerivedConfig `yaml:"-"`
+}
+
+type HintConfigYaml struct {
+	SplitCountKB        int `yaml:",omitempty"`
+	IndexIntervalSizeKB int `yaml:",omitempty"`
 }
 
 type HintConfig struct {
-	SplitCount         int
-	SplitSize          int
-	IndexIntervalBytes int
-	SecondsBeforeDump  int64
+	SplitCount        int   `yaml:",omitempty"`
+	IndexIntervalSize int   `yaml:",omitempty"`
+	SecondsBeforeDump int64 `yaml:",omitempty"`
+	HintConfigYaml    `yaml:",inline"`
 }
 
-func (c *HStoreConfig) init() {
+func (c *HStoreConfig) InitForYaml() {
+	c.MaxValueSize = c.MaxValueSizeMB << 20
+	c.MaxFileSize = c.MaxFileSizeMB << 20
+	c.IndexIntervalSize = c.IndexIntervalSizeKB << 10
+	c.FlushSize = c.FlushSizeMB << 20
+	c.SplitCount = c.SplitCountKB << 10
+}
+
+// must be called before use
+func (c *HStoreConfig) Init() {
 	// TreeDepth
 	n := c.NumBucket
 	for n > 1 {
@@ -96,7 +121,7 @@ func (c *HStoreConfig) init() {
 	}
 
 	// TreeHeight
-	if c.TreeHeight == -1 {
+	if c.TreeHeight == 0 {
 		c.TreeHeight = 8 - c.TreeDepth
 	}
 

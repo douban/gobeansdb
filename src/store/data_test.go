@@ -82,8 +82,8 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 	initDefaultConfig()
 	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq), 1)
 	defer clearTest()
+	config.Init()
 	dataConfig.MaxFileSize = 256 * uint32(recordPerFile) * recsize
-	config.init()
 
 	p := &Payload{Value: value}
 	ds := NewdataStore(config.Homes[0])

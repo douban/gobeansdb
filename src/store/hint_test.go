@@ -41,7 +41,7 @@ func TestHintRW(t *testing.T) {
 	defer clearTest()
 	path := fmt.Sprintf("%s/%s", dir, "000.hint.s")
 	os.Remove(path)
-	SetHintConfig(HintConfig{IndexIntervalBytes: 1024})
+	SetHintConfig(HintConfig{IndexIntervalSize: 1024})
 	w, err := newHintFileWriter(path, 1024)
 	if err != nil {
 		t.Fatal(err)
@@ -164,7 +164,7 @@ func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *hintItem) {
 
 func TestHintBuffer(t *testing.T) {
 	n := 10
-	SetHintConfig(HintConfig{n, 1 << 20, 128, 3})
+	SetHintConfig(HintConfig{SplitCount: n, IndexIntervalSize: 128, SecondsBeforeDump: 3})
 	buf := newHintBuffer()
 	items := genSortedHintItems(n + 1)
 	for i := 0; i < n; i++ {
@@ -193,7 +193,7 @@ func setAndCheckChunk(t *testing.T, ck *hintChunk, it *hintItem, rotate bool) {
 
 func TestHintChunk(t *testing.T) {
 	n := 10
-	SetHintConfig(HintConfig{n, 1 << 20, 128, 1})
+	SetHintConfig(HintConfig{SplitCount: n, IndexIntervalSize: 128, SecondsBeforeDump: 1})
 	ck := newHintChunk()
 	items := genSortedHintItems(n + 2)
 	i := 0
@@ -264,7 +264,7 @@ func TestHintMgr(t *testing.T) {
 	defer clearTest()
 
 	persp := 10
-	SetHintConfig(HintConfig{persp, 1 << 20, 128, 2})
+	SetHintConfig(HintConfig{SplitCount: persp, IndexIntervalSize: 128, SecondsBeforeDump: 2})
 	nsp := 3
 	n := persp * nsp
 	items := genSortedHintItems(n)

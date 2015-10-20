@@ -85,6 +85,8 @@ func (mgr *gcMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 	var rec *Record
 	var r *DataStreamReader
 	var w *DataStreamWriter
+	mfs := dataConfig.MaxFileSize
+
 	//bkt.Index.OnGCBegin(gc)
 	for gc.Src = gc.Begin; gc.Src < gc.End; gc.Src++ {
 		oldPos.ChunkID = gc.Src
@@ -111,7 +113,8 @@ func (mgr *gcMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 			}
 
 			_, recsize := recordSize(rec)
-			if recsize+w.Offset() > dataConfig.MaxFileSize {
+
+			if recsize+w.Offset() > mfs {
 				w.Close()
 				gc.Dst++
 				newPos.ChunkID = gc.Dst

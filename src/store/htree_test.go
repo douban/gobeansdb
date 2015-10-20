@@ -44,7 +44,7 @@ func TestHTree(t *testing.T) {
 		initDefaultConfig()
 		config.TreeDepth = 2
 		config.TreeHeight = h
-		config.init()
+		config.Init()
 		testHTree(t, 1, pos)
 	}
 
@@ -53,7 +53,7 @@ func TestHTree(t *testing.T) {
 		initDefaultConfig()
 		config.TreeDepth = 1
 		config.TreeHeight = h
-		config.init()
+		config.Init()
 		testHTree(t, 2, pos)
 	}
 }
@@ -189,9 +189,9 @@ type HTreeBench struct {
 
 func (hb *HTreeBench) init() {
 	initDefaultConfig()
-	*htreeConfig = hb.HTreeConfig
+	htreeConfig.TreeHeight = *tHeigth
 	config.NumBucket = 1
-	config.init()
+	config.Init()
 	hb.tree = newHTree(config.TreeDepth, hb.treepos, config.TreeHeight)
 	hb.base = uint64(0)
 	hb.step = uint64(1<<(uint32(8-config.TreeHeight+1)*4)) << 32 // (0x00000100 << 32) given depthbench = 6
@@ -242,7 +242,6 @@ func (hb *HTreeBench) getKeys() {
 
 func BenchmarkHTreeSetFastGet(b *testing.B) {
 	hb := &HTreeBench{
-		HTreeConfig: HTreeConfig{64 * 4, 64 * 4, *tHeigth},
 		itemPerLeaf: 30,
 	}
 	hb.init()
@@ -255,7 +254,6 @@ func BenchmarkHTreeSetFastGet(b *testing.B) {
 
 func BenchmarkHTreeSetFast(b *testing.B) {
 	hb := &HTreeBench{
-		HTreeConfig: HTreeConfig{64 * 4, 64 * 4, *tHeigth},
 		itemPerLeaf: 30,
 	}
 	hb.init()
@@ -267,7 +265,6 @@ func BenchmarkHTreeSetFast(b *testing.B) {
 
 func BenchmarkHTreeSetSlow(b *testing.B) {
 	hb := &HTreeBench{
-		HTreeConfig: HTreeConfig{64 * 4, 64 * 4, *tHeigth},
 		itemPerLeaf: 30,
 	}
 	hb.init()
@@ -369,7 +366,7 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 	initDefaultConfig()
 	config.NumBucket = *tNumbucket
 	config.TreeHeight = *tHeigth
-	config.init()
+	config.Init()
 
 	pos, err := strconv.ParseInt(*tPos, 16, 32)
 	if err != nil {

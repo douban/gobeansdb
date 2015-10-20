@@ -82,7 +82,7 @@ func TestHStoreEmpty(t *testing.T) {
 	config.Buckets = make([]int, 16)
 	config.Buckets[0] = 1
 	config.TreeHeight = 3
-	config.init()
+	config.Init()
 
 	bucketDir := filepath.Join(config.Homes[0], "0") // TODO: auto create?
 	os.Mkdir(bucketDir, 0777)

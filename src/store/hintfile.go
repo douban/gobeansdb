@@ -150,7 +150,7 @@ func (w *hintFileWriter) writeItem(item *hintItem) error {
 	w.wbuf.Write(h)
 	w.wbuf.WriteString(item.key)
 	// TODO: refactor
-	if (w.offset - w.index.lastoffset) > int64(hintConfig.IndexIntervalBytes-HINTITEM_HEAD_SIZE-256) {
+	if (w.offset - w.index.lastoffset) > int64(hintConfig.IndexIntervalSize-HINTITEM_HEAD_SIZE-256) {
 		w.index.append(item.keyhash, w.offset)
 	}
 	w.offset += HINTITEM_HEAD_SIZE + int64(len(item.key))
