@@ -4,17 +4,24 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	mc "memcache"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"store"
 	"syscall"
+)
+
+var (
+	server *mc.Server
 )
 
 func initLog() {
 	// TODO
 	logpath := filepath.Join(config.LogDir, "gobeansdb.log")
+	_ = logpath
 }
 
 func handleSignals() {
@@ -34,7 +41,7 @@ func initWeb() {
 	webaddr := fmt.Sprintf("%s:%d", config.Listen, config.WebPort)
 	go func() {
 		log.Printf("http listen at %s", webaddr)
-		err = http.ListenAndServe(webaddr, nil) //start web before load
+		err := http.ListenAndServe(webaddr, nil) //start web before load
 		if err != nil {
 			log.Fatal(err.Error())
 		}
@@ -48,14 +55,18 @@ func main() {
 
 	loadConfigs(*confdir)
 
-	log.Printf("gorivendb version %s starting at %s %#v", VERSION, config)
+	log.Printf("gorivendb version %s starting at %d, config: %#v", mc.VERSION, config.Port, config)
 	runtime.GOMAXPROCS(config.Threads)
 	initWeb()
-	s, err = store.NewHStroe()
+
+	var err error
+	storage := new(Storage)
+	storage.hstore, err = store.NewHStore()
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	server := mc.NewServer(s)
+
+	server = mc.NewServer(storage)
 	addr := fmt.Sprintf("%s:%d", config.Listen, config.Port)
 	if err := server.Listen(addr); err != nil {
 		log.Fatal("listen failed", err.Error())
@@ -63,5 +74,6 @@ func main() {
 
 	err = server.Serve()
 	handleSignals()
+
 	log.Println("shut down gracefully")
 }
