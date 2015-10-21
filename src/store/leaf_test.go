@@ -64,7 +64,7 @@ func TestLeaf(t *testing.T) {
 	N := 16
 	exist := true
 
-	ki := getKeyInfo([]byte("key"), base, false)
+	ki := NewKeyInfoFromBytes([]byte("key"), base, false)
 
 	req := HTreeReq{ki: ki}
 
@@ -77,7 +77,7 @@ func TestLeaf(t *testing.T) {
 	// set
 	reset()
 	for i := 0; i < N; i++ {
-		ki.prepare()
+		ki.Prepare()
 		req.encode()
 		_, exist, leaf = leaf.Set(&req, &ni)
 		if exist || len(leaf) != (i+1)*lenItem {
@@ -93,7 +93,7 @@ func TestLeaf(t *testing.T) {
 	reset()
 	req.Offset += shift * PADDING
 	for i := 0; i < N; i++ {
-		ki.prepare()
+		ki.Prepare()
 		req.encode()
 		_, exist, leaf = leaf.Set(&req, &ni)
 		if !exist || len(leaf) != N*lenItem {
@@ -106,7 +106,7 @@ func TestLeaf(t *testing.T) {
 	// get
 	reset()
 	for i := 0; i < N; i++ {
-		ki.prepare()
+		ki.Prepare()
 		found := leaf.Get(&req, &ni)
 		if !found || req.item.pos != (uint32(i)+shift)*PADDING {
 			t.Fatalf("i=%d, shift=%d, found=%v, req.item=%#v", i, shift, found, req.item)

@@ -23,20 +23,6 @@ type HStore struct {
 	gcMgr         *gcMgr
 }
 
-func (store *HStore) prepare(key []byte, keyhash uint64) (keyinfo *KeyInfo) {
-	return getKeyInfo(key, keyhash, false)
-}
-
-func (store *HStore) Get(key []byte, khash uint64, memOnly bool) (payload *Payload, pos Position, err error) {
-	ki := store.prepare(key, khash)
-	return store.buckets[ki.BucketID].get(ki, memOnly)
-}
-
-func (store *HStore) Set(key []byte, khash uint64, p *Payload) error {
-	keyinfo := store.prepare(key, khash)
-	return store.buckets[keyinfo.BucketID].set(keyinfo, p)
-}
-
 func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
 	if !fi.IsDir() {
 		return
@@ -179,38 +165,9 @@ func (store *HStore) Close() {
 	}
 }
 
-func (store *HStore) GetValue(key []byte, keyhash uint64) ([]byte, error) {
-	payload, _, err := store.Get(key, keyhash, false)
-	if err != nil {
-		return nil, err
-	}
-	return payload.Value, nil
-}
-
-func (store *HStore) GetRecord(key []byte, keyhash uint64) ([]byte, error) {
-	payload, _, err := store.Get(key, keyhash, false)
-	if err != nil {
-		return nil, err
-	}
-	return DumpRecord(&Record{key, payload}), err
-}
-
-func (store *HStore) GetMeta(key []byte, keyhash uint64, memOnly bool) (string, error) {
-	payload, pos, err := store.Get(key, keyhash, memOnly)
-	if err != nil {
-		return "", err
-	}
-	res := fmt.Sprintf("%d %d %d %d %d %d", payload.TS, payload.Ver, payload.ValueHash, pos.ChunkID, pos.Offset)
-	return res, nil // TODO
-}
-
-func (store *HStore) ListDir(path []byte) ([]byte, error) {
-	keyinfo := getKeyInfo(path, 0, true)
-	if keyinfo == nil {
-		return nil, fmt.Errorf("bad key to list")
-	}
-	if keyinfo.BucketID >= 0 {
-		return store.buckets[keyinfo.BucketID].listDir(keyinfo.KeyPath)
+func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
+	if ki.BucketID >= 0 {
+		return store.buckets[ki.BucketID].listDir(ki)
 	} else {
 		// TODO: summarize to 16 groups according to path
 	}
@@ -223,4 +180,12 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID int) error {
 
 func (store *HStore) GetBucketInfo(bucketID int, keys []string) ([]byte, error) {
 	return store.buckets[bucketID].getInfo(keys)
+}
+
+func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Position, err error) {
+	return store.buckets[ki.BucketID].get(ki, memOnly)
+}
+
+func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
+	return store.buckets[ki.BucketID].set(ki, p)
 }

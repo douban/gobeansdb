@@ -129,7 +129,7 @@ func (mgr *gcMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 					logger.Errorf("gc failed: %s", err.Error())
 					return
 				}
-				keyinfo := getKeyInfo(rec.Key, getKeyHash(rec.Key), false)
+				keyinfo := NewKeyInfoFromBytes(rec.Key, getKeyHash(rec.Key), false)
 				mgr.UpdatePos(bkt, keyinfo, oldPos, newPos)
 			}
 			fileState.add(recsize, isRetained, rec.Payload.Ver < 0, sizeBroken)

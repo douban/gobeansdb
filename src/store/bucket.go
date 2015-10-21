@@ -11,7 +11,7 @@ type Bucket struct {
 	id        int
 	home      string
 	collisons *cTable
-	HTree     *HTree
+	htree     *HTree
 	hints     *hintMgr
 	datas     *dataStore
 
@@ -26,7 +26,7 @@ func (bkt *Bucket) open(id int, home string) error {
 	bkt.datas = NewdataStore(home)
 	bkt.hints = newHintMgr(home)
 	bkt.collisons = newCTable()
-	bkt.HTree = newHTree(config.TreeDepth, id, config.TreeHeight)
+	bkt.htree = newHTree(config.TreeDepth, id, config.TreeHeight)
 
 	bkt.loadGCHistroy()
 	return nil
@@ -43,7 +43,7 @@ func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
 	if err != nil {
 		return err
 	}
-	bkt.HTree.set(ki, &v.Meta, pos)
+	bkt.htree.set(ki, &v.Meta, pos)
 	bkt.hints.set(ki, &v.Meta, pos)
 	return nil
 }
@@ -53,7 +53,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	if hintit == nil {
 		var meta *Meta
 		var found bool
-		meta, pos, found = bkt.HTree.get(ki)
+		meta, pos, found = bkt.htree.get(ki)
 		if !found {
 			return
 		}
@@ -97,8 +97,8 @@ func (bkt *Bucket) getRecordByPos(pos Position) (*Record, error) {
 	return bkt.datas.GetRecordByPos(pos)
 }
 
-func (bkt *Bucket) listDir(path []int) ([]byte, error) {
-	return nil, nil
+func (bkt *Bucket) listDir(ki *KeyInfo) ([]byte, error) {
+	return bkt.htree.ListDir(ki)
 }
 
 func (bkt *Bucket) getInfo(keys []string) ([]byte, error) {

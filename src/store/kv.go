@@ -205,14 +205,14 @@ func checkKey(key []byte) error {
 	return nil
 }
 
-func getKeyInfo(key []byte, keyhash uint64, keyIsPath bool) (ki *KeyInfo) {
+func NewKeyInfoFromBytes(key []byte, keyhash uint64, keyIsPath bool) (ki *KeyInfo) {
 	ki = &KeyInfo{
 		KeyIsPath: keyIsPath,
 		Key:       key,
 		StringKey: string(key),
 		KeyHash:   keyhash,
 	}
-	ki.prepare()
+	ki.Prepare()
 	return
 }
 
@@ -226,7 +226,7 @@ func (ki *KeyInfo) getKeyHash() {
 	}
 }
 
-func (ki *KeyInfo) prepare() {
+func (ki *KeyInfo) Prepare() {
 	if ki.KeyIsPath {
 		ki.KeyPath = ParsePathString(ki.StringKey, ki.KeyPathBuf[:16])
 		ki.getKeyHash()

@@ -65,9 +65,11 @@ func clearTest() {
 
 type kvgen struct{}
 
-func (g *kvgen) gen(i int) (keyhash uint64, key string, payload *Payload) {
-	keyhash = uint64(i)
-	key = fmt.Sprintf("key_%d", i)
+func (g *kvgen) gen(ki *KeyInfo, i int) (payload *Payload) {
+	ki.KeyHash = uint64(i)
+	ki.StringKey = fmt.Sprintf("key_%d", i)
+	ki.Key = []byte(ki.StringKey)
+	ki.Prepare()
 	value := fmt.Sprintf("value_%d", i)
 	payload = &Payload{Meta: Meta{TS: uint32(i)}, Value: []byte(value)}
 	return
@@ -95,17 +97,18 @@ func TestHStoreEmpty(t *testing.T) {
 	// set
 
 	N := 10
+	var ki KeyInfo
 	for i := 0; i < N; i++ {
-		keyhash, key, payload := gen.gen(i)
-		if err := store.Set([]byte(key), keyhash, payload); err != nil {
+		payload := gen.gen(&ki, i)
+		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	// get
 	for i := 0; i < N; i++ {
-		keyhash, key, payload := gen.gen(i)
-		payload2, pos, err := store.Get([]byte(key), keyhash, false)
+		payload := gen.gen(&ki, i)
+		payload2, pos, err := store.Get(&ki, false)
 		if err != nil {
 			t.Fatal(err)
 		}

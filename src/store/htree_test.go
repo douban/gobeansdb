@@ -67,7 +67,7 @@ func testHTree(t *testing.T, seq, treepos int) {
 	dstNode := &tree.levels[height-1][0]
 
 	keyhash := uint64(treepos << uint32(64-4*depth))
-	ki := getKeyInfo([]byte("key"), keyhash, false)
+	ki := NewKeyInfoFromBytes([]byte("key"), keyhash, false)
 	var meta Meta
 	var pos Position
 
@@ -80,7 +80,7 @@ func testHTree(t *testing.T, seq, treepos int) {
 	// set
 	reset()
 	for i := 0; i < N; i++ {
-		ki.prepare()
+		ki.Prepare()
 		tree.set(ki, &meta, pos)
 		count := int(dstNode.count)
 		if count != i+1 {
@@ -93,7 +93,7 @@ func testHTree(t *testing.T, seq, treepos int) {
 	reset()
 	// get
 	for i := 0; i < N; i++ {
-		ki.prepare()
+		ki.Prepare()
 		meta2, pos2, found := tree.get(ki)
 		if !found || pos2.Offset != uint32(i)*PADDING {
 			t.Fatalf("%d: fail to get %#v, found = %v, meta2 = %#v, pos = %#v", i, ki, found, meta2, pos2)
@@ -105,7 +105,7 @@ func testHTree(t *testing.T, seq, treepos int) {
 	reset()
 	meta.Ver = -2
 	for i := 0; i < N; i++ {
-		ki.prepare()
+		ki.Prepare()
 		tree.set(ki, &meta, pos)
 		count := int(dstNode.count)
 		if count != N-i-1 {
@@ -117,7 +117,7 @@ func testHTree(t *testing.T, seq, treepos int) {
 	// set again
 	reset()
 	for i := 0; i < N; i++ {
-		ki.prepare()
+		ki.Prepare()
 		tree.set(ki, &meta, pos)
 		count := int(dstNode.count)
 		if count != i+1 {
@@ -139,14 +139,14 @@ func testHTree(t *testing.T, seq, treepos int) {
 	}
 
 	ki.KeyHash = uint64((treepos << uint32(64-4*depth)) + (0xf << uint32(64-4*depth-4)))
-	ki.prepare()
+	ki.Prepare()
 	tree.set(ki, &meta, pos)
 
 	// list root
 	ki.KeyIsPath = true
 	ki.StringKey = fmt.Sprintf("%x", treepos)
 	ki.Key = []byte(ki.StringKey)
-	ki.prepare()
+	ki.Prepare()
 
 	htreeConfig.ThresholdListKey += 2
 	items, nodes := tree.listDir(ki)
@@ -161,7 +161,7 @@ func testHTree(t *testing.T, seq, treepos int) {
 
 	ki.StringKey = fmt.Sprintf("%016x", keyhash)
 	ki.Key = []byte(ki.StringKey)
-	ki.prepare()
+	ki.Prepare()
 	items, nodes = tree.listDir(ki)
 	if !(len(nodes) == 0 && len(items) == 1) {
 		t.Fatalf("%s items:%v, nodes:%v", ki.StringKey, items, nodes)
@@ -196,7 +196,7 @@ func (hb *HTreeBench) init() {
 	hb.base = uint64(0)
 	hb.step = uint64(1<<(uint32(8-config.TreeHeight+1)*4)) << 32 // (0x00000100 << 32) given depthbench = 6
 	hb.numLeaf = 1 << (4 * (uint32(config.TreeHeight)))
-	hb.ki = getKeyInfo([]byte("key"), 0, false)
+	hb.ki = NewKeyInfoFromBytes([]byte("key"), 0, false)
 	hb.meta = Meta{Ver: 1, ValueHash: 255}
 	hb.pos = Position{0, 0}
 }
@@ -206,7 +206,7 @@ func (hb *HTreeBench) setKeysFast() {
 	for i := 0; i < hb.numLeaf; i++ {
 		hb.ki.KeyHash = base
 		for j := 0; j < hb.itemPerLeaf; j++ {
-			hb.ki.prepare()
+			hb.ki.Prepare()
 			hb.tree.set(hb.ki, &hb.meta, hb.pos)
 			hb.ki.KeyHash += 1
 		}
@@ -219,7 +219,7 @@ func (hb *HTreeBench) setKeysSlow() {
 	for i := 0; i < hb.itemPerLeaf; i++ {
 		hb.ki.KeyHash = base
 		for j := 0; j < hb.numLeaf; j++ {
-			hb.ki.prepare()
+			hb.ki.Prepare()
 			hb.tree.set(hb.ki, &hb.meta, hb.pos)
 			hb.ki.KeyHash += hb.step
 		}
@@ -232,7 +232,7 @@ func (hb *HTreeBench) getKeys() {
 	for i := 0; i < hb.itemPerLeaf; i++ {
 		hb.ki.KeyHash = base
 		for j := 0; j < hb.numLeaf; j++ {
-			hb.ki.prepare()
+			hb.ki.Prepare()
 			hb.tree.get(hb.ki)
 			hb.ki.KeyHash += hb.step
 		}
@@ -289,11 +289,11 @@ func tLoadAHint(tree *HTree, r *hintFileReader) (numKey, numAll int, e error) {
 		}
 		numAll++
 		if item.ver > 0 {
-			ki := getKeyInfo([]byte(item.key), item.keyhash, false)
+			ki := NewKeyInfoFromBytes([]byte(item.key), item.keyhash, false)
 			meta.ValueHash = item.vhash
 			meta.Ver = item.ver
 			pos.Offset = item.pos
-			ki.prepare()
+			ki.Prepare()
 			tree.set(ki, &meta, pos)
 			numKey++
 			if *tKeysPerGC > 0 && numKey%(*tKeysPerGC) == 0 {
@@ -315,7 +315,7 @@ func tSetHTreeFromChan(tree *HTree, khashs chan uint64) {
 			return
 		}
 		ki.KeyHash = kh
-		ki.prepare()
+		ki.Prepare()
 		tree.set(&ki, &meta, pos)
 	}
 }
@@ -431,10 +431,10 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 // list bucket[:d], bucket[:d+1], bucket[:d+1]..
 func ListAll(tree *HTree, bucket string) {
 	logger.Debugf("list all %s", bucket)
-	ki := getKeyInfo([]byte(bucket), 0, true)
+	ki := NewKeyInfoFromBytes([]byte(bucket), 0, true)
 	for i := tree.depth; i < 16; i++ {
 		ki.StringKey = bucket[:i]
-		ki.prepare()
+		ki.Prepare()
 		// logger.Debugf("list %#v", ki)
 		s, err := tree.ListDir(ki)
 		if err != nil {
