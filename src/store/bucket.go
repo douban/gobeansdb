@@ -1,8 +1,13 @@
 package store
 
-import "bytes"
+import (
+	"bytes"
+	"sync"
+)
 
 type Bucket struct {
+	writeLock sync.Mutex // todo replace with hashlock later (crc)
+
 	// pre open init
 	state  int
 	homeID int
@@ -32,10 +37,61 @@ func (bkt *Bucket) open(id int, home string) error {
 	return nil
 }
 
+func abs(n int32) int32 {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
 // called by hstore, data already flushed
 func (b *Bucket) close() {
 	b.dumpGCHistroy()
 	// TODO: dump indexes
+}
+
+func (bkt *Bucket) checkVer(oldv, ver int32) (int32, bool) {
+	// TODO: accounts
+	if ver == 0 {
+		if oldv > 0 {
+			ver = oldv + 1
+		} else {
+			ver = -oldv + 1
+		}
+	} else if ver < 0 {
+		ver = -abs(oldv) - 1
+	} else {
+		if abs(ver) <= abs(oldv) {
+			return 1, false
+		}
+	}
+	return ver, true
+}
+
+func (bkt *Bucket) getset(ki *KeyInfo, v *Payload) error {
+	bkt.writeLock.Lock()
+	defer bkt.writeLock.Unlock()
+	payload, _, err := bkt.get(ki, true)
+	if err != nil {
+		return err
+	}
+	ver := v.Ver
+	if payload != nil {
+		var valid bool
+		ver, valid = bkt.checkVer(payload.Ver, v.Ver)
+		if !valid {
+			return nil
+		}
+		if payload.Ver > 1 {
+			vhash := getvhash(v.Value)
+			if vhash == payload.ValueHash {
+				return nil
+			}
+		}
+	}
+	v.Ver = ver
+	bkt.set(ki, v)
+	return nil
 }
 
 func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
@@ -50,20 +106,31 @@ func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
 
 func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Position, err error) {
 	hintit := bkt.collisons.get(ki.KeyHash, ki.StringKey)
+	var meta *Meta
+	var found bool
 	if hintit == nil {
-		var meta *Meta
-		var found bool
+
 		meta, pos, found = bkt.htree.get(ki)
 		if !found {
 			return
 		}
 		_ = meta
-		// TODO: memonly
 	} else {
 		pos = decodePos(hintit.pos)
 	}
-
 	var rec *Record
+	if memOnly {
+		if hintit != nil {
+			payload = new(Payload)
+			payload.Ver = hintit.ver
+			payload.ValueHash = hintit.vhash
+		} else if found {
+			payload = new(Payload)
+			payload.Meta = *meta
+		}
+		return // omit collision
+	}
+
 	rec, err = bkt.getRecordByPos(pos)
 	if err != nil {
 		return

@@ -126,6 +126,19 @@ func (rec *Record) Compress() {
 	}
 }
 
+func getvhash(value []byte) uint16 {
+	l := len(value)
+	hash := uint32(l) * 97
+	if l <= 1024 {
+		hash += Fnv1a(value)
+	} else {
+		hash += Fnv1a(value[:512])
+		hash *= 97
+		hash += Fnv1a(value[512:1024])
+	}
+	return uint16(hash)
+}
+
 func (rec *Record) getvhash() uint16 {
 	return 0
 }

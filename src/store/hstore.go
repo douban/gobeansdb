@@ -187,5 +187,5 @@ func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Posit
 }
 
 func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
-	return store.buckets[ki.BucketID].set(ki, p)
+	return store.buckets[ki.BucketID].getset(ki, p)
 }

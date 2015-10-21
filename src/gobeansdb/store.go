@@ -77,6 +77,9 @@ type StorageClient struct {
 
 func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, error) {
 	defer handlePanic("set")
+	if key[0] == '?' || key[0] == '@' {
+		return false, fmt.Errorf("invalid key %s", key)
+	}
 	s.prepare(key, false)
 	s.payload.Flag = uint32(item.Flag)
 	s.payload.Value = item.Body
