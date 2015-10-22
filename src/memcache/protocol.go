@@ -60,7 +60,7 @@ func (req *Request) String() (s string) {
 func (req *Request) Clear() {
 	req.NoReply = false
 	if req.Item != nil && req.Item.alloc != nil {
-		cmem.Free(req.Item.alloc, uintptr(cap(req.Item.Body)))
+		cmem.Free(req.Item.alloc, cap(req.Item.Body))
 		req.Item.Body = nil
 		req.Item.alloc = nil
 		req.Item = nil
@@ -187,13 +187,13 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 
 		// FIXME
 		if length > AllocLimit {
-			item.alloc = cmem.Alloc(uintptr(length))
+			item.alloc = cmem.Alloc(length)
 			item.Body = (*[1 << 30]byte)(unsafe.Pointer(item.alloc))[:length]
 			(*reflect.SliceHeader)(unsafe.Pointer(&item.Body)).Cap = length
 			runtime.SetFinalizer(item, func(item *Item) {
 				if item.alloc != nil {
 					//log.Print("free by finalizer: ", cap(item.Body))
-					cmem.Free(item.alloc, uintptr(cap(item.Body)))
+					cmem.Free(item.alloc, cap(item.Body))
 					item.Body = nil
 					item.alloc = nil
 				}
@@ -201,6 +201,7 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 		} else {
 			item.Body = make([]byte, length)
 		}
+		cmem.Add(cmem.TagSetData, length)
 		if _, e = io.ReadFull(b, item.Body); e != nil {
 			return e
 		}
@@ -232,6 +233,7 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 		}
 
 	default:
+		req.Keys = parts[1:]
 		log.Print("unknown command", req.Cmd)
 		return errors.New("unknown command: " + req.Cmd)
 	}
@@ -298,13 +300,13 @@ func (resp *Response) Read(b *bufio.Reader) error {
 
 			// FIXME
 			if length > AllocLimit {
-				item.alloc = cmem.Alloc(uintptr(length))
+				item.alloc = cmem.Alloc(length)
 				item.Body = (*[1 << 30]byte)(unsafe.Pointer(item.alloc))[:length]
 				(*reflect.SliceHeader)(unsafe.Pointer(&item.Body)).Cap = length
 				runtime.SetFinalizer(item, func(item *Item) {
 					if item.alloc != nil {
 						//log.Print("free by finalizer: ", cap(item.Body))
-						cmem.Free(item.alloc, uintptr(cap(item.Body)))
+						cmem.Free(item.alloc, cap(item.Body))
 						item.Body = nil
 						item.alloc = nil
 					}
@@ -399,7 +401,7 @@ func (resp *Response) Write(w io.Writer) error {
 func (resp *Response) CleanBuffer() {
 	for _, item := range resp.items {
 		if item.alloc != nil {
-			cmem.Free(item.alloc, uintptr(cap(item.Body)))
+			cmem.Free(item.alloc, cap(item.Body))
 			item.alloc = nil
 		}
 		runtime.SetFinalizer(item, nil)

@@ -5,29 +5,42 @@ package cmem
 */
 import "C"
 import "unsafe"
+import "sync/atomic"
 
-var alloced int64
-var alloc_ch chan int64
+const (
+	TagSetData = iota
+	TagFlushData
+	TagGetData
+	TagGuard
+)
 
-func init() {
-	alloc_ch = make(chan int64, 10)
-	go func() {
-		for i := range alloc_ch {
-			alloced += i
-		}
-	}()
+var (
+	AllocedSize  []int64 = make([]int64, TagGuard)
+	AllocedCount []int64 = make([]int64, TagGuard)
+)
+
+func Add(tag int, size int) {
+	atomic.AddInt64(&AllocedSize[tag], int64(size))
+	atomic.AddInt64(&AllocedCount[tag], 1)
 }
 
-func Alloc(size uintptr) *byte {
-	alloc_ch <- int64(size)
+func Sub(tag int, size int) {
+	atomic.AddInt64(&AllocedSize[tag], int64(size))
+	atomic.AddInt64(&AllocedCount[tag], -1)
+}
+
+func Alloc(size int) *byte {
 	return (*byte)(C.malloc(C.size_t(size)))
 }
 
-func Free(ptr *byte, size uintptr) {
-	alloc_ch <- -int64(size)
+func Free(ptr *byte, size int) {
 	C.free(unsafe.Pointer(ptr))
 }
 
 func Alloced() int64 {
-	return alloced
+	var allocedAll int64
+	for i := 0; i < TagGuard; i++ {
+		allocedAll += AllocedSize[i]
+	}
+	return int64(allocedAll)
 }
