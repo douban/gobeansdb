@@ -24,9 +24,10 @@ type dataStore struct {
 
 	currOffset uint32
 
-	filesizes [MAX_CHUNK]uint32
-	wbufs     [MAX_CHUNK][]*WriteRecord
-	wbufSize  uint32
+	filesizes     [MAX_CHUNK]uint32
+	wbufs         [MAX_CHUNK][]*WriteRecord
+	wbufSize      uint32
+	lastFlushTime time.Time
 }
 
 func NewdataStore(home string) *dataStore {
@@ -78,10 +79,17 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	ds.wbufSize += size
 	cmem.Sub(cmem.TagSetData, int(wrec.vsz))
 	cmem.Add(cmem.TagFlushData, int(size))
+	if cmem.AllocedSize[cmem.TagFlushData] > int64(dataConfig.FlushSize) {
+		select {
+		case flushDataChan <- 1:
+		default:
+		}
+	}
 	ds.Unlock()
 	return
 }
 
+// this is for test, use HStore.flusher instead,
 func (ds *dataStore) flusher() {
 	for {
 		ds.flush(-1)
@@ -92,9 +100,15 @@ func (ds *dataStore) flusher() {
 func (ds *dataStore) flush(chunk int) error {
 	// TODO: need a flush lock
 	ds.Lock()
+	if (time.Since(ds.lastFlushTime) < time.Duration(dataConfig.DataFlushSec)*time.Second) && (ds.wbufSize < (1 << 20)) {
+		ds.Unlock()
+		return nil
+	}
+
 	if chunk < 0 {
 		chunk = ds.newHead
 	}
+	ds.lastFlushTime = time.Now()
 	n := len(ds.wbufs[chunk])
 	ds.Unlock()
 	// logger.Infof("flushing %d records to data %d", n, chunk)

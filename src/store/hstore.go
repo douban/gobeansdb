@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 /*
@@ -15,6 +16,7 @@ hstore  do NOT known relation between khash and key
 var (
 	logger                 = loghub.Default
 	bucketPattern []string = []string{"0", "%x", "%02x", "%03x"}
+	flushDataChan          = make(chan int, 1)
 )
 
 type HStore struct {
@@ -157,6 +159,20 @@ func NewHStore() (store *HStore, err error) {
 		}
 	}
 	return
+}
+
+func (store *HStore) flusher() {
+
+	for {
+		select {
+		case <-flushDataChan:
+		case <-time.After(time.Duration(dataConfig.DataFlushSec) * time.Second):
+		}
+
+		for _, b := range store.buckets {
+			b.datas.flush(-1)
+		}
+	}
 }
 
 func (store *HStore) Close() {

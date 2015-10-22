@@ -24,8 +24,9 @@ var (
 		MaxKeySize:   250,
 		MaxValueSize: 50 << 20,
 		MaxFileSize:  4000 << 20,
-		FlushPeriod:  5, // 5s
+		DataFlushSec: 5, // 5s
 		FlushSize:    4 << 20,
+		FlushSizeMin: 256,
 	}
 
 	htreeConfig = &config.HTreeConfig
@@ -79,8 +80,9 @@ type DataConfig struct {
 	MaxKeySize     int    `yaml:",omitempty"`
 	MaxFileSize    uint32 `yaml:"-"`
 	MaxValueSize   int    `yaml:"-"`
-	FlushPeriod    int    `yaml:",omitempty"`
+	DataFlushSec   int    `yaml:",omitempty"`
 	FlushSize      int    `yaml:"-"`
+	FlushSizeMin   int    `yaml:",omitempty"`
 	DataConfigYaml `yaml:",inline"`
 }
 
