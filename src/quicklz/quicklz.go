@@ -36,15 +36,14 @@ func headerLen(source []byte) int {
 	return 3
 }
 
-func sizeDecompressed(source []byte) int {
+func SizeDecompressed(source []byte) int {
 	if headerLen(source) == 9 {
 		return fastRead(source, 5, 4)
 	}
 	return fastRead(source, 2, 1)
-
 }
 
-func sizeCompressed(source []byte) int {
+func SizeCompressed(source []byte) int {
 	if headerLen(source) == 9 {
 		return fastRead(source, 1, 4)
 	}
@@ -290,7 +289,7 @@ func Compress(source []byte, level int) []byte {
 }
 
 func Decompress(source []byte) []byte {
-	size := sizeDecompressed(source)
+	size := SizeDecompressed(source)
 	src := headerLen(source)
 	var dst int
 	var cwordVal = 1

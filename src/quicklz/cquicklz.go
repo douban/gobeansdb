@@ -46,11 +46,11 @@ func DecompressSafe(src []byte) (dst []byte, err error) {
 			}
 		}
 	}()
-	sizeC := sizeCompressed(src)
+	sizeC := SizeCompressed(src)
 	if len(src) != sizeC {
 		return nil, fmt.Errorf("bad sizeCompressed, expect %d, got %d", sizeC, len(src))
 	}
-	sizeD := sizeDecompressed(src)
+	sizeD := SizeDecompressed(src)
 	dst = Decompress(src)
 	if len(dst) != sizeD {
 		return nil, fmt.Errorf("bad sizeDecompressed, expect %d, got %d", sizeD, len(dst))
