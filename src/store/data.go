@@ -2,6 +2,7 @@ package store
 
 import (
 	"bufio"
+	"cmem"
 	"fmt"
 	"os"
 	"sync"
@@ -61,8 +62,8 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	// must  CalcValueHash before compress
 	rec.Compress()
 	wrec := wrapRecord(rec)
-	_, size := rec.Sizes()
 	ds.Lock()
+	size := wrec.rsz
 	if ds.currOffset+size > dataConfig.MaxFileSize {
 		ds.newHead++
 		ds.currOffset = 0
@@ -74,6 +75,9 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	wrec.pos = pos
 	ds.wbufs[ds.newHead] = append(ds.wbufs[ds.newHead], wrec)
 	ds.currOffset += size
+	ds.wbufSize += size
+	cmem.Sub(cmem.TagSetData, int(wrec.vsz))
+	cmem.Add(cmem.TagFlushData, int(size))
 	ds.Unlock()
 	return
 }
@@ -101,9 +105,11 @@ func (ds *dataStore) flush(chunk int) error {
 	}
 	for i := 0; i < n; i++ {
 		ds.Lock()
-		r := ds.wbufs[chunk][i]
+		wrec := ds.wbufs[chunk][i]
 		ds.Unlock()
-		w.append(r)
+		w.append(wrec)
+		ds.wbufSize -= wrec.rsz
+		cmem.Sub(cmem.TagFlushData, int(wrec.vsz))
 	}
 	ds.Lock()
 	ds.wbufs[chunk] = ds.wbufs[chunk][n:]

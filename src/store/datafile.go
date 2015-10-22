@@ -2,6 +2,7 @@ package store
 
 import (
 	"bufio"
+	"cmem"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ type WriteRecord struct {
 	crc    uint32
 	ksz    uint32
 	vsz    uint32
+	rsz    uint32
 	pos    Position
 	header [recHeaderSize]byte
 }
@@ -32,10 +34,12 @@ func newWriteRecord() *WriteRecord {
 	return wrec
 }
 func wrapRecord(rec *Record) *WriteRecord {
+	_, rsz := rec.Sizes()
 	return &WriteRecord{
 		rec: rec,
 		ksz: uint32(len(rec.Key)),
 		vsz: uint32(len(rec.Payload.Value)),
+		rsz: rsz,
 	}
 }
 
@@ -106,12 +110,14 @@ func readRecordAt(f *os.File, offset uint32) (*WriteRecord, error) {
 	wrec.decodeHeader()
 	kv := make([]byte, wrec.ksz+wrec.vsz)
 
+	cmem.Add(cmem.TagGetData, int(wrec.vsz))
 	wrec.rec.Key = kv[:wrec.ksz]
 	wrec.rec.Payload.Value = kv[wrec.ksz:]
 	if n, err := f.ReadAt(kv, int64(offset)+recHeaderSize); err != nil {
 		logger.Infof(err.Error(), n)
 		return nil, err
 	}
+
 	crc := wrec.getCRC()
 	if wrec.crc != crc {
 		err := fmt.Errorf("crc check fail")
