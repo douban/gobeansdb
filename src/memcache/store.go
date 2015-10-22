@@ -19,6 +19,7 @@ type StorageClient interface {
 	Delete(key string) (bool, error)
 	Len() int
 	Close()
+	Process(key string, args []string) (string, string, bool)
 }
 
 type mapStore struct {
@@ -115,4 +116,8 @@ func (s *mapStore) Delete(key string) (r bool, err error) {
 
 func (s *mapStore) Len() int {
 	return len(s.data)
+}
+
+func (s *mapStore) Process(key string, args []string) (string, string, bool) {
+	return "", "", false
 }

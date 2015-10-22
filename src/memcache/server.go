@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,25 +42,39 @@ func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) 
 	wbuf := bufio.NewWriter(c.rwc)
 
 	req := new(Request)
+	var resp *Response
 	for {
 		e = req.Read(rbuf)
 		if e != nil {
+			if strings.HasPrefix(e.Error(), "unknown") {
+				status, msg, ok := storageClient.Process(req.Cmd, req.Keys)
+				if ok {
+					resp = new(Response)
+					resp.status = status
+					resp.msg = msg
+					if resp.Write(wbuf) != nil || wbuf.Flush() != nil {
+						break
+					}
+					req.Clear()
+					resp.CleanBuffer()
+				}
+			}
 			break
-		}
-
-		t := time.Now()
-		resp, _ := req.Process(storageClient, stats)
-		if resp == nil {
-			break
-		}
-		dt := time.Since(t)
-		if dt > SlowCmdTime {
-			stats.UpdateStat("slow_cmd", 1)
-		}
-
-		if !resp.noreply {
-			if resp.Write(wbuf) != nil || wbuf.Flush() != nil {
+		} else {
+			t := time.Now()
+			resp, _ = req.Process(storageClient, stats)
+			if resp == nil {
 				break
+			}
+			dt := time.Since(t)
+			if dt > SlowCmdTime {
+				stats.UpdateStat("slow_cmd", 1)
+			}
+
+			if !resp.noreply {
+				if resp.Write(wbuf) != nil || wbuf.Flush() != nil {
+					break
+				}
 			}
 		}
 		req.Clear()
