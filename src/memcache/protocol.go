@@ -233,7 +233,6 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 		}
 
 	default:
-		req.Keys = parts[1:]
 		log.Print("unknown command", req.Cmd)
 		return errors.New("unknown command: " + req.Cmd)
 	}
@@ -376,6 +375,7 @@ func (resp *Response) Write(w io.Writer) error {
 			if e := WriteFull(w, item.Body); e != nil {
 				return e
 			}
+			cmem.Sub(cmem.TagGetData, len(item.Body))
 			WriteFull(w, []byte("\r\n"))
 		}
 		io.WriteString(w, "END\r\n")
