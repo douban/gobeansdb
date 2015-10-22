@@ -202,3 +202,15 @@ func (s *StorageClient) Delete(key string) (bool, error) {
 func (s *StorageClient) Close() {
 
 }
+
+func (s *StorageClient) Process(cmd string, args []string) (status string, msg string, ok bool) {
+	switch cmd {
+	case "gc":
+		ok = true
+		// TODO
+	case "optimize_stat":
+		ok = true
+		// TODO:
+	}
+	return
+}
