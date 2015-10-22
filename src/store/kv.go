@@ -157,6 +157,7 @@ func (rec *Record) Copy() *Record {
 	return &Record{rec.Key, rec.Payload.Copy()}
 }
 
+// must be compressed
 func (rec *Record) Sizes() (uint32, uint32) {
 	recSize := uint32(24 + len(rec.Key) + len(rec.Payload.Value))
 	return recSize, ((recSize + 255) >> 8) << 8

@@ -118,10 +118,10 @@ func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
 	wbuf := ds.wbufs[pos.ChunkID]
 	n := len(wbuf)
 	if n > 0 && pos.Offset >= wbuf[0].pos.Offset {
-		for _, rec := range wbuf {
-			if rec.pos.Offset == pos.Offset {
+		for _, wrec := range wbuf {
+			if wrec.pos.Offset == pos.Offset {
 				// TODO: otherwise may need ref count to release []byte?
-				res = rec.rec.Copy()
+				res = wrec.rec.Copy()
 			}
 		}
 	}
@@ -129,12 +129,12 @@ func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
 	if res != nil {
 		return
 	}
-	rec, e := readRecordAtPath(ds.genPath(pos.ChunkID), pos.Offset)
+	wrec, e := readRecordAtPath(ds.genPath(pos.ChunkID), pos.Offset)
 	if e != nil {
 		return nil, e
 	}
-	rec.rec.Payload.Decompress()
-	return rec.rec, nil
+	wrec.rec.Payload.Decompress()
+	return wrec.rec, nil
 }
 
 func (ds *dataStore) Truncate(chunk int, size uint32) error {
