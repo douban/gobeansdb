@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"store"
 	"sync"
-	"time"
 
 	"github.com/spaolacci/murmur3"
 )
@@ -84,7 +83,7 @@ func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, erro
 	s.payload.Flag = uint32(item.Flag)
 	s.payload.Value = item.Body
 	s.payload.Ver = int32(item.Exptime)
-	s.payload.TS = uint32(time.Now().Second())
+	s.payload.TS = uint32(item.ReceiveTime.Unix())
 
 	err := s.hstore.Set(&s.ki, s.payload)
 	if err != nil {
