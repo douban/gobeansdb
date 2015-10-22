@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 )
 
@@ -33,11 +34,12 @@ func splitKeys(s string) []string {
 }
 
 type Item struct {
-	Flag    int
-	Exptime int
-	Cas     int
-	Body    []byte
-	alloc   *byte
+	ReceiveTime time.Time
+	Flag        int
+	Exptime     int
+	Cas         int
+	Body        []byte
+	alloc       *byte
 }
 
 func (it *Item) String() (s string) {
@@ -129,6 +131,7 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 	if s, e = b.ReadString('\n'); e != nil {
 		return e
 	}
+
 	if !strings.HasSuffix(s, "\r\n") {
 		return errors.New("not completed command")
 	}
@@ -154,6 +157,7 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 		req.Keys = parts[1:2]
 		req.Item = &Item{}
 		item := req.Item
+		item.ReceiveTime = time.Now()
 		item.Flag, e = strconv.Atoi(parts[2])
 		if e != nil {
 			return e
