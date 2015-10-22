@@ -16,7 +16,7 @@ var (
 	padding [256]byte
 )
 
-type record struct {
+type WriteRecord struct {
 	rec    *Record
 	crc    uint32
 	ksz    uint32
@@ -25,25 +25,25 @@ type record struct {
 	header [recHeaderSize]byte
 }
 
-func newRecord() *record {
-	rec := new(record)
+func newWriteRecord() *WriteRecord {
+	rec := new(WriteRecord)
 	rec.rec = new(Record)
 	rec.rec.Payload = new(Payload)
 	return rec
 }
-func wrapRecord(rec *Record) *record {
-	return &record{
+func wrapRecord(rec *Record) *WriteRecord {
+	return &WriteRecord{
 		rec: rec,
 		ksz: uint32(len(rec.Key)),
-		vsz: uint32(len(rec.Payload.ValueCompressed)),
+		vsz: uint32(len(rec.Payload.Value)),
 	}
 }
 
-func (rec *record) decode(data []byte) (err error) {
+func (rec *WriteRecord) decode(data []byte) (err error) {
 	rec.decode(data)
 	decodeHeader(rec, data)
 	rec.rec.Key = data[recHeaderSize : recHeaderSize+rec.ksz]
-	rec.rec.Payload.ValueCompressed = data[recHeaderSize+rec.ksz : recHeaderSize+rec.ksz+rec.vsz]
+	rec.rec.Payload.Value = data[recHeaderSize+rec.ksz : recHeaderSize+rec.ksz+rec.vsz]
 	if rec.crc != rec.getHash() {
 		err = fmt.Errorf("crc check fail")
 		logger.Infof(err.Error())
@@ -52,17 +52,17 @@ func (rec *record) decode(data []byte) (err error) {
 	return nil
 }
 
-func (rec *record) getHash() uint32 {
+func (rec *WriteRecord) getHash() uint32 {
 	hasher := newCrc32()
 	hasher.write(rec.header[4:])
 	hasher.write(rec.rec.Key)
-	if len(rec.rec.Payload.ValueCompressed) > 0 {
-		hasher.write(rec.rec.Payload.ValueCompressed)
+	if len(rec.rec.Payload.Value) > 0 {
+		hasher.write(rec.rec.Payload.Value)
 	}
 	return hasher.get()
 }
 
-func (rec *record) encodeHeader() {
+func (rec *WriteRecord) encodeHeader() {
 	h := rec.header[:]
 	binary.LittleEndian.PutUint32(h[4:8], rec.rec.Payload.TS)
 	binary.LittleEndian.PutUint32(h[8:12], rec.rec.Payload.Flag)
@@ -74,10 +74,10 @@ func (rec *record) encodeHeader() {
 	return
 }
 
-func (rec *record) decodeHeader() (err error) {
+func (rec *WriteRecord) decodeHeader() (err error) {
 	return decodeHeader(rec, rec.header[:])
 }
-func decodeHeader(rec *record, h []byte) (err error) {
+func decodeHeader(rec *WriteRecord, h []byte) (err error) {
 	rec.crc = binary.LittleEndian.Uint32(h[:4])
 	rec.rec.Payload.TS = binary.LittleEndian.Uint32(h[4:8])
 	rec.rec.Payload.Flag = binary.LittleEndian.Uint32(h[8:12])
@@ -87,7 +87,7 @@ func decodeHeader(rec *record, h []byte) (err error) {
 	return
 }
 
-func readRecordAtPath(path string, offset uint32) (*record, error) {
+func readRecordAtPath(path string, offset uint32) (*WriteRecord, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		logger.Infof(err.Error())
@@ -97,8 +97,8 @@ func readRecordAtPath(path string, offset uint32) (*record, error) {
 	return readRecordAt(f, offset)
 }
 
-func readRecordAt(f *os.File, offset uint32) (*record, error) {
-	rec := newRecord()
+func readRecordAt(f *os.File, offset uint32) (*WriteRecord, error) {
+	rec := newWriteRecord()
 	if n, err := f.ReadAt(rec.header[:], int64(offset)); err != nil {
 		logger.Infof(err.Error(), n)
 		return nil, err
@@ -107,7 +107,7 @@ func readRecordAt(f *os.File, offset uint32) (*record, error) {
 	kv := make([]byte, rec.ksz+rec.vsz)
 
 	rec.rec.Key = kv[:rec.ksz]
-	rec.rec.Payload.ValueCompressed = kv[rec.ksz:]
+	rec.rec.Payload.Value = kv[rec.ksz:]
 	if n, err := f.ReadAt(kv, int64(offset)+recHeaderSize); err != nil {
 		logger.Infof(err.Error(), n)
 		return nil, err
@@ -152,7 +152,7 @@ func (stream *DataStreamReader) nextValid() (r *Record, offset uint32, sizeBroke
 		rec2, err2 := readRecordAt(fd2, offset2)
 		if err2 == nil {
 			logger.Infof("crc fail end %x, sizeBroken %d", offset2, sizeBroken)
-			_, rsize2 := recordSize(rec2.rec)
+			_, rsize2 := rec2.rec.Sizes()
 			offset3 := offset2 + rsize2
 			stream.fd.Seek(int64(offset3), 0)
 			stream.rbuf.Reset(stream.fd)
@@ -166,7 +166,7 @@ func (stream *DataStreamReader) nextValid() (r *Record, offset uint32, sizeBroke
 }
 
 func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken uint32, err error) {
-	rec := newRecord()
+	rec := newWriteRecord()
 	if _, err = io.ReadFull(stream.rbuf, rec.header[:]); err != nil {
 		if err != io.EOF {
 			logger.Infof(err.Error(), err)
@@ -186,12 +186,12 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 		logger.Infof(err.Error())
 		return
 	}
-	rec.rec.Payload.ValueCompressed = make([]byte, rec.vsz)
-	if _, err = io.ReadFull(stream.rbuf, rec.rec.Payload.ValueCompressed); err != nil {
+	rec.rec.Payload.Value = make([]byte, rec.vsz)
+	if _, err = io.ReadFull(stream.rbuf, rec.rec.Payload.Value); err != nil {
 		logger.Infof(err.Error())
 		return
 	}
-	recsize, _ := recordSize(rec.rec)
+	recsize, _ := rec.rec.Sizes()
 	tail := recsize & 0xff
 	if tail != 0 {
 		stream.rbuf.Discard(int(256 - tail))
@@ -229,10 +229,10 @@ func (stream *DataStreamWriter) Append(r *Record) (offset uint32, err error) {
 	return stream.offset, stream.append(wrapRecord(r))
 }
 
-func (stream *DataStreamWriter) append(r *record) error {
+func (stream *DataStreamWriter) append(r *WriteRecord) error {
 	wbuf := stream.wbuf
 	r.encodeHeader()
-	size, sizeall := recordSize(r.rec)
+	size, sizeall := r.rec.Sizes()
 	stream.offset += sizeall
 	if n, err := wbuf.Write(r.header[:]); err != nil {
 		logger.Infof(err.Error(), n)
@@ -242,7 +242,7 @@ func (stream *DataStreamWriter) append(r *record) error {
 		logger.Infof(err.Error(), n)
 		return err
 	}
-	if n, err := wbuf.Write(r.rec.Payload.ValueCompressed); err != nil {
+	if n, err := wbuf.Write(r.rec.Payload.Value); err != nil {
 		logger.Infof(err.Error(), n)
 		return err
 	}

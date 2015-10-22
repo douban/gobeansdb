@@ -83,7 +83,7 @@ func (bkt *Bucket) getset(ki *KeyInfo, v *Payload) error {
 			return nil
 		}
 		if payload.Ver > 1 {
-			vhash := getvhash(v.Value)
+			vhash := Getvhash(v.Value)
 			if vhash == payload.ValueHash {
 				return nil
 			}
@@ -95,6 +95,7 @@ func (bkt *Bucket) getset(ki *KeyInfo, v *Payload) error {
 }
 
 func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
+	v.CalcValueHash()
 	pos, err := bkt.datas.AppendRecord(&Record{ki.Key, v})
 	if err != nil {
 		return err
@@ -148,7 +149,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	hintit.pos = pos.encode()
 
 	bkt.collisons.set(hintit)
-	hintit2 := newHintItem(ki.KeyHash, rec.Payload.Ver, rec.getvhash(), pos, string(rec.Key))
+	hintit2 := newHintItem(ki.KeyHash, rec.Payload.Ver, rec.Payload.ValueHash, pos, string(rec.Key))
 	bkt.collisons.set(hintit2)
 
 	rec, err = bkt.getRecordByPos(pos)

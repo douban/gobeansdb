@@ -112,7 +112,7 @@ func (mgr *gcMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 				break
 			}
 
-			_, recsize := recordSize(rec)
+			_, recsize := rec.Sizes()
 
 			if recsize+w.Offset() > mfs {
 				w.Close()

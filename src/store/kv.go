@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmem"
 	"fmt"
 	"quicklz"
 	"strconv"
@@ -53,8 +54,7 @@ func newHintItem(khash uint64, ver int32, vhash uint16, pos Position, key string
 
 type Payload struct {
 	Meta
-	Value           []byte
-	ValueCompressed []byte // may be ref to Record.Raw
+	Value []byte
 }
 
 func (p *Payload) Copy() *Payload {
@@ -63,6 +63,67 @@ func (p *Payload) Copy() *Payload {
 	p2.Value = make([]byte, len(p.Value))
 	copy(p2.Value, p.Value)
 	return p2
+}
+
+func (p *Payload) IsCompressed() bool {
+	return (p.Flag & FLAG_COMPRESS) != 0
+}
+
+func Getvhash(value []byte) uint16 {
+	l := len(value)
+	hash := uint32(l) * 97
+	if l <= 1024 {
+		hash += Fnv1a(value)
+	} else {
+		hash += Fnv1a(value[:512])
+		hash *= 97
+		hash += Fnv1a(value[512:1024])
+	}
+	return uint16(hash)
+}
+
+func (p *Payload) CalcValueHash() {
+	p.ValueHash = Getvhash(p.Value)
+}
+
+func (p *Payload) RawValueSize() int {
+	if !p.IsCompressed() {
+		return len(p.Value)
+	} else {
+		return quicklz.SizeCompressed(p.Value)
+	}
+}
+
+func (rec *Record) Compress() {
+	p := rec.Payload
+	if p.Flag&FLAG_CLIENT_COMPRESS != 0 || p.Flag&FLAG_COMPRESS != 0 {
+		return
+	}
+	size := rec.Size()
+	if size < 256 {
+		return
+	}
+	v := quicklz.CCompress(rec.Payload.Value)
+	if float32(len(v))/float32(len(p.Value)) < COMPRESS_RATIO_LIMIT {
+		cmem.Sub(cmem.TagSetData, len(p.Value)-len(v))
+		p.Value = v
+		p.Flag += FLAG_COMPRESS
+	}
+}
+
+func (p *Payload) Decompress() (err error) {
+	if p.Flag&FLAG_COMPRESS == 0 {
+		return
+	}
+
+	v, err := quicklz.CDecompressSafe(p.Value)
+	if err != nil {
+		return
+	}
+	cmem.Sub(cmem.TagGetData, len(p.Value)-len(v))
+	p.Value = v
+	p.Flag -= FLAG_COMPRESS
+	return
 }
 
 type Position struct {
@@ -87,7 +148,6 @@ func (rec *Record) LogString() string {
 	return fmt.Sprintf("ksz %d, vsz %d %d, meta %#v [%s] ",
 		len(rec.Key),
 		len(rec.Payload.Value),
-		len(rec.Payload.ValueCompressed),
 		rec.Payload.Meta,
 		string(rec.Key),
 	)
@@ -97,69 +157,17 @@ func (rec *Record) Copy() *Record {
 	return &Record{rec.Key, rec.Payload.Copy()}
 }
 
-func recordSize(rec *Record) (uint32, uint32) {
-	rec.Compress()
-	recSize := uint32(24 + len(rec.Key) + len(rec.Payload.ValueCompressed))
+func (rec *Record) Sizes() (uint32, uint32) {
+	recSize := uint32(24 + len(rec.Key) + len(rec.Payload.Value))
 	return recSize, ((recSize + 255) >> 8) << 8
 }
 
-func RecordSize(rec *Record) uint32 {
-	_, size := recordSize(rec)
+func (rec *Record) Size() uint32 {
+	_, size := rec.Sizes()
 	return size
 }
 
-func (rec *Record) Compress() {
-	p := rec.Payload
-	if p.ValueCompressed != nil {
-		return
-	}
-	p.ValueCompressed = p.Value // must set before calling RecordSize()
-	size := RecordSize(rec)
-	// FIXME: 256
-	if p.Flag&FLAG_CLIENT_COMPRESS != 0 || p.Flag&FLAG_COMPRESS != 0 || size < 256 {
-		return
-	}
-	v := quicklz.CCompress(rec.Payload.Value)
-	if float32(len(v))/float32(len(p.Value)) < COMPRESS_RATIO_LIMIT {
-		p.ValueCompressed = v
-		rec.Payload.Flag += FLAG_COMPRESS
-	}
-}
-
-func getvhash(value []byte) uint16 {
-	l := len(value)
-	hash := uint32(l) * 97
-	if l <= 1024 {
-		hash += Fnv1a(value)
-	} else {
-		hash += Fnv1a(value[:512])
-		hash *= 97
-		hash += Fnv1a(value[512:1024])
-	}
-	return uint16(hash)
-}
-
-func (rec *Record) getvhash() uint16 {
-	return 0
-}
-
-func (p *Payload) Decompress() (err error) {
-	if p.Value != nil {
-		return
-	}
-	if p.Flag&FLAG_COMPRESS != 0 {
-		p.Value, err = quicklz.CDecompressSafe(p.ValueCompressed)
-		if err != nil {
-			return
-		}
-		p.Flag -= FLAG_COMPRESS
-	} else {
-		p.Value = p.ValueCompressed
-	}
-	return
-}
-
-func DumpRecord(r *Record) []byte {
+func (r *Record) Dumps() []byte {
 	return nil
 }
 

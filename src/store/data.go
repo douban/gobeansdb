@@ -24,7 +24,7 @@ type dataStore struct {
 	currOffset uint32
 
 	filesizes [MAX_CHUNK]uint32
-	wbufs     [MAX_CHUNK][]*record
+	wbufs     [MAX_CHUNK][]*WriteRecord
 	wbufSize  uint32
 }
 
@@ -57,9 +57,11 @@ func (ds *dataStore) nextChunkID(chunkID int) int {
 
 func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	// TODO: check err of last flush
+
+	// must  CalcValueHash before compress
 	rec.Compress()
-	r := wrapRecord(rec)
-	_, size := recordSize(rec)
+	wrec := wrapRecord(rec)
+	_, size := rec.Sizes()
 	ds.Lock()
 	if ds.currOffset+size > dataConfig.MaxFileSize {
 		ds.newHead++
@@ -69,8 +71,8 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	}
 	pos.ChunkID = ds.newHead
 	pos.Offset = ds.currOffset
-	r.pos = pos
-	ds.wbufs[ds.newHead] = append(ds.wbufs[ds.newHead], r)
+	wrec.pos = pos
+	ds.wbufs[ds.newHead] = append(ds.wbufs[ds.newHead], wrec)
 	ds.currOffset += size
 	ds.Unlock()
 	return
