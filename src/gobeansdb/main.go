@@ -33,6 +33,7 @@ func handleSignals() {
 			sig := <-ch
 			log.Print("signal recieved " + sig.String())
 			server.Shutdown()
+
 		}
 	}(sch)
 }
@@ -71,9 +72,10 @@ func main() {
 	if err := server.Listen(addr); err != nil {
 		log.Fatal("listen failed", err.Error())
 	}
-
-	err = server.Serve()
 	handleSignals()
+	go storage.hstore.Flusher()
+	err = server.Serve()
+	storage.hstore.Close()
 
 	log.Println("shut down gracefully")
 }

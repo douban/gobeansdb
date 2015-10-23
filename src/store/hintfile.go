@@ -16,6 +16,7 @@ const (
 type hintFileMeta struct {
 	numKey      int
 	indexOffset int64
+	maxOffset   uint32
 	size        int64
 }
 
@@ -73,6 +74,7 @@ func (reader *hintFileReader) open() (err error) {
 	}
 	reader.indexOffset = int64(binary.LittleEndian.Uint64(h[:8]))
 	reader.numKey = int(binary.LittleEndian.Uint32(h[8:12]))
+	reader.maxOffset = binary.LittleEndian.Uint32(h[12:16])
 	logger.Debugf("%#v", reader.hintFileMeta)
 	fileInfo, _ := reader.fd.Stat()
 	reader.size = fileInfo.Size()
@@ -125,7 +127,7 @@ func (reader *hintFileReader) close() {
 	reader.fd.Close()
 }
 
-func newHintFileWriter(path string, bufsize int) (w *hintFileWriter, err error) {
+func newHintFileWriter(path string, maxOffset uint32, bufsize int) (w *hintFileWriter, err error) {
 	var fd *os.File
 	logger.Infof("create hint file: %s", path)
 	fd, err = os.Create(path)
@@ -134,7 +136,8 @@ func newHintFileWriter(path string, bufsize int) (w *hintFileWriter, err error) 
 		return nil, err
 	}
 	wbuf := bufio.NewWriterSize(fd, bufsize)
-	w = &hintFileWriter{fd: fd, wbuf: wbuf, offset: HINTFILE_HEAD_SIZE}
+	w = &hintFileWriter{fd: fd, wbuf: wbuf, offset: HINTFILE_HEAD_SIZE,
+		hintFileMeta: hintFileMeta{maxOffset: maxOffset}}
 	w.wbuf.Write(w.buf[:HINTFILE_HEAD_SIZE])
 	w.index = newHintFileIndex()
 	return
@@ -174,6 +177,7 @@ func (w *hintFileWriter) close() error {
 	w.fd.Seek(0, 0)
 	binary.LittleEndian.PutUint64(buf[0:8], uint64(w.indexOffset))
 	binary.LittleEndian.PutUint32(buf[8:12], uint32(w.numKey))
+	binary.LittleEndian.PutUint32(buf[12:16], w.maxOffset)
 	w.fd.Write(buf[:])
 	w.fd.Close()
 	return nil

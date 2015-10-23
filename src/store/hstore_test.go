@@ -66,21 +66,38 @@ func clearTest() {
 type kvgen struct{}
 
 func (g *kvgen) gen(ki *KeyInfo, i int) (payload *Payload) {
-	ki.KeyHash = uint64(i)
 	ki.StringKey = fmt.Sprintf("key_%d", i)
 	ki.Key = []byte(ki.StringKey)
 	ki.Prepare()
 	value := fmt.Sprintf("value_%d", i)
-	payload = &Payload{Meta: Meta{TS: uint32(i)}, Value: []byte(value)}
+	payload = &Payload{
+		Meta: Meta{
+			TS:  uint32(i),
+			Ver: 1},
+		Value: []byte(value),
+	}
 	return
 }
 
-func TestHStoreEmpty(t *testing.T) {
+func TestHStoreMem(t *testing.T) {
+	testHStore(t, 0)
+}
+
+func TestHStoreFlush(t *testing.T) {
+	testHStore(t, 1)
+}
+
+func TestHStoreRestart(t *testing.T) {
+	testHStore(t, 2)
+}
+
+func testHStore(t *testing.T, op int) {
 	initDefaultConfig()
 	gen := kvgen{}
-	setupTest("HStoreEmpty", 1)
+
+	setupTest(fmt.Sprintf("testHStore_%d", op), 1)
 	defer clearTest()
-	config.NumBucket = 16
+	config.NumBucket = 1
 	config.Buckets = make([]int, 16)
 	config.Buckets[0] = 1
 	config.TreeHeight = 3
@@ -103,6 +120,15 @@ func TestHStoreEmpty(t *testing.T) {
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
+	}
+	switch op {
+	case 1:
+		store.flushdatas(true)
+	case 2:
+		store.Close()
+		logger.Infof("closed")
+		store, err = NewHStore()
+
 	}
 
 	// get

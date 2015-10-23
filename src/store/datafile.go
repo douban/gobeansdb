@@ -162,11 +162,14 @@ func (stream *DataStreamReader) nextValid() (rec *Record, offset uint32, sizeBro
 			offset3 := offset2 + rsize
 			stream.fd.Seek(int64(offset3), 0)
 			stream.rbuf.Reset(stream.fd)
+			stream.offset = offset2 + rsize
 			return wrec.rec, offset2, sizeBroken, nil
 		}
 		sizeBroken += 1
 		offset2 += 256
+		stream.offset = offset2
 	}
+
 	logger.Infof("crc fail until file end, sizeBroken %d", sizeBroken)
 	return nil, offset2, sizeBroken, nil
 }
@@ -197,8 +200,8 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 		logger.Infof(err.Error())
 		return
 	}
-	recsize, _ := wrec.rec.Sizes()
-	tail := recsize & 0xff
+	recsizereal, recsize := wrec.rec.Sizes()
+	tail := recsizereal & 0xff
 	if tail != 0 {
 		stream.rbuf.Discard(int(256 - tail))
 	}
@@ -211,6 +214,8 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 		return stream.nextValid()
 	}
 	res = wrec.rec
+	offset = stream.offset
+	stream.offset += recsize
 	return
 }
 

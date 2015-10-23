@@ -81,6 +81,7 @@ func (h *mergeHeap) Pop() interface{} {
 
 func merge(src []*hintFileReader, dst string) (idx *hintFileIndex, err error) {
 	n := len(src)
+	maxoffset := uint32(0)
 	hp := make([]*mergeReader, n)
 	for i := 0; i < n; i++ {
 		err := src[i].open()
@@ -94,8 +95,11 @@ func merge(src []*hintFileReader, dst string) (idx *hintFileIndex, err error) {
 			logger.Errorf("%s", err.Error())
 			return nil, err
 		}
+		if src[i].maxOffset > maxoffset {
+			maxoffset = src[i].maxOffset
+		}
 	}
-	w, err := newHintFileWriter(dst, 1<<20)
+	w, err := newHintFileWriter(dst, maxoffset, 1<<20)
 	if err != nil {
 		logger.Errorf("%s", err.Error())
 		return nil, err

@@ -67,6 +67,16 @@ func newHTree(depth, pos, height int) *HTree {
 	return tree
 }
 
+func (tree *HTree) load(path string) error {
+	// TODO:
+	return nil
+}
+
+func (tree *HTree) dump(path string) error {
+	// TODO:
+	return nil
+}
+
 func (tree *HTree) getHex(khash uint64, level int) int {
 	depth := level + tree.depth
 	shift := (16 - depth - 1) * 4

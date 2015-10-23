@@ -55,14 +55,6 @@ func (s *GCFileState) String() string {
 	return fmt.Sprintf("%#v", s)
 }
 
-func (b *Bucket) loadGCHistroy() {
-	// TODO
-}
-
-func (b *Bucket) dumpGCHistroy() {
-	// TODO
-}
-
 func (mgr *gcMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) bool {
 	return true
 }

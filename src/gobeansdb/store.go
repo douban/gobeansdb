@@ -8,34 +8,12 @@ import (
 	"runtime"
 	"store"
 	"sync"
-
-	"github.com/spaolacci/murmur3"
 )
 
 var (
 	S               *Storage
 	ErrorNotSupport = errors.New("operation not support")
 )
-
-func murmur(data []byte) (h uint32) {
-	hasher := murmur3.New32()
-	hasher.Write(data)
-	return hasher.Sum32()
-}
-
-func fnv1a(data []byte) (h uint32) {
-	PRIME := uint32(0x01000193)
-	h = 0x811c9dc5
-	for _, b := range data {
-		h ^= uint32(int8(b))
-		h = (h * PRIME)
-	}
-	return h
-}
-
-func getKeyHash(key []byte) uint64 {
-	return (uint64(fnv1a(key)) << 32) | uint64(murmur(key))
-}
 
 func getStack(bytes int) string {
 	b := make([]byte, bytes)
@@ -96,10 +74,7 @@ func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, erro
 func (s *StorageClient) prepare(key string, isPath bool) {
 	s.ki.StringKey = key
 	s.ki.Key = []byte(key)
-	if !isPath {
-		s.ki.KeyHash = getKeyHash(s.ki.Key)
-	}
-	s.ki.Prepare()
+	s.ki.KeyIsPath = isPath
 }
 
 func (s *StorageClient) listDir(path string) (*mc.Item, error) {
@@ -137,6 +112,7 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 }
 
 func (s *StorageClient) Get(key string) (*mc.Item, error) {
+
 	defer handlePanic("get")
 	if key[0] == '@' {
 		return s.listDir(key[1:])

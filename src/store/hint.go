@@ -18,9 +18,10 @@ type HintStatus struct {
 }
 
 type hintBuffer struct {
-	expsize int
-	keys    map[string]int
-	array   []*hintItem
+	maxoffset uint32
+	expsize   int
+	keys      map[string]int
+	array     []*hintItem
 }
 
 type hintSplit struct {
@@ -45,11 +46,17 @@ func (h *hintBuffer) set(it *hintItem) bool {
 		h.expsize += len(it.key) + 8*4 // meta and at least 4 pointers
 		idx = len(h.keys)
 		if idx >= len(h.array) {
+			if it.pos > h.maxoffset {
+				h.maxoffset = it.pos
+			}
 			return false
 		}
 		h.keys[it.key] = idx
 	}
 	h.array[idx] = it
+	if it.pos > h.maxoffset {
+		h.maxoffset = it.pos
+	}
 	return true
 }
 
@@ -68,7 +75,7 @@ func (h *hintBuffer) dump(path string) (index *hintFileIndex, err error) {
 		arr[i] = i
 	}
 	sort.Sort(&byKeyHash{arr, h.array})
-	w, err := newHintFileWriter(path, 1<<20)
+	w, err := newHintFileWriter(path, h.maxoffset, 1<<20)
 	if err != nil {
 		return
 	}
@@ -174,7 +181,8 @@ type hintMgr struct {
 	sync.Mutex
 	maxChunkID int
 
-	chunks [256]*hintChunk
+	chunks    [256]*hintChunk
+	filesizes []uint32 // ref toto bucket.datas.filesizes
 
 	merging   bool
 	merged    *hintFileIndex
@@ -187,17 +195,24 @@ func newHintMgr(home string) *hintMgr {
 	for i := 0; i < 256; i++ {
 		hm.chunks[i] = newHintChunk()
 	}
+	hm.filesizes = make([]uint32, 256)
 	hm.maxChunkID = 0
 	hm.mergedID = -1
 	hm.mergeChan = make(chan bool, 256)
 	return hm
 }
 
-func (hm *hintMgr) loadChunk(chunkID int) bool {
+func (hm *hintMgr) findChunk(chunkID int, remove bool) (hints []string) {
 	pattern := hm.getPath(chunkID, -1, false)
 	paths, _ := filepath.Glob(pattern)
 	if len(paths) == 0 {
-		return false
+		return
+	}
+	if remove {
+		for _, p := range paths {
+			os.Remove(p)
+		}
+		return
 	}
 	sort.Sort(sort.StringSlice(paths))
 	n := 0
@@ -205,18 +220,15 @@ func (hm *hintMgr) loadChunk(chunkID int) bool {
 		sid, err := strconv.Atoi(path[8:])
 		if err != nil {
 			logger.Errorf("bad hint path %s", path)
-			continue
-		}
-		if sid != n {
+		} else if sid != n {
 			logger.Errorf("bad hints %s", paths)
-			for _, p := range paths {
-				os.Remove(p)
-			}
-			return false
+			os.Remove(path)
+		} else {
+			hints = append(hints, path)
+			n++
 		}
-		n++
 	}
-	return true
+	return
 }
 
 type byKeyHash struct {
@@ -233,9 +245,6 @@ func (by byKeyHash) Less(i, j int) bool {
 func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 	ck := h.chunks[chunkID]
 	sp := ck.splits[splitID]
-	if splitID == len(ck.splits)-1 {
-
-	}
 
 	ck.Unlock()
 	defer ck.Lock()
@@ -277,6 +286,7 @@ func (h *hintMgr) trydump(chunkID int) (needmerge, silence bool) {
 			logger.Infof("dump last %d %d", chunkID, j)
 			ck.lastTS = 0
 		}
+		h.chunks[chunkID].splits[j].buf.maxoffset = h.filesizes[chunkID]
 		h.dump(chunkID, j)
 		if j > 0 {
 			needmerge = true
@@ -333,6 +343,13 @@ func (h *hintMgr) smallMerge(chunkID int) (suc bool) {
 	os.Rename(tmp, dst)
 	return
 }
+
+func (h *hintMgr) close() {
+	for i := 0; i <= h.maxChunkID; i++ {
+		h.trydump(i)
+	}
+}
+
 func (h *hintMgr) dumpAndMerge() {
 	defer func() {
 		if err := recover(); err != nil {

@@ -33,10 +33,18 @@ func checkFileSize(t *testing.T, chunkID int, size uint32) {
 	}
 }
 
-func TestDataSameKeyValue(t *testing.T) {
+func TestDataSameKeyValue1(t *testing.T) {
 	testDataSameKeyValue(t, 1, []byte("key"), []byte("value"), 1)
+}
+func TestDataSameKeyValue2(t *testing.T) {
 	testDataSameKeyValue(t, 2, []byte("key"), []byte(strings.Repeat("v", 255)), 1)
+}
+
+func TestDataSameKeyValue3(t *testing.T) {
 	testDataSameKeyValue(t, 3, []byte("key"), randomValue(400), 2)
+}
+
+func TestDataSameKeyValue4(t *testing.T) {
 	testDataSameKeyValue(t, 4, []byte(strings.Repeat("k", 200)), randomValue(512), 3)
 }
 
@@ -93,7 +101,7 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 		r := &Record{key, p}
 		pos, err := ds.AppendRecord(r)
 		// TODO: check pos
-		ds.flush(-1)
+		ds.flush(-1, true)
 		r = nil
 		r, err = ds.GetRecordByPos(pos)
 		if err != nil {

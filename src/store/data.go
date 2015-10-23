@@ -67,9 +67,9 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	size := wrec.rsz
 	if ds.currOffset+size > dataConfig.MaxFileSize {
 		ds.newHead++
+		logger.Infof("rotate to %d, size %d, new rec size %d", ds.newHead, ds.currOffset, size)
 		ds.currOffset = 0
-		logger.Infof("rotate to %d (%d %d %#v)", ds.newHead, ds.currOffset, size, config)
-		go ds.flush(ds.newHead - 1)
+		go ds.flush(ds.newHead-1, true)
 	}
 	pos.ChunkID = ds.newHead
 	pos.Offset = ds.currOffset
@@ -92,15 +92,15 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 // this is for test, use HStore.flusher instead,
 func (ds *dataStore) flusher() {
 	for {
-		ds.flush(-1)
+		ds.flush(-1, false)
 		time.Sleep(1 * time.Minute)
 	}
 }
 
-func (ds *dataStore) flush(chunk int) error {
+func (ds *dataStore) flush(chunk int, force bool) error {
 	// TODO: need a flush lock
 	ds.Lock()
-	if (time.Since(ds.lastFlushTime) < time.Duration(dataConfig.DataFlushSec)*time.Second) && (ds.wbufSize < (1 << 20)) {
+	if !force && (time.Since(ds.lastFlushTime) < time.Duration(dataConfig.DataFlushSec)*time.Second) && (ds.wbufSize < (1 << 20)) {
 		ds.Unlock()
 		return nil
 	}
@@ -168,19 +168,27 @@ func (ds *dataStore) Truncate(chunk int, size uint32) error {
 	return os.Truncate(ds.genPath(chunk), int64(size))
 }
 
-func (ds *dataStore) ListFiles() ([]Position, error) {
-	res := make([]Position, 0, 256)
+func (ds *dataStore) ListFiles() (max int, err error) {
+	max = -1
 	for i := 0; i < 256; i++ {
 		path := genPath(ds.home, i)
-		st, err := os.Stat(path)
-		if err != nil {
-			logger.Infof(err.Error())
-			return nil, err // TODO: need another way to check
+		st, e := os.Stat(path)
+		if e != nil {
+			pe := e.(*os.PathError)
+			if "no such file or directory" == pe.Err.Error() {
+				ds.filesizes[i] = 0
+			} else {
+				logger.Errorf(pe.Err.Error())
+				err = pe
+				return
+			}
 		} else {
-			res = append(res, Position{i, uint32(st.Size())})
+			ds.filesizes[i] = uint32(st.Size())
+			max = i
 		}
 	}
-	return res, nil
+	ds.newHead = max + 1
+	return
 }
 
 func (ds *dataStore) GetCurrPos() Position {

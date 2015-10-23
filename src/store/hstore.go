@@ -30,7 +30,13 @@ func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
 		return
 	}
 	name := fi.Name()
-	if len(name) != config.TreeDepth {
+	if config.TreeDepth == 0 {
+		if name == "0" {
+			return true, 0
+		} else {
+			return
+		}
+	} else if len(name) != config.TreeDepth {
 		return
 	}
 	s := "09AF"
@@ -67,16 +73,19 @@ func (store *HStore) scanBuckets() (err error) {
 			fullpath := filepath.Join(home, fi.Name())
 			datas, err := filepath.Glob(filepath.Join(fullpath, "*.data"))
 			if err != nil {
+				logger.Errorf("%s", err.Error())
 				return err
 			}
-			empty := (len(datas) > 0)
+			empty := (len(datas) == 0)
 			if valid {
 				if empty {
+					logger.Warnf("remove empty bucket dir %s", fullpath)
 					os.Remove(fullpath)
 				} else {
 					if store.buckets[bucketID].state > 0 {
 						return fmt.Errorf("found dup bucket %d", bucketID)
 					}
+					logger.Debugf("found bucket %d", bucketID)
 					store.buckets[bucketID].state = 1
 					store.buckets[bucketID].homeID = i
 					store.homeToBuckets[i][bucketID] = true
@@ -105,7 +114,7 @@ func (store *HStore) allocBucket(bucketID int) (err error) {
 	store.homeToBuckets[homeid][bucketID] = true
 
 	dirpath := store.getBucketPath(homeid, bucketID)
-	err = os.Mkdir(dirpath, 0644)
+	err = os.Mkdir(dirpath, 0755)
 	logger.Infof("allocBucket %s", dirpath)
 	return
 }
@@ -161,27 +170,36 @@ func NewHStore() (store *HStore, err error) {
 	return
 }
 
-func (store *HStore) flusher() {
+func (store *HStore) Flusher() {
 
 	for {
 		select {
 		case <-flushDataChan:
 		case <-time.After(time.Duration(dataConfig.DataFlushSec) * time.Second):
 		}
+		store.flushdatas(false)
+	}
+}
 
-		for _, b := range store.buckets {
-			b.datas.flush(-1)
+func (store *HStore) flushdatas(force bool) {
+	for _, b := range store.buckets {
+		if b.datas != nil {
+			b.datas.flush(-1, force)
 		}
 	}
+
 }
 
 func (store *HStore) Close() {
 	for _, b := range store.buckets {
-		b.close()
+		if b.datas != nil {
+			b.close()
+		}
 	}
 }
 
 func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
+	ki.Prepare()
 	if ki.BucketID >= 0 {
 		return store.buckets[ki.BucketID].listDir(ki)
 	} else {
@@ -199,9 +217,13 @@ func (store *HStore) GetBucketInfo(bucketID int, keys []string) ([]byte, error) 
 }
 
 func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Position, err error) {
+	ki.KeyHash = getKeyHash(ki.Key)
+	ki.Prepare()
 	return store.buckets[ki.BucketID].get(ki, memOnly)
 }
 
 func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
+	ki.KeyHash = getKeyHash(ki.Key)
+	ki.Prepare()
 	return store.buckets[ki.BucketID].getset(ki, p)
 }

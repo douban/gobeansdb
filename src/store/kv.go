@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"quicklz"
 	"strconv"
+
+	"github.com/spaolacci/murmur3"
 )
 
 const (
@@ -14,6 +16,26 @@ const (
 	COMPRESS_RATIO_LIMIT = 0.7
 	PADDING              = 256
 )
+
+func murmur(data []byte) (h uint32) {
+	hasher := murmur3.New32()
+	hasher.Write(data)
+	return hasher.Sum32()
+}
+
+func fnv1a(data []byte) (h uint32) {
+	PRIME := uint32(0x01000193)
+	h = 0x811c9dc5
+	for _, b := range data {
+		h ^= uint32(int8(b))
+		h = (h * PRIME)
+	}
+	return h
+}
+
+func getKeyHash(key []byte) uint64 {
+	return (uint64(fnv1a(key)) << 32) | uint64(murmur(key))
+}
 
 type Meta struct {
 	TS        uint32
@@ -190,11 +212,6 @@ type KeyInfo struct {
 	KeyPos
 }
 
-func getKeyHash(key []byte) uint64 {
-	// TODO
-	return 0
-}
-
 func getBucketFromKey(key string) int {
 	return 0
 }
@@ -257,12 +274,14 @@ func (ki *KeyInfo) Prepare() {
 			return
 		}
 	} else {
+
 		ki.KeyPath = ParsePathUint64(ki.KeyHash, ki.KeyPathBuf[:16])
 	}
 	for _, v := range ki.KeyPath[:config.TreeDepth] {
 		ki.BucketID <<= 4
 		ki.BucketID += v
 	}
+
 	return
 }
 

@@ -42,7 +42,7 @@ func TestHintRW(t *testing.T) {
 	path := fmt.Sprintf("%s/%s", dir, "000.hint.s")
 	os.Remove(path)
 	SetHintConfig(HintConfig{IndexIntervalSize: 1024})
-	w, err := newHintFileWriter(path, 1024)
+	w, err := newHintFileWriter(path, 0, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func testMerge(t *testing.T, nsrc int) {
 		path := fmt.Sprintf("%s/src.%d.hint.s", dir, i)
 		srcp[i] = newHintFileReader(path, 0, 1024)
 		os.Remove(path)
-		w, err := newHintFileWriter(path, 1024)
+		w, err := newHintFileWriter(path, 0, 1024)
 		if err != nil {
 			t.Fatal(err)
 		}
