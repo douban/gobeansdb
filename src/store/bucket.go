@@ -124,7 +124,11 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 		}
 	}
 	if htreechunk >= 0 {
-		bkt.htree.load(treePathToLoad)
+		err := bkt.htree.load(treePathToLoad)
+		if err != nil {
+			htreechunk = -1
+			bkt.htree = newHTree(config.TreeDepth, id, config.TreeHeight)
+		}
 	}
 
 	for i := htreechunk + 1; i < MAX_CHUNK; i++ {
@@ -166,7 +170,7 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 	}
 	go func() {
 		for i := 0; i < htreechunk+1; i++ {
-			paths := bkt.hints.findChunk(i, filesizes[i] > 0)
+			paths := bkt.hints.findChunk(i, filesizes[i] < 1)
 			if (len(paths) == 0) && (filesizes[i] > 0) {
 				if _, err = bkt.buildHintFromData(i, 0, 0); err != nil {
 					return

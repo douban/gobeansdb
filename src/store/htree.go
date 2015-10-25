@@ -1,8 +1,11 @@
 package store
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"os"
 	"sync"
 )
 
@@ -35,7 +38,6 @@ type Node struct {
 	// size    uint32 //including deleted
 	hash    uint16
 	isValid bool
-	c_count uint8 // TODO: remove later
 }
 
 type NodeInfo struct {
@@ -67,14 +69,61 @@ func newHTree(depth, pos, height int) *HTree {
 	return tree
 }
 
-func (tree *HTree) load(path string) error {
-	// TODO:
+func (tree *HTree) load(path string) (err error) {
+	f, err := os.Open(path)
+	if err != nil {
+		logger.Errorf("fail to load htree %s", err.Error())
+		return
+	}
+	defer f.Close()
+	logger.Infof("loading htree %s", path)
+	reader := bufio.NewReader(f)
+	buf := make([]byte, 6)
+	leafnodes := tree.levels[htreeConfig.TreeHeight-1]
+	size := len(leafnodes)
+	for i := 0; i < size; i++ {
+		reader.Read(buf)
+		leafnodes[i].count = binary.LittleEndian.Uint32(buf[0:4])
+		leafnodes[i].hash = binary.LittleEndian.Uint16(buf[4:6])
+	}
+	for i := 0; i < size; i++ {
+		reader.Read(buf[0:4])
+		l := binary.LittleEndian.Uint32(buf[0:4])
+		tree.leafs[i] = tree.leafs[i].enlarge(int(l))
+		reader.Read(tree.leafs[i])
+	}
+	tree.ListTop()
 	return nil
 }
 
-func (tree *HTree) dump(path string) error {
-	// TODO:
-	return nil
+func (tree *HTree) dump(path string) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		logger.Errorf("fail to dump htree %s", err.Error())
+		return
+	}
+	defer f.Close()
+	tmp := path + ".tmp"
+	logger.Infof("dumping htree %s", tmp)
+	tree.ListTop()
+
+	writer := bufio.NewWriter(f)
+	buf := make([]byte, 6)
+	leafnodes := tree.levels[htreeConfig.TreeHeight-1]
+	size := len(leafnodes)
+	for i := 0; i < size; i++ {
+		binary.LittleEndian.PutUint32(buf[0:4], leafnodes[i].count)
+		binary.LittleEndian.PutUint16(buf[4:6], leafnodes[i].hash)
+		writer.Write(buf)
+	}
+	for i := 0; i < size; i++ {
+		leaf := tree.leafs[i]
+		binary.LittleEndian.PutUint32(buf[0:4], uint32(len(leaf)))
+		writer.Write(buf[:4])
+		writer.Write(leaf)
+	}
+	writer.Flush()
+	os.Rename(tmp, path)
 }
 
 func (tree *HTree) getHex(khash uint64, level int) int {
@@ -281,10 +330,21 @@ func (tree *HTree) ListDir(ki *KeyInfo) (ret []byte, err error) {
 		return buffer.Bytes(), nil
 	} else if nodes != nil {
 		for i, n := range nodes {
-			s := fmt.Sprintf("%x/ %d %d\n", i, n.hash, int(n.count)+int(n.c_count))
+			s := fmt.Sprintf("%x/ %d %d\n", i, n.hash, int(n.count))
 			buffer.WriteString(s)
 		}
 		return buffer.Bytes(), nil
 	}
 	return nil, nil
+}
+
+func (tree *HTree) ListTop() {
+	path := fmt.Sprintf("%x", tree.pos)
+	ki := &KeyInfo{StringKey: path,
+		KeyIsPath: true}
+	ki.Prepare()
+	data, _ := tree.ListDir(ki)
+	logger.Infof("%s %s", path, string(data))
+	//items, nodes := tree.listDir(ki)
+	//logger.Infof("%s %#v %#v", path, items, nodes)
 }
