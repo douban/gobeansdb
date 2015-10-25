@@ -3,11 +3,19 @@ package store
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/spaolacci/murmur3"
 )
 
 const (
 	MAX_KEY_LEN = 250
 )
+
+var (
+	getKeyHash HashFuncType = getKeyHashDefalut
+)
+
+type HashFuncType func(key []byte) uint64
 
 func murmur(data []byte) (h uint32) {
 	hasher := murmur3.New32()
@@ -25,7 +33,7 @@ func fnv1a(data []byte) (h uint32) {
 	return h
 }
 
-func getKeyHash(key []byte) uint64 {
+func getKeyHashDefalut(key []byte) uint64 {
 	return (uint64(fnv1a(key)) << 32) | uint64(murmur(key))
 }
 
