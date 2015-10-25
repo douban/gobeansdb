@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -63,47 +65,85 @@ func clearTest() {
 	os.RemoveAll(dir)
 }
 
-type kvgen struct{}
+type KVGen struct {
+	numbucket int
+	depth     uint
+	bucketId  int
+}
 
-func (g *kvgen) gen(ki *KeyInfo, i int) (payload *Payload) {
-	ki.StringKey = fmt.Sprintf("key_%d", i)
+func newKVGen(numbucket int) *KVGen {
+	gen := &KVGen{numbucket: numbucket}
+
+	d := uint(0)
+	b := numbucket
+	for {
+		b /= 16
+		if b > 0 {
+			d++
+		} else {
+			break
+		}
+	}
+	gen.depth = d
+
+	getKeyHash = func(key []byte) uint64 {
+		s := string(key)
+		parts := strings.Split(s, "_")
+		bkt, _ := strconv.ParseUint(parts[1], 16, 32)
+		hash, _ := strconv.ParseUint(parts[2], 16, 32)
+		h := (bkt << (4 * (16 - gen.depth))) + hash
+		return h
+	}
+	return gen
+}
+
+func (g *KVGen) gen(ki *KeyInfo, i int) (payload *Payload) {
+	ki.StringKey = fmt.Sprintf("key_%x_%x", g.numbucket-1, i)
 	ki.Key = []byte(ki.StringKey)
-	ki.Prepare()
-	value := fmt.Sprintf("value_%d", i)
+	value := fmt.Sprintf("value_%x", i)
 	payload = &Payload{
 		Meta: Meta{
 			TS:  uint32(i),
 			Ver: 1},
 		Value: []byte(value),
 	}
+
 	return
+}
+func (g *KVGen) close() {
+	getKeyHash = getKeyHashDefalut
 }
 
 func TestHStoreMem(t *testing.T) {
-	testHStore(t, 0)
+	testHStore(t, 0, 1)
 }
 
 func TestHStoreFlush(t *testing.T) {
-	testHStore(t, 1)
+	testHStore(t, 1, 1)
 }
 
-func TestHStoreRestart(t *testing.T) {
-	testHStore(t, 2)
+func TestHStoreRestart0(t *testing.T) {
+	testHStore(t, 2, 1)
 }
 
-func testHStore(t *testing.T, op int) {
+func TestHStoreRestart1(t *testing.T) {
+	testHStore(t, 2, 16)
+}
+
+func testHStore(t *testing.T, op, numbucket int) {
 	initDefaultConfig()
-	gen := kvgen{}
+	gen := newKVGen(numbucket)
 
-	setupTest(fmt.Sprintf("testHStore_%d", op), 1)
+	setupTest(fmt.Sprintf("testHStore_%d_%d", op, numbucket), 1)
 	defer clearTest()
-	config.NumBucket = 1
-	config.Buckets = make([]int, 16)
-	config.Buckets[0] = 1
+	config.NumBucket = numbucket
+	config.Buckets = make([]int, numbucket)
+	config.Buckets[numbucket-1] = 1
 	config.TreeHeight = 3
 	config.Init()
+	defer gen.close()
 
-	bucketDir := filepath.Join(config.Homes[0], "0") // TODO: auto create?
+	bucketDir := filepath.Join(config.Homes[0], "0") // will be removed
 	os.Mkdir(bucketDir, 0777)
 
 	store, err := NewHStore()
@@ -117,6 +157,7 @@ func testHStore(t *testing.T, op int) {
 	var ki KeyInfo
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i)
+
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -128,7 +169,6 @@ func testHStore(t *testing.T, op int) {
 		store.Close()
 		logger.Infof("closed")
 		store, err = NewHStore()
-
 	}
 
 	// get

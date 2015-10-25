@@ -28,13 +28,13 @@ type Bucket struct {
 }
 
 func (bkt *Bucket) buildHintFromData(chunkID int, start uint32, splitID int) (hintpath string, err error) {
-	logger.Infof("buildHintFromData %d %d %d", chunkID, start, splitID)
+	logger.Infof("buildHintFromData chunk %d split %d offset 0x%x", chunkID, splitID, start)
 	r, err := bkt.datas.GetStreamReader(chunkID)
 	defer r.Close()
 	if err != nil {
 		return
 	}
-	hintpath = bkt.hints.getPath(chunkID, 0, false)
+	hintpath = bkt.hints.getPath(chunkID, splitID, false)
 	w, err := newHintFileWriter(hintpath, bkt.datas.filesizes[chunkID], 1<<20)
 	if err != nil {
 		return
@@ -62,15 +62,14 @@ func (bkt *Bucket) buildHintFromData(chunkID int, start uint32, splitID int) (hi
 }
 
 func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint32, err error) {
-	logger.Infof("updateHtreeFromHint %d %s", chunkID, path)
+	logger.Infof("updateHtreeFromHint chunk %d, %s", chunkID, path)
 	meta := Meta{}
 	tree := bkt.htree
 	var pos Position
 	pos.ChunkID = chunkID
 	r := newHintFileReader(path, chunkID, 1<<20)
 	r.open()
-
-	logger.Debugf("%#v", r.hintFileMeta)
+	maxoffset = r.maxOffset
 	defer r.close()
 	for {
 		item, e := r.next()
@@ -129,7 +128,7 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 	}
 
 	for i := htreechunk + 1; i < MAX_CHUNK; i++ {
-		paths := bkt.hints.findChunk(i, filesizes[i] > 0)
+		paths := bkt.hints.findChunk(i, filesizes[i] < 1)
 		if len(paths) > 0 {
 			splitid := 0
 			maxoffset := uint32(0)
@@ -175,8 +174,9 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 			}
 			// TODO: hints may fall behand data?
 		}
+		go bkt.hints.merger(5 * time.Minute)
 	}()
-	go bkt.hints.merger(5 * time.Minute)
+
 	bkt.loadGCHistroy()
 	return nil
 }
@@ -190,10 +190,12 @@ func abs(n int32) int32 {
 
 // called by hstore, data already flushed
 func (bkt *Bucket) close() {
+	logger.Debugf("closing bucket %s", bkt.home)
 	bkt.dumpGCHistroy()
 	bkt.datas.flush(-1, true)
+	bkt.hints.close()
 	bkt.htree.dump(fmt.Sprintf("%s/%03d.hr", bkt.home, bkt.datas.newHead))
-	// TODO: dump indexes
+
 }
 
 func (bkt *Bucket) checkVer(oldv, ver int32) (int32, bool) {

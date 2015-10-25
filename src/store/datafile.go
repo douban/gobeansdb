@@ -104,7 +104,7 @@ func readRecordAtPath(path string, offset uint32) (*WriteRecord, error) {
 func readRecordAt(f *os.File, offset uint32) (*WriteRecord, error) {
 	wrec := newWriteRecord()
 	if n, err := f.ReadAt(wrec.header[:], int64(offset)); err != nil {
-		logger.Infof(err.Error(), n)
+		logger.Infof("%s %d", err.Error(), n)
 		return nil, err
 	}
 	wrec.decodeHeader()

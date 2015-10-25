@@ -208,6 +208,7 @@ func (hm *hintMgr) findChunk(chunkID int, remove bool) (hints []string) {
 	if len(paths) == 0 {
 		return
 	}
+
 	if remove {
 		for _, p := range paths {
 			os.Remove(p)
@@ -217,7 +218,8 @@ func (hm *hintMgr) findChunk(chunkID int, remove bool) (hints []string) {
 	sort.Sort(sort.StringSlice(paths))
 	n := 0
 	for _, path := range paths {
-		sid, err := strconv.Atoi(path[8:])
+		name := filepath.Base(path)
+		sid, err := strconv.Atoi(name[11:])
 		if err != nil {
 			logger.Errorf("bad hint path %s", path)
 		} else if sid != n {
@@ -256,7 +258,7 @@ func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 	return nil
 }
 
-func (h *hintMgr) trydump(chunkID int) (needmerge, silence bool) {
+func (h *hintMgr) trydump(chunkID int, force bool) (needmerge, silence bool) {
 	ck := h.chunks[chunkID]
 	ck.Lock()
 	defer ck.Unlock()
@@ -272,20 +274,21 @@ func (h *hintMgr) trydump(chunkID int) (needmerge, silence bool) {
 		}
 	}
 
-	if chunkID == h.maxChunkID {
+	if !force && chunkID == h.maxChunkID {
 		return false, false
 	}
+
 	if ck.lastTS == 0 {
 		needmerge = (j > 1)
 		return
 	}
 	s := ck.silenceTime()
-	if s <= 0 {
+	if force || s <= 0 {
 		if splits[j].needDump() {
 			ck.rotate()
-			logger.Infof("dump last %d %d", chunkID, j)
 			ck.lastTS = 0
 		}
+
 		h.chunks[chunkID].splits[j].buf.maxoffset = h.filesizes[chunkID]
 		h.dump(chunkID, j)
 		if j > 0 {
@@ -346,7 +349,7 @@ func (h *hintMgr) smallMerge(chunkID int) (suc bool) {
 
 func (h *hintMgr) close() {
 	for i := 0; i <= h.maxChunkID; i++ {
-		h.trydump(i)
+		h.trydump(i, true)
 	}
 }
 
@@ -360,7 +363,7 @@ func (h *hintMgr) dumpAndMerge() {
 	tosmallmerge := make(map[int]bool)
 	trybigmerge := true
 	for i := 0; i <= h.maxChunkID; i++ {
-		needsmall, silence := h.trydump(i)
+		needsmall, silence := h.trydump(i, false)
 		// logger.Infof("%d %d %v %v", i, len(h.chunks[i].splits), needsmall, silence)
 		if needsmall {
 			tosmallmerge[i] = true

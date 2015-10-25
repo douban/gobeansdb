@@ -39,7 +39,7 @@ func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
 	} else if len(name) != config.TreeDepth {
 		return
 	}
-	s := "09AF"
+	s := "09af"
 	for i := 0; i < config.TreeDepth; i++ {
 		b := name[i]
 		if !((b >= s[0] && b <= s[1]) || (b >= s[2] && b <= s[3])) {
@@ -50,6 +50,7 @@ func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
 	bucketID = int(bucketID64)
 	if bucketID >= config.NumBucket {
 		logger.Fatalf("Bug: wrong bucketid %s->%d", name, bucketID)
+		return
 	}
 	valid = true
 	return
@@ -85,7 +86,7 @@ func (store *HStore) scanBuckets() (err error) {
 					if store.buckets[bucketID].state > 0 {
 						return fmt.Errorf("found dup bucket %d", bucketID)
 					}
-					logger.Debugf("found bucket %d", bucketID)
+					logger.Debugf("found bucket %x", bucketID)
 					store.buckets[bucketID].state = 1
 					store.buckets[bucketID].homeID = i
 					store.homeToBuckets[i][bucketID] = true

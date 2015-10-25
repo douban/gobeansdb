@@ -22,8 +22,6 @@ type dataStore struct {
 	newHead int
 	newTail int
 
-	currOffset uint32
-
 	filesizes     [MAX_CHUNK]uint32
 	wbufs         [MAX_CHUNK][]*WriteRecord
 	wbufSize      uint32
@@ -33,6 +31,7 @@ type dataStore struct {
 func NewdataStore(home string) *dataStore {
 	ds := new(dataStore)
 	ds.home = home
+
 	return ds
 }
 
@@ -65,17 +64,18 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	wrec := wrapRecord(rec)
 	ds.Lock()
 	size := wrec.rsz
-	if ds.currOffset+size > dataConfig.MaxFileSize {
+	currOffset := ds.filesizes[ds.newHead]
+	if currOffset+size > dataConfig.MaxFileSize {
 		ds.newHead++
-		logger.Infof("rotate to %d, size %d, new rec size %d", ds.newHead, ds.currOffset, size)
-		ds.currOffset = 0
+		logger.Infof("rotate to %d, size %d, new rec size %d", ds.newHead, currOffset, size)
+		currOffset = 0
 		go ds.flush(ds.newHead-1, true)
 	}
 	pos.ChunkID = ds.newHead
-	pos.Offset = ds.currOffset
+	pos.Offset = currOffset
 	wrec.pos = pos
 	ds.wbufs[ds.newHead] = append(ds.wbufs[ds.newHead], wrec)
-	ds.currOffset += size
+	ds.filesizes[ds.newHead] += size
 	ds.wbufSize += size
 	cmem.Sub(cmem.TagSetData, int(wrec.vsz))
 	cmem.Add(cmem.TagFlushData, int(size))
@@ -192,7 +192,7 @@ func (ds *dataStore) ListFiles() (max int, err error) {
 }
 
 func (ds *dataStore) GetCurrPos() Position {
-	return Position{ds.newHead, ds.currOffset}
+	return Position{ds.newHead, ds.filesizes[ds.newHead]}
 }
 
 func (ds *dataStore) DeleteFile(chunkID int) error {

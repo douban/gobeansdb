@@ -117,9 +117,9 @@ func (ki *KeyInfo) Prepare() {
 			return
 		}
 	} else {
-
 		ki.KeyPath = ParsePathUint64(ki.KeyHash, ki.KeyPathBuf[:16])
 	}
+	ki.BucketID = 0
 	for _, v := range ki.KeyPath[:config.TreeDepth] {
 		ki.BucketID <<= 4
 		ki.BucketID += v
