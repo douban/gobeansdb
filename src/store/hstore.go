@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmem"
 	"fmt"
 	"loghub"
 	"os"
@@ -16,7 +17,6 @@ hstore  do NOT known relation between khash and key
 var (
 	logger                 = loghub.Default
 	bucketPattern []string = []string{"0", "%x", "%02x", "%03x"}
-	flushDataChan          = make(chan int, 1)
 )
 
 type HStore struct {
@@ -175,7 +175,7 @@ func (store *HStore) Flusher() {
 
 	for {
 		select {
-		case <-flushDataChan:
+		case <-cmem.Chans[cmem.TagFlushData]:
 		case <-time.After(time.Duration(dataConfig.DataFlushSec) * time.Second):
 		}
 		store.flushdatas(false)

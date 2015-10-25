@@ -17,7 +17,15 @@ const (
 var (
 	AllocedSize  []int64 = make([]int64, TagGuard)
 	AllocedCount []int64 = make([]int64, TagGuard)
+	Chans        []chan int
 )
+
+func init() {
+	Chans = make([]chan int, TagGuard)
+	for i := 0; i < TagGuard; i++ {
+		Chans[i] = make(chan int, 1)
+	}
+}
 
 func Add(tag int, size int) {
 	atomic.AddInt64(&AllocedSize[tag], int64(size))

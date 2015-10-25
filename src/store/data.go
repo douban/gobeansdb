@@ -81,7 +81,7 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	cmem.Add(cmem.TagFlushData, int(size))
 	if cmem.AllocedSize[cmem.TagFlushData] > int64(dataConfig.FlushSize) {
 		select {
-		case flushDataChan <- 1:
+		case cmem.Chans[cmem.TagFlushData] <- 1:
 		default:
 		}
 	}
