@@ -9,6 +9,7 @@ import (
 	"store"
 	"strconv"
 	"sync"
+	"time"
 )
 
 var (
@@ -199,7 +200,22 @@ func (s *StorageClient) Incr(key string, value int) (int, error) {
 }
 
 func (s *StorageClient) Delete(key string) (bool, error) {
-	return false, ErrorNotSupport
+	defer handlePanic("delete")
+	if key[0] == '?' || key[0] == '@' {
+		return false, fmt.Errorf("invalid key %s", key)
+	}
+	s.prepare(key, false)
+	s.payload.Flag = 0
+	s.payload.Value = nil
+	s.payload.Ver = -1
+	s.payload.TS = uint32(time.Now().Unix()) // TODO:
+
+	err := s.hstore.Set(&s.ki, s.payload)
+	if err != nil {
+		log.Printf("err to delete %s: %s", key, err.Error())
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *StorageClient) Close() {
