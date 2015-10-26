@@ -1,12 +1,14 @@
 package store
 
 import (
+	"bytes"
 	"cmem"
 	"fmt"
 	"loghub"
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -23,6 +25,8 @@ type HStore struct {
 	buckets       []*Bucket
 	homeToBuckets []map[int]bool
 	gcMgr         *GCMgr
+	htree         *HTree
+	htreeLock     sync.Mutex
 }
 
 func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
@@ -168,6 +172,9 @@ func NewHStore() (store *HStore, err error) {
 			}
 		}
 	}
+	if config.TreeDepth > 0 {
+		store.htree = newHTree(0, 0, config.TreeDepth+1)
+	}
 	return
 }
 
@@ -199,14 +206,56 @@ func (store *HStore) Close() {
 	}
 }
 
+func (store *HStore) updateNodesUpper(level, offset int) (node *Node) {
+	tree := store.htree
+	node = &tree.levels[level][offset]
+	node.hash = 0
+	node.count = 0
+	if level < len(tree.levels)-1 {
+		for i := 0; i < 16; i++ {
+			cnode := store.updateNodesUpper(level+1, offset*16+i)
+			node.hash *= 97
+			node.hash += cnode.hash
+		}
+	} else {
+		bkt := store.buckets[offset]
+		if bkt.htree != nil {
+			root := bkt.htree.levels[0][0]
+			node.hash = root.hash
+			node.count = root.count
+		}
+	}
+	return
+}
+
+func (store *HStore) ListUpper(ki *KeyInfo) ([]byte, error) {
+	store.htreeLock.Lock()
+	defer store.htreeLock.Unlock()
+	tree := store.htree
+	l := len(ki.KeyPath)
+	offset := 0
+	for h := 0; h < l; h += 1 {
+		offset = offset*16 + ki.KeyPath[h-1]
+	}
+	store.updateNodesUpper(l, offset)
+	l += 1
+	offset *= 16
+	var buffer bytes.Buffer
+	nodes := tree.levels[l][offset : offset+16]
+	for i := 0; i < 16; i++ {
+		n := &nodes[i]
+		s := fmt.Sprintf("%x/ %d %d\n", i, n.hash, int(n.count))
+		buffer.WriteString(s)
+	}
+	return buffer.Bytes(), nil
+}
+
 func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 	ki.Prepare()
 	if ki.BucketID >= 0 {
 		return store.buckets[ki.BucketID].listDir(ki)
-	} else {
-		// TODO: summarize to 16 groups according to path
 	}
-	return nil, nil
+	return store.ListUpper(ki)
 }
 
 func (store *HStore) GC(bucketID, beginChunkID, endChunkID int) error {

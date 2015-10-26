@@ -314,7 +314,6 @@ func (tree *HTree) listDir(ki *KeyInfo) (items []HTreeItem, nodes []*Node) {
 
 func (tree *HTree) ListDir(ki *KeyInfo) (ret []byte, err error) {
 	if len(ki.Key) < tree.depth {
-
 		return nil, fmt.Errorf("bad dir path to list: too short")
 	}
 	tree.Lock()
