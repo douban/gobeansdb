@@ -329,6 +329,14 @@ func (bkt *Bucket) getInfo(keys []string) ([]byte, error) {
 
 }
 
+func (bkt *Bucket) GetRecordByKeyHash(ki *KeyInfo) (rec *Record, err error) {
+	_, pos, found := bkt.htree.get(ki)
+	if !found {
+		return
+	}
+	return bkt.datas.GetRecordByPos(pos)
+}
+
 func (b *Bucket) loadGCHistroy() {
 	// TODO
 }

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"cmem"
 	"fmt"
 	"quicklz"
@@ -166,6 +167,9 @@ func (rec *Record) Size() uint32 {
 	return size
 }
 
-func (r *Record) Dumps() []byte {
-	return nil
+func (rec *Record) Dumps() []byte {
+	var buf bytes.Buffer
+	wrec := wrapRecord(rec)
+	wrec.append(&buf, false)
+	return buf.Bytes()
 }

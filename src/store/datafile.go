@@ -237,14 +237,19 @@ type DataStreamWriter struct {
 }
 
 func (stream *DataStreamWriter) Append(rec *Record) (offset uint32, err error) {
-	return stream.offset, stream.append(wrapRecord(rec))
+	return stream.append(wrapRecord(rec))
 }
 
-func (stream *DataStreamWriter) append(wrec *WriteRecord) error {
-	wbuf := stream.wbuf
+func (stream *DataStreamWriter) append(wrec *WriteRecord) (offset uint32, err error) {
+	offset = stream.offset
+	err = wrec.append(stream.wbuf, true)
+	stream.offset += wrec.rsz
+	return
+}
+
+func (wrec *WriteRecord) append(wbuf io.Writer, dopadding bool) error {
 	wrec.encodeHeader()
 	size, sizeall := wrec.rec.Sizes()
-	stream.offset += sizeall
 	if n, err := wbuf.Write(wrec.header[:]); err != nil {
 		logger.Infof(err.Error(), n)
 		return err
@@ -258,7 +263,7 @@ func (stream *DataStreamWriter) append(wrec *WriteRecord) error {
 		return err
 	}
 	npad := sizeall - size
-	if npad != 0 {
+	if dopadding && npad != 0 {
 		if n, err := wbuf.Write(padding[:npad]); err != nil {
 			logger.Infof(err.Error(), n)
 			return err

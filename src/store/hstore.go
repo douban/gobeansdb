@@ -228,3 +228,9 @@ func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 	ki.Prepare()
 	return store.buckets[ki.BucketID].getset(ki, p)
 }
+
+func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, error) {
+	ki.Prepare()
+	store.buckets[ki.BucketID].GetRecordByKeyHash(ki)
+	return nil, nil
+}

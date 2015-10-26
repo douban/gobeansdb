@@ -115,6 +115,32 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 
 	defer handlePanic("get")
 	if key[0] == '@' {
+		if key[1] == '@' {
+			key2 := key[2:]
+			if len(key2) != 16 {
+				return nil, fmt.Errorf("wrong cmd fmt")
+			}
+			s.prepare(key2, true)
+			rec, err := s.hstore.GetRecordByKeyHash(&s.ki)
+			if err != nil {
+				return nil, err
+			} else if rec == nil {
+				return nil, nil
+			}
+			item := new(mc.Item) // TODO: avoid alloc?
+			item.Body = rec.Dumps()
+			item.Flag = 0
+			return item, nil
+		} else if "collision_" == key[1:11] {
+			if "all_" == key[11:15] {
+				return nil, nil
+			} else {
+				item := new(mc.Item) // TODO: avoid alloc?
+				item.Body = []byte("0 0 0 0")
+				item.Flag = 0
+				return item, nil
+			}
+		}
 		return s.listDir(key[1:])
 	} else if key[0] == '?' {
 		extended := false
