@@ -30,10 +30,10 @@ type Bucket struct {
 func (bkt *Bucket) buildHintFromData(chunkID int, start uint32, splitID int) (hintpath string, err error) {
 	logger.Infof("buildHintFromData chunk %d split %d offset 0x%x", chunkID, splitID, start)
 	r, err := bkt.datas.GetStreamReader(chunkID)
-	defer r.Close()
 	if err != nil {
 		return
 	}
+	defer r.Close()
 	hintpath = bkt.hints.getPath(chunkID, splitID, false)
 	w, err := newHintFileWriter(hintpath, bkt.datas.filesizes[chunkID], 1<<20)
 	if err != nil {
