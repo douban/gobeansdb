@@ -36,6 +36,7 @@ func NewMapStore() *mapStore {
 func (s *mapStore) Client() StorageClient {
 	return s
 }
+
 func (s *mapStore) Close() {
 	return
 }

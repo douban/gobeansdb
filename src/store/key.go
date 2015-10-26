@@ -17,6 +17,10 @@ var (
 
 type HashFuncType func(key []byte) uint64
 
+func IsValidKeyString(key string) bool {
+	return !(key[0] == '?' || key[0] == '@')
+}
+
 func murmur(data []byte) (h uint32) {
 	hasher := murmur3.New32()
 	hasher.Write(data)

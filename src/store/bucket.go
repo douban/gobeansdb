@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -314,6 +315,36 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		payload = rec.Payload
 	}
 	return
+}
+
+func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
+	payload, _, err := bkt.get(ki, false)
+	if err != nil {
+		return 0
+	}
+
+	if payload != nil {
+		s := string(payload.Value)
+		if payload.Flag != FLAG_INCR {
+			logger.Errorf("incr with flag 0x%x", payload.Flag)
+			return 0
+		}
+		if len(s) > 22 {
+			logger.Errorf("incr with value %s", s)
+			return 0
+		}
+		v, err := strconv.Atoi(s)
+		if err != nil {
+			logger.Errorf("incr with value %s", s)
+			return 0
+		}
+		value += v
+	}
+	s := strconv.Itoa(value)
+	payload.TS = uint32(time.Now().Unix())
+	payload.Value = []byte(s)
+	bkt.set(ki, payload)
+	return value
 }
 
 func (bkt *Bucket) getRecordByPos(pos Position) (*Record, error) {

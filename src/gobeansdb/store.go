@@ -187,7 +187,6 @@ func (s *StorageClient) GetMulti(keys []string) (map[string]*mc.Item, error) {
 
 func (s *StorageClient) Len() int {
 	// TODO:
-
 	return 0
 }
 
@@ -196,12 +195,18 @@ func (s *StorageClient) Append(key string, value []byte) (bool, error) {
 }
 
 func (s *StorageClient) Incr(key string, value int) (int, error) {
-	return 0, ErrorNotSupport
+	defer handlePanic("delete")
+	if key[0] == '?' || key[0] == '@' {
+		return 0, fmt.Errorf("invalid key %s", key)
+	}
+	s.prepare(key, false)
+	newvalue := s.hstore.Incr(&s.ki, value)
+	return newvalue, nil
 }
 
 func (s *StorageClient) Delete(key string) (bool, error) {
 	defer handlePanic("delete")
-	if key[0] == '?' || key[0] == '@' {
+	if store.IsValidKeyString(key) {
 		return false, fmt.Errorf("invalid key %s", key)
 	}
 	s.prepare(key, false)

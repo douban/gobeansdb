@@ -244,3 +244,8 @@ func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, error) {
 	ki.Prepare()
 	return store.buckets[ki.BucketID].GetRecordByKeyHash(ki)
 }
+func (store *HStore) Incr(ki *KeyInfo, value int) int {
+	ki.KeyHash = getKeyHash(ki.Key)
+	ki.Prepare()
+	return store.buckets[ki.BucketID].incr(ki, value)
+}
