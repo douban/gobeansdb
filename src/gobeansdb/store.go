@@ -7,6 +7,7 @@ import (
 	mc "memcache"
 	"runtime"
 	"store"
+	"strconv"
 	"sync"
 )
 
@@ -118,7 +119,7 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 		if key[1] == '@' {
 			key2 := key[2:]
 			if len(key2) != 16 {
-				return nil, fmt.Errorf("wrong cmd fmt")
+				return nil, fmt.Errorf("bad command line format") //FIXME: SERVER_ERROR
 			}
 			s.prepare(key2, true)
 			rec, err := s.hstore.GetRecordByKeyHash(&s.ki)
@@ -206,13 +207,55 @@ func (s *StorageClient) Close() {
 }
 
 func (s *StorageClient) Process(cmd string, args []string) (status string, msg string, ok bool) {
+
+	status = "CLIENT_ERROR"
+	msg = "bad command line format"
 	switch cmd {
 	case "gc":
+		l := len(args)
+		if !(l == 2 || l == 3) || args[0][0] != '@' {
+			return
+		}
+		bucket, err := strconv.ParseUint(args[0][1:], 16, 32)
+		if err != nil || bucket < 0 {
+			return
+		}
+
+		start, err := strconv.Atoi(args[1])
+		if err != nil {
+			return
+		}
+		end := -1
+		if l == 3 {
+			end, err = strconv.Atoi(args[2])
+			if err != nil {
+				return
+			}
+		}
+		err = s.hstore.GC(int(bucket), start, end)
+		if err != nil {
+			status = "ERROR"
+			msg = err.Error()
+		}
+		status = "OK"
+		msg = ""
 		ok = true
-		// TODO
 	case "optimize_stat":
+		msg = ""
 		ok = true
-		// TODO:
+		bucketid, gcstat := s.hstore.GCStat()
+		if gcstat == nil {
+			status = "none"
+		} else {
+			if gcstat.Running {
+				status = "running"
+				msg = fmt.Sprintf("bitcast 0x%x", bucketid)
+			} else if gcstat.StopReason != nil {
+				status = "success"
+			} else {
+				status = "fail"
+			}
+		}
 	}
 	return
 }

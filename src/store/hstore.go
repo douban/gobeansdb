@@ -22,7 +22,7 @@ var (
 type HStore struct {
 	buckets       []*Bucket
 	homeToBuckets []map[int]bool
-	gcMgr         *gcMgr
+	gcMgr         *GCMgr
 }
 
 func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
@@ -210,7 +210,18 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 }
 
 func (store *HStore) GC(bucketID, beginChunkID, endChunkID int) error {
-	return store.gcMgr.gc(store.buckets[bucketID], beginChunkID, endChunkID)
+	if bucketID >= config.NumBucket {
+		return fmt.Errorf("bad bucket id")
+	}
+	if store.gcMgr.stat != nil && store.gcMgr.stat.Running {
+		return fmt.Errorf("already running")
+	}
+	go store.gcMgr.gc(store.buckets[bucketID], beginChunkID, endChunkID)
+	return nil
+}
+
+func (store *HStore) GCStat() (int, *GCState) {
+	return store.gcMgr.bucketID, store.gcMgr.stat
 }
 
 func (store *HStore) GetBucketInfo(bucketID int, keys []string) ([]byte, error) {
@@ -231,6 +242,5 @@ func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 
 func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, error) {
 	ki.Prepare()
-	store.buckets[ki.BucketID].GetRecordByKeyHash(ki)
-	return nil, nil
+	return store.buckets[ki.BucketID].GetRecordByKeyHash(ki)
 }

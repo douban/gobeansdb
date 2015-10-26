@@ -5,7 +5,9 @@ import (
 	"time"
 )
 
-type gcMgr struct {
+type GCMgr struct {
+	bucketID int
+	stat     *GCState // curr or laste
 }
 
 type GCState struct {
@@ -55,22 +57,29 @@ func (s *GCFileState) String() string {
 	return fmt.Sprintf("%#v", s)
 }
 
-func (mgr *gcMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) bool {
+func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) bool {
 	return true
 }
 
-func (mgr *gcMgr) UpdatePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position) {
+func (mgr *GCMgr) UpdatePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position) {
 	// TODO
 }
 
-func (mgr *gcMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
+func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
+	if endChunkID < 0 {
+		endChunkID = bkt.datas.newHead
+	}
 	bkt.GCHistory = append(bkt.GCHistory, GCState{})
 	gc := &bkt.GCHistory[len(bkt.GCHistory)-1]
+	mgr.stat = gc
 
 	gc.Begin = startChunkID
 	gc.End = endChunkID
 	gc.Dst = startChunkID
 	gc.Running = true
+	defer func() {
+		gc.Running = false
+	}()
 
 	var oldPos Position
 	var newPos Position
@@ -135,6 +144,5 @@ func (mgr *gcMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 		logger.Infof("end GC file %#v", fileState)
 	}
 	//bkt.Index.OnGCEnd()
-	gc.Running = false
 	return nil
 }
