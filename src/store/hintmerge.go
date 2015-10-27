@@ -4,38 +4,38 @@ import "container/heap"
 
 type mergeReader struct {
 	r    *hintFileReader
-	curr *hintItem
+	curr *HintItem
 }
 
 type mergeWriter struct {
 	w   *hintFileWriter
-	buf []*hintItem
+	buf []*HintItem
 	num int
 }
 
 func newMergeWriter(w *hintFileWriter) *mergeWriter {
 	mw := new(mergeWriter)
 	mw.w = w
-	mw.buf = make([]*hintItem, 1000)
+	mw.buf = make([]*HintItem, 1000)
 	return mw
 }
 
-func (mw *mergeWriter) write(it *hintItem) {
+func (mw *mergeWriter) write(it *HintItem) {
 	if mw.num == 0 {
 		mw.buf[0] = it
 		mw.num = 1
 		return
 	}
 	last := mw.buf[mw.num-1]
-	if last.keyhash != it.keyhash {
+	if last.Keyhash != it.Keyhash {
 		mw.flush()
 		mw.num = 1
 		mw.buf[0] = it
 	} else {
-		if last.key != it.key {
+		if last.Key != it.Key {
 			mw.num += 1
 			if mw.num > len(mw.buf) {
-				newbuf := make([]*hintItem, len(mw.buf)*2)
+				newbuf := make([]*HintItem, len(mw.buf)*2)
 				copy(newbuf, mw.buf)
 				mw.buf = newbuf
 			}
@@ -57,14 +57,14 @@ func (h mergeHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 func (h mergeHeap) Less(i, j int) bool {
 	a := h[i].curr
 	b := h[j].curr
-	if a.keyhash != b.keyhash {
-		return a.keyhash < b.keyhash
+	if a.Keyhash != b.Keyhash {
+		return a.Keyhash < b.Keyhash
 	} else {
-		if a.key != b.key {
-			return a.key < b.key
+		if a.Key != b.Key {
+			return a.Key < b.Key
 		}
 	}
-	return a.pos < b.pos
+	return a.Pos < b.Pos
 }
 
 func (h *mergeHeap) Push(x interface{}) {
@@ -117,7 +117,7 @@ func merge(src []*hintFileReader, dst string) (idx *hintFileIndex, err error) {
 			// TODO:
 		}
 		if mr.curr != nil {
-			mr.curr.pos += uint32(mr.r.chunkID)
+			mr.curr.Pos += uint32(mr.r.chunkID)
 			heap.Push(&h, mr)
 		} else {
 			// logger.Debugf("%s done", mr.r.path)

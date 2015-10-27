@@ -21,7 +21,7 @@ type hintBuffer struct {
 	maxoffset uint32
 	expsize   int
 	keys      map[string]int
-	array     []*hintItem
+	array     []*HintItem
 }
 
 type hintSplit struct {
@@ -32,7 +32,7 @@ type hintSplit struct {
 func newHintBuffer() *hintBuffer {
 	buf := &hintBuffer{}
 	buf.keys = make(map[string]int)
-	buf.array = make([]*hintItem, hintConfig.SplitCount)
+	buf.array = make([]*HintItem, hintConfig.SplitCount)
 	return buf
 }
 
@@ -40,27 +40,27 @@ func newHintSplit() *hintSplit {
 	return &hintSplit{newHintBuffer(), nil}
 }
 
-func (h *hintBuffer) set(it *hintItem) bool {
-	idx, found := h.keys[it.key]
+func (h *hintBuffer) set(it *HintItem) bool {
+	idx, found := h.keys[it.Key]
 	if !found {
-		h.expsize += len(it.key) + 8*4 // meta and at least 4 pointers
+		h.expsize += len(it.Key) + 8*4 // meta and at least 4 pointers
 		idx = len(h.keys)
 		if idx >= len(h.array) {
-			if it.pos > h.maxoffset {
-				h.maxoffset = it.pos
+			if it.Pos > h.maxoffset {
+				h.maxoffset = it.Pos
 			}
 			return false
 		}
-		h.keys[it.key] = idx
+		h.keys[it.Key] = idx
 	}
 	h.array[idx] = it
-	if it.pos > h.maxoffset {
-		h.maxoffset = it.pos
+	if it.Pos > h.maxoffset {
+		h.maxoffset = it.Pos
 	}
 	return true
 }
 
-func (h *hintBuffer) get(key string) *hintItem {
+func (h *hintBuffer) get(key string) *HintItem {
 	idx, found := h.keys[key]
 	if found {
 		return h.array[idx]
@@ -114,7 +114,7 @@ func (chunk *hintChunk) rotate() *hintSplit {
 	return sp
 }
 
-func (chunk *hintChunk) set(it *hintItem) (rotated bool) {
+func (chunk *hintChunk) set(it *HintItem) (rotated bool) {
 	chunk.Lock()
 	l := len(chunk.splits)
 	sp := chunk.splits[l-1]
@@ -137,7 +137,7 @@ func (chunk *hintChunk) getFiles() (paths []string) {
 	return
 }
 
-func (chunk *hintChunk) get(keyhash uint64, key string) (it *hintItem, err error) {
+func (chunk *hintChunk) get(keyhash uint64, key string) (it *HintItem, err error) {
 	chunk.fileLock.RLock()
 	defer chunk.fileLock.RUnlock()
 	chunk.Lock()
@@ -236,13 +236,13 @@ func (hm *hintMgr) findChunk(chunkID int, remove bool) (hints []string) {
 
 type byKeyHash struct {
 	idx  []int
-	data []*hintItem
+	data []*HintItem
 }
 
 func (by byKeyHash) Len() int      { return len(by.idx) }
 func (by byKeyHash) Swap(i, j int) { by.idx[i], by.idx[j] = by.idx[j], by.idx[i] }
 func (by byKeyHash) Less(i, j int) bool {
-	return by.data[by.idx[i]].keyhash < by.data[by.idx[j]].keyhash
+	return by.data[by.idx[i]].Keyhash < by.data[by.idx[j]].Keyhash
 }
 
 func (h *hintMgr) dump(chunkID, splitID int) (err error) {
@@ -476,7 +476,7 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position) {
 	h.setItem(it, pos.ChunkID)
 }
 
-func (h *hintMgr) setItem(it *hintItem, chunkID int) {
+func (h *hintMgr) setItem(it *HintItem, chunkID int) {
 	splitRotate := h.chunks[chunkID].set(it)
 	if chunkID > h.maxChunkID {
 		h.Lock()
@@ -493,7 +493,7 @@ func (h *hintMgr) setItem(it *hintItem, chunkID int) {
 }
 
 func (h *hintMgr) get(keyhash uint64, key string) (meta Meta, pos Position, err error) {
-	var it *hintItem
+	var it *HintItem
 	it, pos.ChunkID, err = h.getItem(keyhash, key)
 	if err != nil {
 		return
@@ -502,19 +502,19 @@ func (h *hintMgr) get(keyhash uint64, key string) (meta Meta, pos Position, err 
 		err = fmt.Errorf("not found")
 		return
 	}
-	meta.ValueHash = it.vhash
-	meta.Ver = it.ver
-	pos.Offset = it.pos
+	meta.ValueHash = it.Vhash
+	meta.Ver = it.Ver
+	pos.Offset = it.Pos
 	return
 }
 
-func (h *hintMgr) getItem(keyhash uint64, key string) (it *hintItem, chunkID int, err error) {
+func (h *hintMgr) getItem(keyhash uint64, key string) (it *HintItem, chunkID int, err error) {
 	for i := h.maxChunkID; i >= 0; i-- {
 		if i <= h.mergedID {
 			it, err = h.merged.get(keyhash, key)
 			if err == nil && it != nil {
-				chunkID = int(it.pos & 0xff)
-				it.pos -= uint32(chunkID)
+				chunkID = int(it.Pos & 0xff)
+				it.Pos -= uint32(chunkID)
 			}
 			return
 		}

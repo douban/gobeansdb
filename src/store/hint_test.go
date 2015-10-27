@@ -12,7 +12,7 @@ func SetHintConfig(conf HintConfig) {
 	*hintConfig = conf
 }
 
-func readHintAndCheck(t *testing.T, path string, items []*hintItem) {
+func readHintAndCheck(t *testing.T, path string, items []*HintItem) {
 	r := newHintFileReader(path, 0, 10240)
 	if err := r.open(); err != nil {
 		t.Fatal(err)
@@ -71,9 +71,9 @@ func TestHintRW(t *testing.T) {
 	checkIndex(t, items, index)
 }
 
-func checkIndex(t *testing.T, items []*hintItem, index *hintFileIndex) {
+func checkIndex(t *testing.T, items []*HintItem, index *hintFileIndex) {
 	for _, it := range items {
-		it2, err := index.get(it.keyhash, it.key)
+		it2, err := index.get(it.Keyhash, it.Key)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,16 +83,16 @@ func checkIndex(t *testing.T, items []*hintItem, index *hintFileIndex) {
 	}
 }
 
-func genSortedHintItems(n int) []*hintItem {
-	items := make([]*hintItem, n)
+func genSortedHintItems(n int) []*HintItem {
+	items := make([]*HintItem, n)
 	for i := 0; i < n; i++ {
 		base := i * 3
-		it := &hintItem{
-			keyhash: uint64(i),
-			key:     genKey(i),
-			pos:     uint32(base) * 256,
-			ver:     int32(base + 1),
-			vhash:   uint16(base + 2),
+		it := &HintItem{
+			Keyhash: uint64(i),
+			Key:     genKey(i),
+			Pos:     uint32(base) * 256,
+			Ver:     int32(base + 1),
+			Vhash:   uint16(base + 2),
 		}
 		items[i] = it
 	}
@@ -122,9 +122,9 @@ func testMerge(t *testing.T, nsrc int) {
 		w := src[rand.Intn(nsrc)]
 		it := items[i]
 
-		tmp := new(hintItem)
+		tmp := new(HintItem)
 		*tmp = *it
-		tmp.pos = it.pos - 1
+		tmp.Pos = it.Pos - 1
 		w.writeItem(tmp)
 		// TODO: same khash diff key
 
@@ -152,11 +152,11 @@ func genKey(i int) string {
 	return fmt.Sprintf("key_%05d", i)
 }
 
-func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *hintItem) {
+func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *HintItem) {
 	if !buf.set(it) {
 		t.Fatalf("%#v set return false", it)
 	}
-	r := buf.get(it.key)
+	r := buf.get(it.Key)
 	if r == nil || *r != *it {
 		t.Fatalf("%#v != %#v", r, it)
 	}
@@ -173,18 +173,18 @@ func TestHintBuffer(t *testing.T) {
 	if buf.set(items[n]) {
 		t.Fatalf("set return true")
 	}
-	items[n-1].ver = -1
+	items[n-1].Ver = -1
 	setAndCheckHintBuffer(t, buf, items[n-1])
 }
 
-func checkChunk(t *testing.T, ck *hintChunk, it *hintItem) {
-	r, err := ck.get(it.keyhash, it.key)
+func checkChunk(t *testing.T, ck *hintChunk, it *HintItem) {
+	r, err := ck.get(it.Keyhash, it.Key)
 	if err != nil || r == nil || *r != *it {
 		t.Fatalf("err = %s, %#v != %#v", err, r, it)
 	}
 }
 
-func setAndCheckChunk(t *testing.T, ck *hintChunk, it *hintItem, rotate bool) {
+func setAndCheckChunk(t *testing.T, ck *hintChunk, it *HintItem, rotate bool) {
 	if rotate != ck.set(it) {
 		t.Fatalf("%#v not %v", it, rotate)
 	}
@@ -206,12 +206,12 @@ func TestHintChunk(t *testing.T) {
 	if len(ck.splits) != 2 {
 		t.Fatalf("%d", len(ck.splits))
 	}
-	items[n-1].ver = -1
+	items[n-1].Ver = -1
 	setAndCheckChunk(t, ck, items[n-1], false)
 }
 
-func checkMgr(t *testing.T, hm *hintMgr, it *hintItem, chunkID int) {
-	r, cid, err := hm.getItem(it.keyhash, it.key)
+func checkMgr(t *testing.T, hm *hintMgr, it *HintItem, chunkID int) {
+	r, cid, err := hm.getItem(it.Keyhash, it.Key)
 	if err != nil {
 		t.Fatalf("%#v, %s", it, err.Error())
 	}
@@ -220,7 +220,7 @@ func checkMgr(t *testing.T, hm *hintMgr, it *hintItem, chunkID int) {
 	}
 }
 
-func setAndCheckMgr(t *testing.T, hm *hintMgr, it *hintItem, chunkID int) {
+func setAndCheckMgr(t *testing.T, hm *hintMgr, it *HintItem, chunkID int) {
 	hm.setItem(it, chunkID)
 	checkMgr(t, hm, it, chunkID)
 }
@@ -242,7 +242,7 @@ func checkFiles(t *testing.T, dir string, paths []string) {
 	}
 }
 
-func fillChunk(t *testing.T, dir string, hm *hintMgr, items []*hintItem, chunkID int, files []string) {
+func fillChunk(t *testing.T, dir string, hm *hintMgr, items []*HintItem, chunkID int, files []string) {
 	logger.Infof("fill %d", chunkID)
 	n := len(items)
 	setAndCheckMgr(t, hm, items[0], chunkID)
@@ -291,7 +291,7 @@ func TestHintMgr(t *testing.T) {
 	// change item content, 注意 pos
 	logger.Infof("set 6 again")
 	it := *(items[0])
-	it.pos = items[0].pos + 100
+	it.Pos = items[0].Pos + 100
 	hm.setItem(&it, 6)
 
 	time.Sleep(time.Second * 5)

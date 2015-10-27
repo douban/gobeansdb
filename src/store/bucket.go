@@ -34,6 +34,18 @@ func (bkt *Bucket) getHtreePath(chunkID int) string {
 	return fmt.Sprintf("%s/%03d.hr", bkt.home, chunkID)
 }
 
+func (bkt *Bucket) getCollisionPath() string {
+	return fmt.Sprintf("%s/collision.yaml", bkt.home)
+}
+
+func (bkt *Bucket) dumpCollisions() {
+	bkt.collisons.dump(bkt.getCollisionPath())
+}
+
+func (bkt *Bucket) loadCollisions() {
+	bkt.collisons.load(bkt.getCollisionPath())
+}
+
 func (bkt *Bucket) buildHintFromData(chunkID int, start uint32, splitID int) (hintpath string, err error) {
 	logger.Infof("buildHintFromData chunk %d split %d offset 0x%x", chunkID, splitID, start)
 	r, err := bkt.datas.GetStreamReader(chunkID)
@@ -87,12 +99,12 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 		if item == nil {
 			return
 		}
-		if item.ver > 0 {
-			ki := NewKeyInfoFromBytes([]byte(item.key), item.keyhash, false)
+		if item.Ver > 0 {
+			ki := NewKeyInfoFromBytes([]byte(item.Key), item.Keyhash, false)
 			ki.Prepare()
-			meta.ValueHash = item.vhash
-			meta.Ver = item.ver
-			pos.Offset = item.pos
+			meta.ValueHash = item.Vhash
+			meta.Ver = item.Ver
+			pos.Offset = item.Pos
 			tree.set(ki, &meta, pos)
 		}
 	}
@@ -106,6 +118,7 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 	bkt.datas = NewdataStore(home)
 	bkt.hints = newHintMgr(home)
 	bkt.collisons = newCTable()
+	bkt.loadCollisions()
 	bkt.htree = newHTree(config.TreeDepth, id, config.TreeHeight)
 
 	bkt.hints.filesizes = bkt.datas.filesizes[:]
@@ -203,6 +216,7 @@ func abs(n int32) int32 {
 func (bkt *Bucket) close() {
 	logger.Debugf("closing bucket %s", bkt.home)
 	bkt.dumpGCHistroy()
+	bkt.dumpCollisions()
 	bkt.datas.flush(-1, true)
 	bkt.hints.close()
 	bkt.dumpHtree()
@@ -289,15 +303,15 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		}
 		_ = meta
 	} else {
-		pos = decodePos(hintit.pos)
+		pos = decodePos(hintit.Pos)
 	}
 
 	var rec *Record
 	if memOnly {
 		if hintit != nil {
 			payload = new(Payload)
-			payload.Ver = hintit.ver
-			payload.ValueHash = hintit.vhash
+			payload.Ver = hintit.Ver
+			payload.ValueHash = hintit.Vhash
 		} else if found {
 			payload = new(Payload)
 			payload.Meta = *meta
@@ -320,8 +334,8 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	if err != nil || hintit == nil {
 		return
 	}
-	pos = Position{chunkID, hintit.pos}
-	hintit.pos = pos.encode()
+	pos = Position{chunkID, hintit.Pos}
+	hintit.Pos = pos.encode()
 
 	bkt.collisons.set(hintit)
 	hintit2 := newHintItem(ki.KeyHash, rec.Payload.Ver, rec.Payload.ValueHash, pos, string(rec.Key))

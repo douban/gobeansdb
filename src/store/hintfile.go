@@ -87,12 +87,12 @@ func (reader *hintFileReader) open() (err error) {
 	return nil
 }
 
-func (reader *hintFileReader) next() (item *hintItem, err error) {
+func (reader *hintFileReader) next() (item *HintItem, err error) {
 	if reader.offset >= reader.indexOffset {
 		return nil, nil
 	}
 	h := reader.buf[:HINTITEM_HEAD_SIZE]
-	item = new(hintItem)
+	item = new(HintItem)
 	var readn int
 	readn, err = reader.fd.Read(h)
 	if err != nil {
@@ -103,10 +103,10 @@ func (reader *hintFileReader) next() (item *hintItem, err error) {
 		err = fmt.Errorf("bad hint file %s readn %d", reader.path, readn)
 		return
 	}
-	item.keyhash = binary.LittleEndian.Uint64(h[:8])
-	item.pos = binary.LittleEndian.Uint32(h[8:12])
-	item.ver = int32(binary.LittleEndian.Uint32(h[12:16]))
-	item.vhash = binary.LittleEndian.Uint16(h[16:18])
+	item.Keyhash = binary.LittleEndian.Uint64(h[:8])
+	item.Pos = binary.LittleEndian.Uint32(h[8:12])
+	item.Ver = int32(binary.LittleEndian.Uint32(h[12:16]))
+	item.Vhash = binary.LittleEndian.Uint16(h[16:18])
 	ksz := int(h[18])
 	key := reader.buf[:ksz]
 	readn, err = reader.fd.Read(key)
@@ -118,7 +118,7 @@ func (reader *hintFileReader) next() (item *hintItem, err error) {
 		err = fmt.Errorf("bad hint file %s readn %d", reader.path, readn)
 		return
 	}
-	item.key = string(key[:ksz])
+	item.Key = string(key[:ksz])
 	reader.offset += HINTITEM_HEAD_SIZE + int64(ksz)
 	return item, nil
 }
@@ -143,20 +143,20 @@ func newHintFileWriter(path string, maxOffset uint32, bufsize int) (w *hintFileW
 	return
 }
 
-func (w *hintFileWriter) writeItem(item *hintItem) error {
+func (w *hintFileWriter) writeItem(item *HintItem) error {
 	h := w.buf[:HINTITEM_HEAD_SIZE]
-	binary.LittleEndian.PutUint64(h[0:8], item.keyhash)
-	binary.LittleEndian.PutUint32(h[8:12], item.pos)
-	binary.LittleEndian.PutUint32(h[12:16], uint32(item.ver))
-	binary.LittleEndian.PutUint16(h[16:18], item.vhash)
-	h[18] = byte(len(item.key))
+	binary.LittleEndian.PutUint64(h[0:8], item.Keyhash)
+	binary.LittleEndian.PutUint32(h[8:12], item.Pos)
+	binary.LittleEndian.PutUint32(h[12:16], uint32(item.Ver))
+	binary.LittleEndian.PutUint16(h[16:18], item.Vhash)
+	h[18] = byte(len(item.Key))
 	w.wbuf.Write(h)
-	w.wbuf.WriteString(item.key)
+	w.wbuf.WriteString(item.Key)
 	// TODO: refactor
 	if (w.offset - w.index.lastoffset) > int64(hintConfig.IndexIntervalSize-HINTITEM_HEAD_SIZE-256) {
-		w.index.append(item.keyhash, w.offset)
+		w.index.append(item.Keyhash, w.offset)
 	}
-	w.offset += HINTITEM_HEAD_SIZE + int64(len(item.key))
+	w.offset += HINTITEM_HEAD_SIZE + int64(len(item.Key))
 	w.numKey += 1
 	return nil
 }

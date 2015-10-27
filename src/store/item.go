@@ -40,16 +40,16 @@ type HTreeItem struct {
 	vhash   uint16
 }
 
-type hintItem struct {
-	keyhash uint64
-	pos     uint32
-	ver     int32
-	vhash   uint16
-	key     string
+type HintItem struct {
+	Keyhash uint64
+	Pos     uint32
+	Ver     int32
+	Vhash   uint16
+	Key     string
 }
 
-func newHintItem(khash uint64, ver int32, vhash uint16, pos Position, key string) *hintItem {
-	return &hintItem{khash, pos.encode(), ver, vhash, key}
+func newHintItem(khash uint64, ver int32, vhash uint16, pos Position, key string) *HintItem {
+	return &HintItem{khash, pos.encode(), ver, vhash, key}
 }
 
 type Payload struct {

@@ -62,6 +62,7 @@ func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
 
 // TODO: allow rescan
 func (store *HStore) scanBuckets() (err error) {
+
 	for _, home := range config.Homes {
 		homefile, err := os.Open(home)
 		if err != nil {

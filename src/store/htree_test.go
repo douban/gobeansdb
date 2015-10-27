@@ -288,11 +288,11 @@ func tLoadAHint(tree *HTree, r *hintFileReader) (numKey, numAll int, e error) {
 			return
 		}
 		numAll++
-		if item.ver > 0 {
-			ki := NewKeyInfoFromBytes([]byte(item.key), item.keyhash, false)
-			meta.ValueHash = item.vhash
-			meta.Ver = item.ver
-			pos.Offset = item.pos
+		if item.Ver > 0 {
+			ki := NewKeyInfoFromBytes([]byte(item.Key), item.Keyhash, false)
+			meta.ValueHash = item.Vhash
+			meta.Ver = item.Ver
+			pos.Offset = item.Pos
 			ki.Prepare()
 			tree.set(ki, &meta, pos)
 			numKey++
@@ -337,8 +337,8 @@ func tLoadAHintP(tree *HTree, r *hintFileReader) (numKey, numAll int, e error) {
 				end = true
 				break
 			}
-			if item.ver > 0 && item.keyhash != 0 {
-				khashs <- item.keyhash
+			if item.Ver > 0 && item.Keyhash != 0 {
+				khashs <- item.Keyhash
 				numKey++
 			}
 			numAll++

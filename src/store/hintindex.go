@@ -24,7 +24,7 @@ func newHintFileIndex() (idx *hintFileIndexBuffer) {
 	return
 }
 
-func (idx *hintFileIndex) get(keyhash uint64, key string) (item *hintItem, err error) {
+func (idx *hintFileIndex) get(keyhash uint64, key string) (item *HintItem, err error) {
 	logger.Warnf("try get from hintfile %s: %016x, %s", idx.path, keyhash, key)
 	arr := idx.index
 
@@ -42,7 +42,7 @@ func (idx *hintFileIndex) get(keyhash uint64, key string) (item *hintItem, err e
 	reader.fd.Seek(offset, 0)
 	reader.rbuf.Reset(reader.fd)
 	defer reader.fd.Close()
-	var it *hintItem
+	var it *HintItem
 	for {
 		it, err = reader.next()
 		if err != nil {
@@ -51,12 +51,12 @@ func (idx *hintFileIndex) get(keyhash uint64, key string) (item *hintItem, err e
 		if it == nil {
 			return
 		}
-		if it.keyhash < keyhash {
+		if it.Keyhash < keyhash {
 			continue
-		} else if it.keyhash > keyhash {
+		} else if it.Keyhash > keyhash {
 			return
 		} else {
-			if it.key == key {
+			if it.Key == key {
 				item = it
 				return
 			} else {
