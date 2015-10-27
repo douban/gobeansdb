@@ -24,8 +24,14 @@ type Bucket struct {
 	hints     *hintMgr
 	datas     *dataStore
 
+	htreechunk int
+
 	GCHistory []GCState
 	lastGC    int
+}
+
+func (bkt *Bucket) getHtreePath(chunkID int) string {
+	return fmt.Sprintf("%s/%03d.hr", bkt.home, chunkID)
 }
 
 func (bkt *Bucket) buildHintFromData(chunkID int, start uint32, splitID int) (hintpath string, err error) {
@@ -109,30 +115,30 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 		return err
 	}
 	filesizes := bkt.datas.filesizes
-	htreechunk := -1
+	bkt.htreechunk = -1
 	var treePathToLoad string
 	for i := 0; i < MAX_CHUNK; i++ {
-		htreePath := fmt.Sprintf("%s/%03d.hr", home, i)
+		htreePath := bkt.getHtreePath(i)
 		_, err = os.Stat(htreePath)
 		if err == nil {
 			if i > maxdata {
 				logger.Errorf("remove htree beyond %d:%s", maxdata, htreePath)
 				os.Remove(htreePath)
 			} else {
-				htreechunk = i
+				bkt.htreechunk = i
 				treePathToLoad = htreePath
 			}
 		}
 	}
-	if htreechunk >= 0 {
+	if bkt.htreechunk >= 0 {
 		err := bkt.htree.load(treePathToLoad)
 		if err != nil {
-			htreechunk = -1
+			bkt.htreechunk = -1
 			bkt.htree = newHTree(config.TreeDepth, id, config.TreeHeight)
 		}
 	}
 
-	for i := htreechunk + 1; i < MAX_CHUNK; i++ {
+	for i := bkt.htreechunk + 1; i < MAX_CHUNK; i++ {
 		paths := bkt.hints.findChunk(i, filesizes[i] < 1)
 		if len(paths) > 0 {
 			splitid := 0
@@ -170,7 +176,7 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 		}
 	}
 	go func() {
-		for i := 0; i < htreechunk+1; i++ {
+		for i := 0; i < bkt.htreechunk+1; i++ {
 			paths := bkt.hints.findChunk(i, filesizes[i] < 1)
 			if (len(paths) == 0) && (filesizes[i] > 0) {
 				if _, err = bkt.buildHintFromData(i, 0, 0); err != nil {
@@ -199,8 +205,22 @@ func (bkt *Bucket) close() {
 	bkt.dumpGCHistroy()
 	bkt.datas.flush(-1, true)
 	bkt.hints.close()
-	bkt.htree.dump(fmt.Sprintf("%s/%03d.hr", bkt.home, bkt.datas.newHead))
+	bkt.dumpHtree()
+}
 
+func (bkt *Bucket) dumpHtree() {
+	if bkt.htreechunk > 0 {
+		os.Remove(bkt.getHtreePath(bkt.htreechunk))
+	}
+	bkt.htreechunk = bkt.datas.newHead
+	bkt.htree.dump(bkt.getHtreePath(bkt.htreechunk))
+}
+
+func (bkt *Bucket) removeHtree() {
+	if bkt.htreechunk > 0 {
+		os.Remove(bkt.getHtreePath(bkt.htreechunk))
+	}
+	bkt.htreechunk = -1
 }
 
 func (bkt *Bucket) checkVer(oldv, ver int32) (int32, bool) {

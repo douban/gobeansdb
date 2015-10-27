@@ -8,6 +8,7 @@ import (
 type GCMgr struct {
 	bucketID int
 	stat     *GCState // curr or laste
+	ki       KeyInfo
 }
 
 type GCState struct {
@@ -58,11 +59,36 @@ func (s *GCFileState) String() string {
 }
 
 func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) bool {
-	return true
+	ki := &mgr.ki
+	ki.Key = rec.Key
+	meta, pos, found := bkt.htree.get(ki)
+	if !found {
+		logger.Errorf("old key not found in htree bucket %d %s %#v %#v",
+			bkt.id, ki.StringKey, meta, oldPos)
+		return true
+	}
+	return pos == oldPos
 }
 
 func (mgr *GCMgr) UpdatePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position) {
-	// TODO
+	// TODO: should be a api of htree to be atomic
+	meta, pos, _ := bkt.htree.get(ki)
+	if pos != oldPos {
+		logger.Warnf("old key update when updating pos bucket %d %s %#v %#v",
+			bkt.id, ki.StringKey, meta, oldPos)
+		return
+	}
+	bkt.htree.set(ki, meta, newPos)
+}
+
+func (mgr *GCMgr) BeforeBucket(bkt *Bucket) {
+	bkt.removeHtree()
+	bkt.hints.StopMerge()
+}
+
+func (mgr *GCMgr) AfterBucket(bkt *Bucket) {
+	bkt.dumpHtree()
+	bkt.hints.StartMerge()
 }
 
 func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
@@ -88,7 +114,8 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 	var w *DataStreamWriter
 	mfs := dataConfig.MaxFileSize
 
-	//bkt.Index.OnGCBegin(gc)
+	mgr.BeforeBucket(bkt)
+	defer mgr.AfterBucket(bkt)
 	for gc.Src = gc.Begin; gc.Src < gc.End; gc.Src++ {
 		oldPos.ChunkID = gc.Src
 		var fileState GCFileState
@@ -143,6 +170,5 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 		}
 		logger.Infof("end GC file %#v", fileState)
 	}
-	//bkt.Index.OnGCEnd()
 	return nil
 }

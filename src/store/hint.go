@@ -184,10 +184,11 @@ type hintMgr struct {
 	chunks    [256]*hintChunk
 	filesizes []uint32 // ref toto bucket.datas.filesizes
 
-	merging   bool
-	merged    *hintFileIndex
-	mergedID  int
-	mergeChan chan bool
+	merging      bool
+	merged       *hintFileIndex
+	mergedID     int
+	mergeChan    chan bool
+	MergeStopped bool
 }
 
 func newHintMgr(home string) *hintMgr {
@@ -353,6 +354,15 @@ func (h *hintMgr) close() {
 	}
 }
 
+func (h *hintMgr) StopMerge() {
+	os.Remove(h.getPath(h.mergedID, 0, true))
+	h.MergeStopped = true
+}
+
+func (h *hintMgr) StartMerge() {
+	h.MergeStopped = false
+}
+
 func (h *hintMgr) dumpAndMerge() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -371,6 +381,10 @@ func (h *hintMgr) dumpAndMerge() {
 		if silence {
 			trybigmerge = false
 		}
+	}
+
+	if h.MergeStopped {
+		return
 	}
 
 	// small merge
