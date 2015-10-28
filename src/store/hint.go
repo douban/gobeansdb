@@ -11,6 +11,13 @@ import (
 	"time"
 )
 
+const ()
+
+type HintID struct {
+	Chunk int
+	Split int
+}
+
 type HintStatus struct {
 	NumRead int
 	MaxRead int
@@ -95,6 +102,7 @@ func (h *hintSplit) needDump() bool {
 
 type hintChunk struct {
 	sync.Mutex
+	id       int
 	fileLock sync.RWMutex
 	splits   []*hintSplit
 
@@ -102,8 +110,8 @@ type hintChunk struct {
 	lastTS int64
 }
 
-func newHintChunk() *hintChunk {
-	ck := &hintChunk{}
+func newHintChunk(id int) *hintChunk {
+	ck := &hintChunk{id: id}
 	ck.rotate()
 	return ck
 }
@@ -137,37 +145,49 @@ func (chunk *hintChunk) getFiles() (paths []string) {
 	return
 }
 
-func (chunk *hintChunk) get(keyhash uint64, key string) (it *HintItem, err error) {
-	chunk.fileLock.RLock()
-	defer chunk.fileLock.RUnlock()
+func (chunk *hintChunk) getMemOnly(keyhash uint64, key string) (it *HintItem, sp int) {
 	chunk.Lock()
+	defer chunk.Unlock()
 	// no err while locked
-	for i := len(chunk.splits) - 1; i >= 0; i-- {
-		split := chunk.splits[i]
+	for sp = len(chunk.splits) - 1; sp >= 0; sp-- {
+		split := chunk.splits[sp]
 		if split.buf != nil {
 			if it = split.buf.get(key); it != nil {
-				chunk.Unlock()
 				return
 			}
+		} else {
+			return
 		}
+	}
+	return
+}
+
+func (chunk *hintChunk) get(keyhash uint64, key string, memOnly bool) (it *HintItem, err error) {
+	it, split := chunk.getMemOnly(keyhash, key)
+	if it != nil {
+		logger.Debugf("hint get %016x %s, hit buffer (%d, %d)", keyhash, key, chunk.id, split)
+		return
+	}
+	if memOnly {
+		return
+	}
+	// no err while locked
+	for i := split; i >= 0; i-- {
+		split := chunk.splits[i]
 		file := split.file
-		chunk.Unlock()
 		if file == nil {
-			chunk.Lock()
+			logger.Errorf("lose hint split (%d, %d)", chunk.id, i)
 			continue
 		}
-
 		it, err = split.file.get(keyhash, key)
 		if err != nil {
 			logger.Warnf("%v", err.Error())
 			return
-		}
-		if it != nil {
+		} else if it != nil {
+			logger.Debugf("hint get %016x %s, hit file (%d, %d)", keyhash, key, chunk.id, i)
 			return
 		}
-		chunk.Lock()
 	}
-	chunk.Unlock()
 	return
 }
 
@@ -181,25 +201,24 @@ type hintMgr struct {
 	sync.Mutex
 	maxChunkID int
 
-	chunks    [256]*hintChunk
+	chunks    [MAX_NUM_CHUNK]*hintChunk
 	filesizes []uint32 // ref toto bucket.datas.filesizes
 
-	merging      bool
-	merged       *hintFileIndex
-	mergedID     int
-	mergeChan    chan bool
-	MergeStopped bool
+	maxDumpableChunkID int
+	merged             *hintFileIndex
+	mergedHintID       HintID // merged file may not exist
+	maxDumpedHintID    HintID
+	isDumping          bool
+	mergeState         int
 }
 
 func newHintMgr(home string) *hintMgr {
 	hm := &hintMgr{home: home}
-	for i := 0; i < 256; i++ {
-		hm.chunks[i] = newHintChunk()
+	for i := 0; i < MAX_NUM_CHUNK; i++ {
+		hm.chunks[i] = newHintChunk(i)
 	}
-	hm.filesizes = make([]uint32, 256)
-	hm.maxChunkID = 0
-	hm.mergedID = -1
-	hm.mergeChan = make(chan bool, 256)
+	hm.filesizes = make([]uint32, MAX_NUM_CHUNK)
+	hm.maxDumpableChunkID = MAX_CHUNK_ID
 	return hm
 }
 
@@ -259,7 +278,7 @@ func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 	return nil
 }
 
-func (h *hintMgr) trydump(chunkID int, force bool) (needmerge, silence bool) {
+func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
 	ck := h.chunks[chunkID]
 	ck.Lock()
 	defer ck.Unlock()
@@ -276,11 +295,10 @@ func (h *hintMgr) trydump(chunkID int, force bool) (needmerge, silence bool) {
 	}
 
 	if !force && chunkID == h.maxChunkID {
-		return false, false
+		return
 	}
 
 	if ck.lastTS == 0 {
-		needmerge = (j > 1)
 		return
 	}
 	s := ck.silenceTime()
@@ -289,62 +307,12 @@ func (h *hintMgr) trydump(chunkID int, force bool) (needmerge, silence bool) {
 			ck.rotate()
 			ck.lastTS = 0
 		}
-
 		h.chunks[chunkID].splits[j].buf.maxoffset = h.filesizes[chunkID]
 		h.dump(chunkID, j)
-		if j > 0 {
-			needmerge = true
-		}
+		silence = 0
 	} else {
-		silence = true
+		silence = s
 	}
-	return
-}
-
-func (h *hintMgr) smallMerge(chunkID int) (suc bool) {
-	ck := h.chunks[chunkID]
-	suc = true
-	ck.Lock()
-	if ck.silenceTime() > 0 {
-		logger.Infof("new write when try small merge")
-		suc = false
-		ck.Unlock()
-		return
-	}
-	ck.lastTS = 0
-	splits := h.chunks[chunkID].splits
-	l := len(splits) - 1
-	splits = splits[:l]
-	readers := make([]*hintFileReader, 0, 20)
-	for _, sp := range splits {
-		r := newHintFileReader(sp.file.path, 0, 4096)
-		readers = append(readers, r)
-	}
-
-	dst := h.getPath(chunkID, 0, false)
-	tmp := h.getPath(chunkID+500, 999, false)
-	ck.Unlock()
-	logger.Infof("small merge chunck %d, num %d", chunkID, len(readers))
-	index, err := merge(readers, tmp)
-	if err != nil {
-		logger.Errorf("fail to merge %s", tmp)
-		return
-	}
-	index.path = dst
-	files := ck.getFiles()
-	ck.Lock()
-	newwrite := ck.splits[l:]
-	ck.splits = nil
-	ck.rotate()
-	ck.splits[0].file = index
-	ck.splits = append(ck.splits, newwrite...)
-	ck.Unlock()
-	ck.fileLock.Lock() // TODO: check order
-	defer ck.fileLock.Unlock()
-	for _, f := range files {
-		os.Remove(f)
-	}
-	os.Rename(tmp, dst)
 	return
 }
 
@@ -354,121 +322,113 @@ func (h *hintMgr) close() {
 	}
 }
 
-func (h *hintMgr) StopMerge() {
-	os.Remove(h.getPath(h.mergedID, 0, true))
-	h.MergeStopped = true
+func (h *hintMgr) StopMerge(maxDumpableChunkID int) {
+	h.maxDumpableChunkID = maxDumpableChunkID
 }
 
 func (h *hintMgr) StartMerge() {
-	h.MergeStopped = false
+	h.maxDumpableChunkID = MAX_CHUNK_ID
 }
 
-func (h *hintMgr) dumpAndMerge() {
+func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
+	h.isDumping = true
 	defer func() {
+		h.isDumping = false
 		if err := recover(); err != nil {
 			logger.Errorf("Merge Error: %#v, stack: %s", err, loghub.GetStack(1000))
 		}
 	}()
 
-	tosmallmerge := make(map[int]bool)
-	trybigmerge := true
-	for i := 0; i <= h.maxChunkID; i++ {
-		needsmall, silence := h.trydump(i, false)
-		// logger.Infof("%d %d %v %v", i, len(h.chunks[i].splits), needsmall, silence)
-		if needsmall {
-			tosmallmerge[i] = true
-		}
-		if silence {
-			trybigmerge = false
+	maxDumpableChunkID := h.maxDumpableChunkID
+	if force {
+		maxDumpableChunkID = MAX_CHUNK_ID
+	}
+
+	for i := 0; i <= maxDumpableChunkID; i++ {
+		silence := h.trydump(i, false)
+		if silence > maxSilence {
+			maxSilence = silence
 		}
 	}
 
-	if h.MergeStopped {
+	if h.maxDumpableChunkID < MAX_CHUNK_ID {
 		return
 	}
-
-	// small merge
-	// merge hints with same data file id
-	for chunkID, _ := range tosmallmerge {
-		if !h.smallMerge(chunkID) {
-			trybigmerge = false
-		}
-	}
-	if !trybigmerge {
-		// TODO:
-		return
-	}
-	//large merge
-	// merge hints with diff data file id to hint.m
-	// TODO: limit size of hint.m, i.e. multi hint.m
-	if h.mergedID < 0 || (h.maxChunkID >= 1 && h.maxChunkID-h.mergedID > 1) {
-		readers := make([]*hintFileReader, 0, 256)
-		i := 0
-		if h.mergedID >= 0 {
-			i = h.mergedID + 1
-			path := h.getPath(h.mergedID, -1, true)
-			r := newHintFileReader(path, 0, 1<<20)
-			readers = append(readers, r)
-		}
-		newMergedID := h.mergedID
-		for ; i < h.maxChunkID; i++ {
-			ck := h.chunks[i]
-			nsp := len(ck.splits)
-			if nsp <= 1 {
-				continue
-			} else if nsp > 2 {
-				logger.Errorf("big merge find bad chunk, id = %d, #split = %d", i, nsp)
-				return
-			} else {
-				newMergedID = i
-				path := ck.splits[0].file.path
-				r := newHintFileReader(path, i, 4096)
-				readers = append(readers, r)
+	if h.merged != nil {
+		if h.maxChunkID-h.mergedHintID.Chunk > 1 {
+			paths, _ := filepath.Glob(h.getPath(-1, -1, true))
+			for _, path := range paths {
+				os.Remove(path)
 			}
-		}
-		if len(readers) <= 1 {
-			logger.Warnf("mid=%d, cid=%d, newcid=%d, #src=%d", h.mergedID, h.maxChunkID, i, len(readers))
-			return
-		}
-		dst := h.getPath(newMergedID, -1, true)
-		logger.Infof("large merge chunck %d, num %d", newMergedID, len(readers))
-		index, err := merge(readers, dst)
-		if err != nil {
-			return
-		}
-		h.merged = index
-		oldmerged := h.mergedID
-		h.mergedID = newMergedID
-		if oldmerged > 0 {
-			os.Remove(h.getPath(oldmerged, -1, true))
+			h.merged = nil
+			h.mergedHintID.Chunk = -1
 		}
 	}
-}
-
-func (h *hintMgr) getPath(chunkID, splitID int, big bool) (path string) {
-	if big {
-		path = fmt.Sprintf("%03d.hint.m", chunkID)
-	} else {
-		if splitID < 0 {
-			path = fmt.Sprintf("%03d.hint.s.*", chunkID)
-		} else {
-			path = fmt.Sprintf("%03d.hint.s.%d", chunkID, splitID)
-		}
+	if h.maxChunkID > 0 && h.merged == nil {
+		h.Merge()
 	}
-	path = filepath.Join(h.home, path)
 	return
 }
 
-// start this after old hintfile indexe loaded
-// do not merge at exit
-func (h *hintMgr) merger(interval time.Duration) {
-	for {
-		select {
-		case <-h.mergeChan:
-		case <-time.After(interval):
+func (h *hintMgr) Merge() (err error) {
+	// TODO: check hint with datas!
+	pattern := h.getPath(-1, -1, false)
+	paths, err := filepath.Glob(pattern)
+	sort.Sort(sort.StringSlice(paths))
+
+	readers := make([]*hintFileReader, 0, len(paths))
+	maxChunkID := 0
+	maxSplitID := 0
+
+	names := make([]string, 0, len(paths))
+	for _, path := range paths {
+		name := filepath.Base(path)
+		chunkID, err := strconv.Atoi(name[:3])
+		if err != nil {
+			logger.Errorf("bad chunk index %s", path)
+			continue
 		}
-		h.dumpAndMerge()
+		splitID, err := strconv.Atoi(name[4:7])
+		if err != nil {
+			logger.Errorf("bad chunk index %s", path)
+			continue
+		}
+		names = append(names, name)
+		if chunkID > maxChunkID {
+			maxChunkID = chunkID
+		} else if chunkID == maxChunkID {
+			maxSplitID = splitID
+		}
+		r := newHintFileReader(path, chunkID, 4096)
+		readers = append(readers, r)
 	}
+
+	dst := h.getPath(maxChunkID, maxSplitID, true)
+	logger.Infof("to merge %s from %v", dst, names)
+	index, err := merge(readers, dst, &h.mergeState)
+	if err != nil {
+		logger.Errorf("merge to %s fail: %s", dst, err.Error())
+		return
+	}
+	h.merged = index
+	h.mergedHintID.Chunk = maxChunkID
+	h.mergedHintID.Split = maxChunkID
+	return
+}
+
+func idToStr(id int) string {
+	if id < 0 {
+		return "*"
+	}
+	return fmt.Sprintf("%03d", id)
+}
+
+func (h *hintMgr) getPath(chunkID, splitID int, big bool) (path string) {
+	suffix := "s"
+	if big {
+		suffix = "m"
+	}
+	return fmt.Sprintf("%s/%s.%s.idx.%s", h.home, idToStr(chunkID), idToStr(splitID), suffix)
 }
 
 func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position) {
@@ -477,7 +437,7 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position) {
 }
 
 func (h *hintMgr) setItem(it *HintItem, chunkID int) {
-	splitRotate := h.chunks[chunkID].set(it)
+	h.chunks[chunkID].set(it)
 	if chunkID > h.maxChunkID {
 		h.Lock()
 		if chunkID > h.maxChunkID {
@@ -487,14 +447,17 @@ func (h *hintMgr) setItem(it *HintItem, chunkID int) {
 		}
 		h.Unlock()
 	}
-	if splitRotate {
-		h.mergeChan <- true
-	}
+}
+
+func (h *hintMgr) forceRotateSplit() {
+	h.Lock()
+	h.chunks[h.maxChunkID].rotate()
+	h.Unlock()
 }
 
 func (h *hintMgr) get(keyhash uint64, key string) (meta Meta, pos Position, err error) {
 	var it *HintItem
-	it, pos.ChunkID, err = h.getItem(keyhash, key)
+	it, pos.ChunkID, err = h.getItem(keyhash, key, false)
 	if err != nil {
 		return
 	}
@@ -508,20 +471,40 @@ func (h *hintMgr) get(keyhash uint64, key string) (meta Meta, pos Position, err 
 	return
 }
 
-func (h *hintMgr) getItem(keyhash uint64, key string) (it *HintItem, chunkID int, err error) {
+func (h *hintMgr) getItem(keyhash uint64, key string, memOnly bool) (it *HintItem, chunkID int, err error) {
 	for i := h.maxChunkID; i >= 0; i-- {
-		if i <= h.mergedID {
+		if !memOnly && (i <= h.mergedHintID.Chunk) {
 			it, err = h.merged.get(keyhash, key)
-			if err == nil && it != nil {
+			if err != nil {
+				return
+			} else if it != nil {
+				logger.Debugf("hint get hit merged %#v", it)
 				chunkID = int(it.Pos & 0xff)
 				it.Pos -= uint32(chunkID)
+			} else {
+				// logger.Debugf("get from merged fail")
 			}
 			return
 		}
-		if it, err = h.chunks[i].get(keyhash, key); it != nil || err != nil {
+
+		it, err = h.chunks[i].get(keyhash, key, memOnly)
+		if err != nil {
+			return
+		} else if it != nil {
 			chunkID = i
 			return
 		}
 	}
 	return
+}
+
+func (h *hintMgr) ClearChunks(min, max int) {
+	for i := min; i <= max; i++ {
+		h.chunks[i] = newHintChunk(i)
+		pattern := h.getPath(i, -1, false)
+		paths, _ := filepath.Glob(pattern)
+		for _, p := range paths {
+			os.Remove(p)
+		}
+	}
 }

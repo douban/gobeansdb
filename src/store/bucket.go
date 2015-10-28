@@ -130,7 +130,7 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 	filesizes := bkt.datas.filesizes
 	bkt.htreechunk = -1
 	var treePathToLoad string
-	for i := 0; i < MAX_CHUNK; i++ {
+	for i := 0; i < MAX_NUM_CHUNK; i++ {
 		htreePath := bkt.getHtreePath(i)
 		_, err = os.Stat(htreePath)
 		if err == nil {
@@ -151,7 +151,7 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 		}
 	}
 
-	for i := bkt.htreechunk + 1; i < MAX_CHUNK; i++ {
+	for i := bkt.htreechunk + 1; i < MAX_NUM_CHUNK; i++ {
 		paths := bkt.hints.findChunk(i, filesizes[i] < 1)
 		if len(paths) > 0 {
 			splitid := 0
@@ -198,7 +198,6 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 			}
 			// TODO: hints may fall behand data?
 		}
-		go bkt.hints.merger(5 * time.Minute)
 	}()
 
 	bkt.loadGCHistroy()
@@ -330,7 +329,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		return
 	}
 
-	hintit, chunkID, err := bkt.hints.getItem(ki.KeyHash, ki.StringKey)
+	hintit, chunkID, err := bkt.hints.getItem(ki.KeyHash, ki.StringKey, false)
 	if err != nil || hintit == nil {
 		return
 	}

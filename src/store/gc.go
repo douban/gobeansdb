@@ -81,14 +81,22 @@ func (mgr *GCMgr) UpdatePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position) {
 	bkt.htree.set(ki, meta, newPos)
 }
 
-func (mgr *GCMgr) BeforeBucket(bkt *Bucket) {
+func (mgr *GCMgr) BeforeBucket(bkt *Bucket, startChunkID, endChunkID int) {
+	for bkt.hints.isDumping {
+		time.Sleep(10 * time.Millisecond)
+	}
+	bkt.hints.StopMerge(endChunkID)
+	bkt.hints.forceRotateSplit()
+	bkt.hints.dumpAndMerge(true)
 	bkt.removeHtree()
-	bkt.hints.StopMerge()
+	bkt.hints.ClearChunks(startChunkID, endChunkID)
+
 }
 
 func (mgr *GCMgr) AfterBucket(bkt *Bucket) {
-	bkt.dumpHtree()
+	bkt.hints.dumpAndMerge(true)
 	bkt.hints.StartMerge()
+	bkt.dumpHtree()
 }
 
 func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
@@ -114,7 +122,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 	var w *DataStreamWriter
 	mfs := dataConfig.MaxFileSize
 
-	mgr.BeforeBucket(bkt)
+	mgr.BeforeBucket(bkt, startChunkID, endChunkID)
 	defer mgr.AfterBucket(bkt)
 	for gc.Src = gc.Begin; gc.Src < gc.End; gc.Src++ {
 		oldPos.ChunkID = gc.Src

@@ -203,7 +203,7 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 	recsizereal, recsize := wrec.rec.Sizes()
 	tail := recsizereal & 0xff
 	if tail != 0 {
-		stream.rbuf.Discard(int(256 - tail))
+		stream.rbuf.Discard(int(PADDING - tail))
 	}
 
 	crc := wrec.getCRC()

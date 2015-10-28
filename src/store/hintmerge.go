@@ -1,6 +1,16 @@
 package store
 
-import "container/heap"
+import (
+	"container/heap"
+	"fmt"
+	"os"
+)
+
+const (
+	HintStateIdle = iota
+	HintStatetWorking
+	HintStateStopping
+)
 
 type mergeReader struct {
 	r    *hintFileReader
@@ -79,7 +89,7 @@ func (h *mergeHeap) Pop() interface{} {
 	return x
 }
 
-func merge(src []*hintFileReader, dst string) (idx *hintFileIndex, err error) {
+func merge(src []*hintFileReader, dst string, hintState *int) (idx *hintFileIndex, err error) {
 	n := len(src)
 	maxoffset := uint32(0)
 	hp := make([]*mergeReader, n)
@@ -91,6 +101,7 @@ func merge(src []*hintFileReader, dst string) (idx *hintFileIndex, err error) {
 		}
 		hp[i] = &mergeReader{src[i], nil}
 		hp[i].curr, err = src[i].next()
+		hp[i].curr.Pos |= uint32(src[i].chunkID)
 		if err != nil {
 			logger.Errorf("%s", err.Error())
 			return nil, err
@@ -109,15 +120,19 @@ func merge(src []*hintFileReader, dst string) (idx *hintFileIndex, err error) {
 	heap.Init(&h)
 
 	for len(h) > 0 {
+		if *hintState == HintStateStopping {
+			err = fmt.Errorf("aborted")
+			break
+		}
 		mr := heap.Pop(&h).(*mergeReader)
 		mw.write(mr.curr)
 		mr.curr, err = mr.r.next()
 		if err != nil {
 			logger.Errorf("%s", err.Error())
-			// TODO:
+			break
 		}
 		if mr.curr != nil {
-			mr.curr.Pos += uint32(mr.r.chunkID)
+			mr.curr.Pos |= uint32(mr.r.chunkID)
 			heap.Push(&h, mr)
 		} else {
 			// logger.Debugf("%s done", mr.r.path)
@@ -128,5 +143,9 @@ func merge(src []*hintFileReader, dst string) (idx *hintFileIndex, err error) {
 	}
 	mw.flush()
 	mw.w.close()
+	if err != nil {
+		os.Remove(dst)
+		return nil, err
+	}
 	return &hintFileIndex{mw.w.index.toIndex(), dst}, nil
 }

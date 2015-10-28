@@ -176,6 +176,8 @@ func NewHStore() (store *HStore, err error) {
 	if config.TreeDepth > 0 {
 		store.htree = newHTree(0, 0, config.TreeDepth+1)
 	}
+
+	go store.merger(1 * time.Minute)
 	return
 }
 
@@ -298,4 +300,15 @@ func (store *HStore) Incr(ki *KeyInfo, value int) int {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
 	return store.buckets[ki.BucketID].incr(ki, value)
+}
+
+func (store *HStore) merger(interval time.Duration) {
+	for {
+		<-time.After(interval)
+		for _, bkt := range store.buckets {
+			if bkt.state > 0 {
+				bkt.hints.dumpAndMerge(false)
+			}
+		}
+	}
 }

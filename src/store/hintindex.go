@@ -25,7 +25,7 @@ func newHintFileIndex() (idx *hintFileIndexBuffer) {
 }
 
 func (idx *hintFileIndex) get(keyhash uint64, key string) (item *HintItem, err error) {
-	logger.Warnf("try get from hintfile %s: %016x, %s", idx.path, keyhash, key)
+	//logger.Warnf("try get from hintfile %s: %016x, %s", idx.path, keyhash, key)
 	arr := idx.index
 
 	// first larger

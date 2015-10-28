@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	MAX_CHUNK = 256
+	MAX_CHUNK_ID  = 255
+	MAX_NUM_CHUNK = 256
 )
 
 type dataStore struct {
@@ -22,8 +23,8 @@ type dataStore struct {
 	newHead int
 	newTail int
 
-	filesizes     [MAX_CHUNK]uint32
-	wbufs         [MAX_CHUNK][]*WriteRecord
+	filesizes     [MAX_NUM_CHUNK]uint32
+	wbufs         [MAX_NUM_CHUNK][]*WriteRecord
 	wbufSize      uint32
 	lastFlushTime time.Time
 }
@@ -170,7 +171,7 @@ func (ds *dataStore) Truncate(chunk int, size uint32) error {
 
 func (ds *dataStore) ListFiles() (max int, err error) {
 	max = -1
-	for i := 0; i < 256; i++ {
+	for i := 0; i < MAX_NUM_CHUNK; i++ {
 		path := genPath(ds.home, i)
 		st, e := os.Stat(path)
 		if e != nil {
@@ -226,7 +227,7 @@ func (ds *dataStore) getStreamWriter(chunk int, isappend bool) (*DataStreamWrite
 			if err != nil {
 				logger.Infof(err.Error())
 				return nil, err
-			} else if offset%256 != 0 {
+			} else if offset%PADDING != 0 {
 				logger.Infof("%s not 256 aligned : %d", path, offset)
 			}
 		}
