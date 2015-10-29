@@ -148,7 +148,6 @@ func (chunk *hintChunk) getFiles() (paths []string) {
 func (chunk *hintChunk) getMemOnly(keyhash uint64, key string) (it *HintItem, sp int) {
 	chunk.Lock()
 	defer chunk.Unlock()
-	// no err while locked
 	for sp = len(chunk.splits) - 1; sp >= 0; sp-- {
 		split := chunk.splits[sp]
 		if split.buf != nil {
@@ -171,7 +170,6 @@ func (chunk *hintChunk) get(keyhash uint64, key string, memOnly bool) (it *HintI
 	if memOnly {
 		return
 	}
-	// no err while locked
 	for i := split; i >= 0; i-- {
 		split := chunk.splits[i]
 		file := split.file
@@ -191,6 +189,7 @@ func (chunk *hintChunk) get(keyhash uint64, key string, memOnly bool) (it *HintI
 	return
 }
 
+// only check it for the last split of each chunk
 func (chunk *hintChunk) silenceTime() int64 {
 	return chunk.lastTS + hintConfig.SecondsBeforeDump - time.Now().Unix()
 }
@@ -198,16 +197,19 @@ func (chunk *hintChunk) silenceTime() int64 {
 type hintMgr struct {
 	home string
 
-	sync.Mutex
+	sync.Mutex // protect maxChunkID
 	maxChunkID int
 
-	chunks    [MAX_NUM_CHUNK]*hintChunk
+	chunks [MAX_NUM_CHUNK]*hintChunk
+
 	filesizes []uint32 // ref toto bucket.datas.filesizes
 
+	maxDumpedHintID HintID
+
+	mergeLock          sync.Mutex
 	maxDumpableChunkID int
 	merged             *hintFileIndex
 	mergedHintID       HintID // merged file may not exist
-	maxDumpedHintID    HintID
 	dumpAndMergeState  int
 }
 
@@ -321,18 +323,12 @@ func (h *hintMgr) close() {
 	}
 }
 
-func (h *hintMgr) StopMerge(maxDumpableChunkID int) {
-	h.maxDumpableChunkID = maxDumpableChunkID
-}
-
-func (h *hintMgr) StartMerge() {
-	h.maxDumpableChunkID = MAX_CHUNK_ID
-}
-
 func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
+	h.mergeLock.Lock()
 	h.dumpAndMergeState = HintStatetWorking
 	defer func() {
 		h.dumpAndMergeState = HintStateIdle
+		h.mergeLock.Unlock()
 		if err := recover(); err != nil {
 			logger.Errorf("Merge Error: %#v, stack: %s", err, loghub.GetStack(1000))
 		}
@@ -450,7 +446,9 @@ func (h *hintMgr) setItem(it *HintItem, chunkID int) {
 
 func (h *hintMgr) forceRotateSplit() {
 	h.Lock()
+	h.chunks[h.maxChunkID].Lock()
 	h.chunks[h.maxChunkID].rotate()
+	h.chunks[h.maxChunkID].Unlock()
 	h.Unlock()
 }
 
@@ -471,17 +469,18 @@ func (h *hintMgr) get(keyhash uint64, key string) (meta Meta, pos Position, err 
 }
 
 func (h *hintMgr) getItem(keyhash uint64, key string, memOnly bool) (it *HintItem, chunkID int, err error) {
+	h.mergeLock.Lock()
+	merged := h.merged
+	h.mergeLock.Unlock()
 	for i := h.maxChunkID; i >= 0; i-- {
-		if !memOnly && (i <= h.mergedHintID.Chunk) {
-			it, err = h.merged.get(keyhash, key)
+		if !memOnly && merged != nil && (i <= h.mergedHintID.Chunk) {
+			it, err = merged.get(keyhash, key)
 			if err != nil {
 				return
 			} else if it != nil {
 				logger.Debugf("hint get hit merged %#v", it)
 				chunkID = int(it.Pos & 0xff)
 				it.Pos -= uint32(chunkID)
-			} else {
-				// logger.Debugf("get from merged fail")
 			}
 			return
 		}

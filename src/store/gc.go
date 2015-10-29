@@ -85,7 +85,7 @@ func (mgr *GCMgr) BeforeBucket(bkt *Bucket, startChunkID, endChunkID int) {
 	for bkt.hints.dumpAndMergeState != HintStateIdle {
 		time.Sleep(10 * time.Millisecond)
 	}
-	bkt.hints.StopMerge(endChunkID)
+	bkt.hints.maxDumpableChunkID = endChunkID
 	bkt.hints.forceRotateSplit()
 	bkt.hints.dumpAndMerge(true)
 	bkt.removeHtree()
@@ -95,7 +95,7 @@ func (mgr *GCMgr) BeforeBucket(bkt *Bucket, startChunkID, endChunkID int) {
 
 func (mgr *GCMgr) AfterBucket(bkt *Bucket) {
 	bkt.hints.dumpAndMerge(true)
-	bkt.hints.StartMerge()
+	bkt.hints.maxDumpableChunkID = MAX_CHUNK_ID
 	bkt.dumpHtree()
 }
 
