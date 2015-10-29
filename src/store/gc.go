@@ -82,7 +82,7 @@ func (mgr *GCMgr) UpdatePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position) {
 }
 
 func (mgr *GCMgr) BeforeBucket(bkt *Bucket, startChunkID, endChunkID int) {
-	for bkt.hints.isDumping {
+	for bkt.hints.dumpAndMergeState != HintStateIdle {
 		time.Sleep(10 * time.Millisecond)
 	}
 	bkt.hints.StopMerge(endChunkID)
