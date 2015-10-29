@@ -18,6 +18,17 @@ type HintID struct {
 	Split int
 }
 
+func (id *HintID) setIfLarger(ck, sp int) {
+	if ck > id.Chunk {
+		id.Chunk = ck
+		id.Split = sp
+	} else if ck == id.Chunk {
+		if sp > id.Split {
+			id.Split = sp
+		}
+	}
+}
+
 type HintStatus struct {
 	NumRead int
 	MaxRead int
@@ -263,6 +274,9 @@ func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 	path := h.getPath(chunkID, splitID, false)
 	logger.Warnf("dump %s", path)
 	sp.file, err = sp.buf.dump(path)
+	if err != nil {
+		h.maxDumpedHintID.setIfLarger(chunkID, splitID)
+	}
 	sp.buf = nil
 	return nil
 }
