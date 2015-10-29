@@ -47,7 +47,7 @@ func newHintSplit() *hintSplit {
 	return &hintSplit{newHintBuffer(), nil}
 }
 
-func (h *hintBuffer) set(it *HintItem) bool {
+func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
 	idx, found := h.keys[it.Key]
 	if !found {
 		h.expsize += len(it.Key) + 8*4 // meta and at least 4 pointers
@@ -61,8 +61,9 @@ func (h *hintBuffer) set(it *HintItem) bool {
 		h.keys[it.Key] = idx
 	}
 	h.array[idx] = it
-	if it.Pos > h.maxoffset {
-		h.maxoffset = it.Pos
+	end := it.Pos + recSize
+	if end > h.maxoffset {
+		h.maxoffset = end
 	}
 	return true
 }
@@ -122,12 +123,12 @@ func (chunk *hintChunk) rotate() *hintSplit {
 	return sp
 }
 
-func (chunk *hintChunk) set(it *HintItem) (rotated bool) {
+func (chunk *hintChunk) set(it *HintItem, recSize uint32) (rotated bool) {
 	chunk.Lock()
 	l := len(chunk.splits)
 	sp := chunk.splits[l-1]
-	if !sp.buf.set(it) {
-		chunk.rotate().buf.set(it)
+	if !sp.buf.set(it, recSize) {
+		chunk.rotate().buf.set(it, recSize)
 		rotated = true
 	}
 	chunk.lastTS = time.Now().Unix()
@@ -192,8 +193,6 @@ type hintMgr struct {
 
 	chunks [MAX_NUM_CHUNK]*hintChunk
 
-	filesizes []uint32 // ref toto bucket.datas.filesizes
-
 	maxDumpedHintID HintID
 
 	mergeLock          sync.Mutex
@@ -208,7 +207,6 @@ func newHintMgr(home string) *hintMgr {
 	for i := 0; i < MAX_NUM_CHUNK; i++ {
 		hm.chunks[i] = newHintChunk(i)
 	}
-	hm.filesizes = make([]uint32, MAX_NUM_CHUNK)
 	hm.maxDumpableChunkID = MAX_CHUNK_ID
 	return hm
 }
@@ -230,7 +228,7 @@ func (hm *hintMgr) findChunk(chunkID int, remove bool) (hints []string) {
 	n := 0
 	for _, path := range paths {
 		name := filepath.Base(path)
-		sid, err := strconv.Atoi(name[11:])
+		sid, err := strconv.Atoi(name[4:7])
 		if err != nil {
 			logger.Errorf("bad hint path %s", path)
 		} else if sid != n {
@@ -298,7 +296,6 @@ func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
 			ck.rotate()
 			ck.lastTS = 0
 		}
-		h.chunks[chunkID].splits[j].buf.maxoffset = h.filesizes[chunkID]
 		h.dump(chunkID, j)
 		silence = 0
 	} else {
@@ -416,13 +413,13 @@ func (h *hintMgr) getPath(chunkID, splitID int, big bool) (path string) {
 	return fmt.Sprintf("%s/%s.%s.idx.%s", h.home, idToStr(chunkID), idToStr(splitID), suffix)
 }
 
-func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position) {
+func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
 	it := newHintItem(ki.KeyHash, meta.Ver, meta.ValueHash, Position{0, pos.Offset}, ki.StringKey)
-	h.setItem(it, pos.ChunkID)
+	h.setItem(it, pos.ChunkID, recSize)
 }
 
-func (h *hintMgr) setItem(it *HintItem, chunkID int) {
-	h.chunks[chunkID].set(it)
+func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
+	h.chunks[chunkID].set(it, recSize)
 	if chunkID > h.maxChunkID {
 		h.Lock()
 		if chunkID > h.maxChunkID {

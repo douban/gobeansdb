@@ -156,7 +156,7 @@ func genKey(i int) string {
 }
 
 func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *HintItem) {
-	if !buf.set(it) {
+	if !buf.set(it, 0) {
 		t.Fatalf("%#v set return false", it)
 	}
 	r := buf.get(it.Key)
@@ -173,7 +173,7 @@ func TestHintBuffer(t *testing.T) {
 	for i := 0; i < n; i++ {
 		setAndCheckHintBuffer(t, buf, items[i])
 	}
-	if buf.set(items[n]) {
+	if buf.set(items[n], 0) {
 		t.Fatalf("set return true")
 	}
 	items[n-1].Ver = -1
@@ -188,7 +188,7 @@ func checkChunk(t *testing.T, ck *hintChunk, it *HintItem) {
 }
 
 func setAndCheckChunk(t *testing.T, ck *hintChunk, it *HintItem, rotate bool) {
-	if rotate != ck.set(it) {
+	if rotate != ck.set(it, 0) {
 		t.Fatalf("%#v not %v", it, rotate)
 	}
 	checkChunk(t, ck, it)
@@ -224,7 +224,7 @@ func checkMgr(t *testing.T, hm *hintMgr, it *HintItem, chunkID int) {
 }
 
 func setAndCheckMgr(t *testing.T, hm *hintMgr, it *HintItem, chunkID int) {
-	hm.setItem(it, chunkID)
+	hm.setItem(it, chunkID, 0)
 	checkMgr(t, hm, it, chunkID)
 }
 
@@ -316,7 +316,7 @@ func TestHintMgr(t *testing.T) {
 	logger.Infof("set 6 again")
 	it := *(items[0])
 	it.Pos = items[0].Pos + 100
-	hm.setItem(&it, 6)
+	hm.setItem(&it, 6, 0)
 
 	time.Sleep(time.Second * 5)
 	checkMgr(t, hm, items[0], 7)

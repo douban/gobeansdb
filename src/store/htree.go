@@ -320,8 +320,10 @@ func (tree *HTree) ListDir(ki *KeyInfo) (ret []byte, err error) {
 	defer tree.Unlock()
 
 	items, nodes := tree.listDir(ki)
+	logger.Debugf("%v %v", items, nodes)
 	var buffer bytes.Buffer
 	if items != nil {
+
 		for _, item := range items {
 			s := fmt.Sprintf("%016x %d %d\n", item.keyhash, int(item.vhash), item.ver)
 			buffer.WriteString(s)
@@ -339,11 +341,13 @@ func (tree *HTree) ListDir(ki *KeyInfo) (ret []byte, err error) {
 
 func (tree *HTree) ListTop() {
 	path := fmt.Sprintf("%x", tree.pos)
-	ki := &KeyInfo{StringKey: path,
+	ki := &KeyInfo{
+		StringKey: path,
+		Key:       []byte(path),
 		KeyIsPath: true}
 	ki.Prepare()
 	data, _ := tree.ListDir(ki)
-	logger.Infof("%s %s", path, string(data))
+	logger.Infof("listing %s:\n%s", path, string(data))
 	//items, nodes := tree.listDir(ki)
 	//logger.Infof("%s %#v %#v", path, items, nodes)
 }

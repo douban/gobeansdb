@@ -121,8 +121,6 @@ func (bkt *Bucket) open(id int, home string) (err error) {
 	bkt.loadCollisions()
 	bkt.htree = newHTree(config.TreeDepth, id, config.TreeHeight)
 
-	bkt.hints.filesizes = bkt.datas.filesizes[:]
-
 	maxdata, err := bkt.datas.ListFiles()
 	if err != nil {
 		return err
@@ -287,7 +285,7 @@ func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
 		return err
 	}
 	bkt.htree.set(ki, &v.Meta, pos)
-	bkt.hints.set(ki, &v.Meta, pos)
+	bkt.hints.set(ki, &v.Meta, pos, v.RecSize)
 	return nil
 }
 
