@@ -135,16 +135,6 @@ func (chunk *hintChunk) set(it *HintItem) (rotated bool) {
 	return
 }
 
-func (chunk *hintChunk) getFiles() (paths []string) {
-	for i := 0; i < len(chunk.splits); i++ {
-		f := chunk.splits[i].file
-		if f != nil {
-			paths = append(paths, f.path)
-		}
-	}
-	return
-}
-
 func (chunk *hintChunk) getMemOnly(keyhash uint64, key string) (it *HintItem, sp int) {
 	chunk.Lock()
 	defer chunk.Unlock()
