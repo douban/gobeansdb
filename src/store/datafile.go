@@ -22,7 +22,6 @@ type WriteRecord struct {
 	crc    uint32
 	ksz    uint32
 	vsz    uint32
-	rsz    uint32
 	pos    Position
 	header [recHeaderSize]byte
 }
@@ -34,12 +33,11 @@ func newWriteRecord() *WriteRecord {
 	return wrec
 }
 func wrapRecord(rec *Record) *WriteRecord {
-	_, rsz := rec.Sizes()
+	_, rec.Payload.RecSize = rec.Sizes()
 	return &WriteRecord{
 		rec: rec,
 		ksz: uint32(len(rec.Key)),
 		vsz: uint32(len(rec.Payload.Value)),
-		rsz: rsz,
 	}
 }
 
@@ -243,7 +241,7 @@ func (stream *DataStreamWriter) Append(rec *Record) (offset uint32, err error) {
 func (stream *DataStreamWriter) append(wrec *WriteRecord) (offset uint32, err error) {
 	offset = stream.offset
 	err = wrec.append(stream.wbuf, true)
-	stream.offset += wrec.rsz
+	stream.offset += wrec.rec.Payload.RecSize
 	return
 }
 

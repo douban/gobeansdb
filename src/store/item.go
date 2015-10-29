@@ -16,10 +16,12 @@ const (
 )
 
 type Meta struct {
-	TS        uint32
-	Flag      uint32
-	Ver       int32
-	ValueHash uint16 // mem only, computed only when needed
+	TS   uint32
+	Flag uint32
+	Ver  int32
+	// computed once
+	ValueHash uint16
+	RecSize   uint32
 }
 
 type HTreeReq struct {

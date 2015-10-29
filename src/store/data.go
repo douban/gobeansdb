@@ -64,7 +64,7 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	rec.Compress()
 	wrec := wrapRecord(rec)
 	ds.Lock()
-	size := wrec.rsz
+	size := rec.Payload.RecSize
 	currOffset := ds.filesizes[ds.newHead]
 	if currOffset+size > dataConfig.MaxFileSize {
 		ds.newHead++
@@ -123,7 +123,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		wrec := ds.wbufs[chunk][i]
 		ds.Unlock()
 		w.append(wrec)
-		ds.wbufSize -= wrec.rsz
+		ds.wbufSize -= wrec.rec.Payload.RecSize
 		cmem.Sub(cmem.TagFlushData, int(wrec.vsz))
 	}
 	ds.Lock()

@@ -222,7 +222,7 @@ func (tree *HTree) get(ki *KeyInfo) (meta *Meta, pos Position, found bool) {
 	var req HTreeReq
 	req.ki = ki
 	found = tree.getReq(&req)
-	meta = &Meta{0, 0, req.item.ver, req.item.vhash}
+	meta = &Meta{0, 0, req.item.ver, req.item.vhash, 0}
 	pos = decodePos(req.item.pos)
 	return
 }
