@@ -7,18 +7,19 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-type cTable struct {
-	m map[uint64]map[string]HintItem
+type CollisionTable struct {
+	HintID
+	Items map[uint64]map[string]HintItem
 }
 
-func newCTable() *cTable {
-	t := &cTable{}
-	t.m = make(map[uint64]map[string]HintItem)
+func newCollisionTable() *CollisionTable {
+	t := &CollisionTable{}
+	t.Items = make(map[uint64]map[string]HintItem)
 	return t
 }
 
-func (table *cTable) get(keyhash uint64, key string) *HintItem {
-	items, ok := table.m[keyhash]
+func (table *CollisionTable) get(keyhash uint64, key string) *HintItem {
+	items, ok := table.Items[keyhash]
 	if ok {
 		item, ok := items[key]
 		if ok {
@@ -28,22 +29,19 @@ func (table *cTable) get(keyhash uint64, key string) *HintItem {
 	return nil
 }
 
-func (table *cTable) set(it *HintItem) {
-	items, ok := table.m[it.Keyhash]
+func (table *CollisionTable) set(it *HintItem) {
+	items, ok := table.Items[it.Keyhash]
 	if ok {
 		items[it.Key] = *it
 	} else {
 		items = make(map[string]HintItem)
 		items[it.Key] = *it
-		table.m[it.Keyhash] = items
+		table.Items[it.Keyhash] = items
 	}
 }
 
-func (table *cTable) dump(path string) {
-	if len(table.m) == 0 {
-		return
-	}
-	content, err := yaml.Marshal(table.m)
+func (table *CollisionTable) dump(path string) {
+	content, err := yaml.Marshal(table)
 	if err != nil {
 		logger.Errorf("unmarshal yaml faild %s %s", path, err.Error())
 		return
@@ -54,7 +52,7 @@ func (table *cTable) dump(path string) {
 	}
 }
 
-func (table *cTable) load(path string) {
+func (table *CollisionTable) load(path string) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		if !strings.Contains(err.Error(), "no such file or directory") {
@@ -62,7 +60,7 @@ func (table *cTable) load(path string) {
 		}
 		return
 	}
-	if err := yaml.Unmarshal(content, table.m); err != nil {
+	if err := yaml.Unmarshal(content, table); err != nil {
 		logger.Errorf("unmarshal yaml faild %s %s", path, err.Error())
 	}
 }

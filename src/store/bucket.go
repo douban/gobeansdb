@@ -27,7 +27,7 @@ type Bucket struct {
 	// init in open
 	id        int
 	home      string
-	collisons *cTable
+	collisons *CollisionTable
 	htree     *HTree
 	hints     *hintMgr
 	datas     *dataStore
@@ -161,7 +161,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	bkt.home = home
 	bkt.datas = NewdataStore(home)
 	bkt.hints = newHintMgr(home)
-	bkt.collisons = newCTable()
+	bkt.collisons = newCollisionTable()
 	bkt.loadCollisions()
 	bkt.htree = newHTree(config.TreeDepth, bucketID, config.TreeHeight)
 	bkt.htreeID = HintID{0, 0}
