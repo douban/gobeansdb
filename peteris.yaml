@@ -1,0 +1,17 @@
+- job:
+    name: unittest
+    description: 'gobeansdb unittest'
+    node: dae
+    scm:
+      - git:
+          branches:
+            - master
+          skip-tag: True
+          url: http://github.intra.douban.com/coresys/gobeansdb.git
+    triggers:
+      - pollscm: '* * * * *'
+    builders:
+      - shell: make test
+    publishers:
+      - email:
+          recipients: yangxiufeng@douban.com,zhuzhaolong@douban.com
