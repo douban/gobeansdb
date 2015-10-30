@@ -18,15 +18,15 @@ func newCollisionTable() *CollisionTable {
 	return t
 }
 
-func (table *CollisionTable) get(keyhash uint64, key string) *HintItem {
+func (table *CollisionTable) get(keyhash uint64, key string) (item *HintItem, ok bool) {
 	items, ok := table.Items[keyhash]
 	if ok {
-		item, ok := items[key]
-		if ok {
-			return &item
+		if it, ok2 := items[key]; ok2 {
+			item = &it
 		}
+
 	}
-	return nil
+	return
 }
 
 func (table *CollisionTable) set(it *HintItem) {

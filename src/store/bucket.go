@@ -327,7 +327,7 @@ func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
 }
 
 func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Position, err error) {
-	hintit := bkt.hints.collisions.get(ki.KeyHash, ki.StringKey)
+	hintit, _ := bkt.hints.collisions.get(ki.KeyHash, ki.StringKey)
 	var meta *Meta
 	var found bool
 	if hintit == nil {

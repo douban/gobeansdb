@@ -58,19 +58,39 @@ func (s *GCFileState) String() string {
 	return fmt.Sprintf("%#v", s)
 }
 
-func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) bool {
+func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) (retain, updateHtree bool) {
 	ki := &mgr.ki
 	ki.Key = rec.Key
 	meta, pos, found := bkt.htree.get(ki)
 	if !found {
 		logger.Errorf("old key not found in htree bucket %d %s %#v %#v",
 			bkt.id, ki.StringKey, meta, oldPos)
-		return true
+		return true, true
+	} else if pos == oldPos {
+		return true, true
+	} else {
+		it, collision := bkt.hints.collisions.get(ki.KeyHash, ki.StringKey)
+		if !collision {
+			it, collision = bkt.hints.getItemCollision(ki.KeyHash, ki.StringKey) // TODO
+		}
+		if collision {
+			if it != nil {
+				return decodePos(it.Pos) == oldPos, false
+			} else {
+				return true, false
+			}
+		}
 	}
-	return pos == oldPos
+	return false, false
 }
 
-func (mgr *GCMgr) UpdatePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position) {
+func (mgr *GCMgr) UpdateCollision(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position, rec *Record) {
+	// not have to (leave it to get)
+	// if in ctable: update pos
+	// else: decompress, get vhash and set collisions
+}
+
+func (mgr *GCMgr) UpdateHtreePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position) {
 	// TODO: should be a api of htree to be atomic
 	meta, pos, _ := bkt.htree.get(ki)
 	if pos != oldPos {
@@ -159,14 +179,18 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 					return
 				}
 			}
-			isRetained := mgr.ShouldRetainRecord(bkt, rec, oldPos)
+			isRetained, updateHtree := mgr.ShouldRetainRecord(bkt, rec, oldPos)
 			if isRetained {
 				if newPos.Offset, err = w.Append(rec); err != nil {
 					logger.Errorf("gc failed: %s", err.Error())
 					return
 				}
 				keyinfo := NewKeyInfoFromBytes(rec.Key, getKeyHash(rec.Key), false)
-				mgr.UpdatePos(bkt, keyinfo, oldPos, newPos)
+				if updateHtree {
+					mgr.UpdateHtreePos(bkt, keyinfo, oldPos, newPos)
+				} else {
+					mgr.UpdateCollision(bkt, keyinfo, oldPos, newPos, rec)
+				}
 			}
 			fileState.add(recsize, isRetained, rec.Payload.Ver < 0, sizeBroken)
 		}

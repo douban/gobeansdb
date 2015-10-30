@@ -77,6 +77,7 @@ type hintBuffer struct {
 	maxoffset uint32
 	expsize   int
 	keys      map[string]int
+	keyhashs  map[uint64]bool
 	array     []*HintItem
 }
 
@@ -88,6 +89,7 @@ type hintSplit struct {
 func newHintBuffer() *hintBuffer {
 	buf := &hintBuffer{}
 	buf.keys = make(map[string]int)
+	buf.keyhashs = make(map[uint64]bool)
 	buf.array = make([]*HintItem, hintConfig.SplitCount)
 	return buf
 }
@@ -506,6 +508,29 @@ func (h *hintMgr) getItem(keyhash uint64, key string, memOnly bool) (it *HintIte
 			chunkID = i
 			return
 		}
+	}
+	return
+}
+
+func (h *hintMgr) getItemCollision(keyhash uint64, key string) (it *HintItem, collision bool) {
+	for ck := h.maxChunkID; ck >= 0; ck-- {
+		chunk := h.chunks[ck]
+		chunk.Lock()
+		for sp := len(chunk.splits) - 1; sp >= 0; sp-- {
+			split := chunk.splits[sp]
+			if split.buf == nil {
+				return
+			} else {
+				if it = split.buf.get(key); it != nil {
+					collision = true
+					it.Pos |= uint32(ck)
+					return
+				} else if !collision {
+					_, collision = split.buf.keyhashs[keyhash]
+				}
+			}
+		}
+		chunk.Unlock()
 	}
 	return
 }
