@@ -10,6 +10,7 @@ var (
 
 var (
 	defaultHintConfig = HintConfig{
+		NotDumpMerged:     false,
 		SplitCount:        1 << 20,
 		IndexIntervalSize: 4 << 10,
 		SecondsBeforeDump: 60,
@@ -99,6 +100,7 @@ type HintConfigYaml struct {
 }
 
 type HintConfig struct {
+	NotDumpMerged     bool  `yaml:",omitempty"`
 	SplitCount        int   `yaml:",omitempty"`
 	IndexIntervalSize int   `yaml:",omitempty"`
 	SecondsBeforeDump int64 `yaml:",omitempty"`

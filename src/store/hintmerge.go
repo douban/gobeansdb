@@ -62,8 +62,10 @@ func (mw *mergeWriter) flush() {
 			mw.ct.set(mw.buf[i])
 		}
 	}
-	for i := 0; i < mw.num; i++ {
-		mw.w.writeItem(mw.buf[i])
+	if mw.w != nil {
+		for i := 0; i < mw.num; i++ {
+			mw.w.writeItem(mw.buf[i])
+		}
 	}
 }
 
@@ -117,15 +119,18 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 			maxoffset = src[i].maxOffset
 		}
 	}
-	w, err := newHintFileWriter(dst, maxoffset, 1<<20)
-	if err != nil {
-		logger.Errorf("%s", err.Error())
-		return nil, err
+	var w *hintFileWriter
+	if !config.NotDumpMerged {
+		w, err = newHintFileWriter(dst, maxoffset, 1<<20)
+		if err != nil {
+			logger.Errorf("%s", err.Error())
+			w = nil
+		}
 	}
+
 	mw := newMergeWriter(w, ct)
 	h := mergeHeap(hp)
 	heap.Init(&h)
-
 	for len(h) > 0 {
 		if *hintState == HintStateStopping {
 			err = fmt.Errorf("aborted")
@@ -149,10 +154,13 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 		mr.r.close()
 	}
 	mw.flush()
-	mw.w.close()
+	if mw.w != nil {
+		mw.w.close()
+		idx = &hintFileIndex{mw.w.index.toIndex(), dst}
+	}
 	if err != nil {
 		os.Remove(dst)
 		return nil, err
 	}
-	return &hintFileIndex{mw.w.index.toIndex(), dst}, nil
+	return
 }

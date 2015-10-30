@@ -32,7 +32,7 @@ func parseIDFromPath(path string) (id HintID, ok bool) {
 
 func parseIDFromName(name string) (id HintID, ok bool) {
 	ck, err1 := parseChunkIDFromName(name)
-	sp, err2 := parseChunkIDFromName(name)
+	sp, err2 := parseSplitIDFromName(name)
 	if err1 == nil && err2 == nil && ck < 256 && sp < 256 {
 		return HintID{ck, sp}, true
 	}
@@ -247,7 +247,6 @@ type hintMgr struct {
 	mergeLock          sync.Mutex
 	maxDumpableChunkID int
 	merged             *hintFileIndex
-	mergedHintID       HintID // merged file may not exist
 	dumpAndMergeState  int
 
 	collisions *CollisionTable
@@ -389,59 +388,47 @@ func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
 		}
 	}
 
-	if h.maxDumpableChunkID < MAX_CHUNK_ID {
+	if h.maxDumpableChunkID < MAX_CHUNK_ID { // gcing
 		return
 	}
-	if h.merged != nil {
-		if h.maxChunkID-h.mergedHintID.Chunk > 1 {
-			paths, _ := filepath.Glob(h.getPath(-1, -1, true))
-			for _, path := range paths {
-				os.Remove(path)
-			}
-			h.merged = nil
-			h.mergedHintID.Chunk = -1
-		}
-	}
-	if h.maxChunkID > 0 && h.merged == nil {
+	if h.maxChunkID-h.collisions.Chunk > 1 {
 		h.Merge()
 	}
 	return
 }
 
+func (h *hintMgr) RemoveMerged() {
+	paths, _ := filepath.Glob(h.getPath(-1, -1, true))
+	for _, path := range paths {
+		os.Remove(path)
+	}
+	h.merged = nil
+}
+
 func (h *hintMgr) Merge() (err error) {
+	h.RemoveMerged()
+
 	// TODO: check hint with datas!
 	pattern := h.getPath(-1, -1, false)
 	paths, err := filepath.Glob(pattern)
 	sort.Sort(sort.StringSlice(paths))
 
 	readers := make([]*hintFileReader, 0, len(paths))
-	maxChunkID := 0
-	maxSplitID := 0
-
+	var maxid HintID
 	names := make([]string, 0, len(paths))
 	for _, path := range paths {
 		name := filepath.Base(path)
-		chunkID, err := strconv.Atoi(name[:3])
-		if err != nil {
+		hid, ok := parseIDFromName(name)
+		if !ok {
 			logger.Errorf("bad chunk index %s", path)
-			continue
 		}
-		splitID, err := strconv.Atoi(name[4:7])
-		if err != nil {
-			logger.Errorf("bad chunk index %s", path)
-			continue
-		}
+
 		names = append(names, name)
-		if chunkID > maxChunkID {
-			maxChunkID = chunkID
-		} else if chunkID == maxChunkID {
-			maxSplitID = splitID
-		}
-		r := newHintFileReader(path, chunkID, 4096)
+		maxid.setIfLarger(hid.Chunk, hid.Split)
+		r := newHintFileReader(path, hid.Chunk, 4096)
 		readers = append(readers, r)
 	}
-
-	dst := h.getPath(maxChunkID, maxSplitID, true)
+	dst := h.getPath(maxid.Chunk, maxid.Split, true)
 	logger.Infof("to merge %s from %v", dst, names)
 	index, err := merge(readers, dst, h.collisions, &h.dumpAndMergeState)
 	if err != nil {
@@ -449,8 +436,7 @@ func (h *hintMgr) Merge() (err error) {
 		return
 	}
 	h.merged = index
-	h.mergedHintID.Chunk = maxChunkID
-	h.mergedHintID.Split = maxChunkID
+	h.collisions.HintID = maxid
 	return
 }
 
@@ -501,7 +487,7 @@ func (h *hintMgr) getItem(keyhash uint64, key string, memOnly bool) (it *HintIte
 	merged := h.merged
 	h.mergeLock.Unlock()
 	for i := h.maxChunkID; i >= 0; i-- {
-		if !memOnly && merged != nil && (i <= h.mergedHintID.Chunk) {
+		if !memOnly && merged != nil && (i <= h.collisions.Chunk) {
 			it, err = merged.get(keyhash, key)
 			if err != nil {
 				return
