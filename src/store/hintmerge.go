@@ -19,19 +19,21 @@ type mergeReader struct {
 
 type mergeWriter struct {
 	w   *hintFileWriter
-	buf []*HintItem
+	buf []*HintItem // always contain items with same khash and diff keys
+	ct  *CollisionTable
 	num int
 }
 
-func newMergeWriter(w *hintFileWriter) *mergeWriter {
+func newMergeWriter(w *hintFileWriter, ct *CollisionTable) *mergeWriter {
 	mw := new(mergeWriter)
 	mw.w = w
 	mw.buf = make([]*HintItem, 1000)
+	mw.ct = ct
 	return mw
 }
 
 func (mw *mergeWriter) write(it *HintItem) {
-	if mw.num == 0 {
+	if mw.num == 0 { // the first
 		mw.buf[0] = it
 		mw.num = 1
 		return
@@ -55,6 +57,11 @@ func (mw *mergeWriter) write(it *HintItem) {
 }
 
 func (mw *mergeWriter) flush() {
+	if mw.num > 0 {
+		for i := 0; i < mw.num; i++ {
+			mw.ct.set(mw.buf[i])
+		}
+	}
 	for i := 0; i < mw.num; i++ {
 		mw.w.writeItem(mw.buf[i])
 	}
@@ -89,7 +96,7 @@ func (h *mergeHeap) Pop() interface{} {
 	return x
 }
 
-func merge(src []*hintFileReader, dst string, hintState *int) (idx *hintFileIndex, err error) {
+func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int) (idx *hintFileIndex, err error) {
 	n := len(src)
 	maxoffset := uint32(0)
 	hp := make([]*mergeReader, n)
@@ -115,7 +122,7 @@ func merge(src []*hintFileReader, dst string, hintState *int) (idx *hintFileInde
 		logger.Errorf("%s", err.Error())
 		return nil, err
 	}
-	mw := newMergeWriter(w)
+	mw := newMergeWriter(w, ct)
 	h := mergeHeap(hp)
 	heap.Init(&h)
 

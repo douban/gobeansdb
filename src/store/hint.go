@@ -249,6 +249,8 @@ type hintMgr struct {
 	merged             *hintFileIndex
 	mergedHintID       HintID // merged file may not exist
 	dumpAndMergeState  int
+
+	collisions *CollisionTable
 }
 
 func newHintMgr(home string) *hintMgr {
@@ -257,6 +259,8 @@ func newHintMgr(home string) *hintMgr {
 		hm.chunks[i] = newHintChunk(i)
 	}
 	hm.maxDumpableChunkID = MAX_CHUNK_ID
+
+	hm.collisions = newCollisionTable()
 	return hm
 }
 
@@ -439,7 +443,7 @@ func (h *hintMgr) Merge() (err error) {
 
 	dst := h.getPath(maxChunkID, maxSplitID, true)
 	logger.Infof("to merge %s from %v", dst, names)
-	index, err := merge(readers, dst, &h.dumpAndMergeState)
+	index, err := merge(readers, dst, h.collisions, &h.dumpAndMergeState)
 	if err != nil {
 		logger.Errorf("merge to %s fail: %s", dst, err.Error())
 		return

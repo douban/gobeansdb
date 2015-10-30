@@ -138,7 +138,8 @@ func testMerge(t *testing.T, nsrc int) {
 	dst := fmt.Sprintf("%s/dst.hint.s", dir)
 	os.Remove(dst)
 	state := HintStatetWorking
-	merge(srcp, dst, &state)
+	ct := newCollisionTable()
+	merge(srcp, dst, ct, &state)
 	defer os.Remove(dst)
 	readHintAndCheck(t, dst, items)
 }

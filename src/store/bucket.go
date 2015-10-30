@@ -25,13 +25,13 @@ type Bucket struct {
 	homeID int
 
 	// init in open
-	id        int
-	home      string
-	collisons *CollisionTable
-	htree     *HTree
-	hints     *hintMgr
-	datas     *dataStore
-	htreeID   HintID
+	id   int
+	home string
+
+	htree   *HTree
+	hints   *hintMgr
+	datas   *dataStore
+	htreeID HintID
 
 	GCHistory []GCState
 	lastGC    int
@@ -46,11 +46,11 @@ func (bkt *Bucket) getCollisionPath() string {
 }
 
 func (bkt *Bucket) dumpCollisions() {
-	bkt.collisons.dump(bkt.getCollisionPath())
+	bkt.hints.collisions.dump(bkt.getCollisionPath())
 }
 
 func (bkt *Bucket) loadCollisions() {
-	bkt.collisons.load(bkt.getCollisionPath())
+	bkt.hints.collisions.load(bkt.getCollisionPath())
 }
 
 func (bkt *Bucket) buildHintFromData(chunkID int, start uint32, splitID int) (hintpath string, err error) {
@@ -161,7 +161,6 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	bkt.home = home
 	bkt.datas = NewdataStore(home)
 	bkt.hints = newHintMgr(home)
-	bkt.collisons = newCollisionTable()
 	bkt.loadCollisions()
 	bkt.htree = newHTree(config.TreeDepth, bucketID, config.TreeHeight)
 	bkt.htreeID = HintID{0, 0}
@@ -328,7 +327,7 @@ func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
 }
 
 func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Position, err error) {
-	hintit := bkt.collisons.get(ki.KeyHash, ki.StringKey)
+	hintit := bkt.hints.collisions.get(ki.KeyHash, ki.StringKey)
 	var meta *Meta
 	var found bool
 	if hintit == nil {
@@ -372,9 +371,9 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	pos = Position{chunkID, hintit.Pos}
 	hintit.Pos = pos.encode()
 
-	bkt.collisons.set(hintit)
+	bkt.hints.collisions.set(hintit)
 	hintit2 := newHintItem(ki.KeyHash, rec.Payload.Ver, rec.Payload.ValueHash, pos, string(rec.Key))
-	bkt.collisons.set(hintit2)
+	bkt.hints.collisions.set(hintit2)
 
 	rec, err = bkt.getRecordByPos(pos)
 	if err != nil {
