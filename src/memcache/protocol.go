@@ -22,8 +22,6 @@ var (
 	MaxBodyLength = 1024 * 1024 * 50
 )
 
-var AllocLimit = 1024 * 4
-
 func isSpace(r rune) bool {
 	return r == ' '
 }
@@ -190,7 +188,7 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 		}
 
 		// FIXME
-		if length > AllocLimit {
+		if length > cmem.GConfig.AllocLimit {
 			item.alloc = cmem.Alloc(length)
 			item.Body = (*[1 << 30]byte)(unsafe.Pointer(item.alloc))[:length]
 			(*reflect.SliceHeader)(unsafe.Pointer(&item.Body)).Cap = length
@@ -303,7 +301,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			}
 
 			// FIXME
-			if length > AllocLimit {
+			if length > cmem.GConfig.AllocLimit {
 				item.alloc = cmem.Alloc(length)
 				item.Body = (*[1 << 30]byte)(unsafe.Pointer(item.alloc))[:length]
 				(*reflect.SliceHeader)(unsafe.Pointer(&item.Body)).Cap = length

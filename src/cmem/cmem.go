@@ -14,6 +14,16 @@ const (
 	TagGuard
 )
 
+type Config struct {
+	NumReqToken int
+	AllocLimit  int
+}
+
+var GConfig = Config{
+	16,
+	1024 * 4,
+}
+
 var (
 	AllocedSize  []int64 = make([]int64, TagGuard)
 	AllocedCount []int64 = make([]int64, TagGuard)
