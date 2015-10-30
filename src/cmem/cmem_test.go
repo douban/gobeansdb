@@ -6,7 +6,7 @@ import (
 )
 
 func TestCmem(t *testing.T) {
-	size := uintptr(1024 * 1024 * 10)
+	size := 1024 * 1024 * 10
 	s := Alloc(size)
 	Free(s, size)
 	if Alloced() != 0 {

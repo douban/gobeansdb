@@ -13,8 +13,8 @@ func TestQuicklz(t *testing.T) {
 	if lc != 116 {
 		t.Errorf("wrong compressed len %s", lc)
 	}
-	s := sizeDecompressed(compressed)
-	sc := sizeCompressed(compressed)
+	s := SizeDecompressed(compressed)
+	sc := SizeCompressed(compressed)
 	if s != l || sc != lc {
 		t.Errorf("bad size meta: %d != %d  or %d != %d", s, l, sc, lc)
 	}
