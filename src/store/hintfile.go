@@ -45,6 +45,23 @@ type hintFileWriter struct {
 	buf    [256]byte
 }
 
+func getMaxoffsetFromHint(path string) (offset uint32, err error) {
+	fd, err := os.Open(path)
+	if err != nil {
+		logger.Errorf(err.Error())
+		return
+	}
+	defer fd.Close()
+	b := make([]byte, 4)
+	_, err = fd.ReadAt(b, 12)
+	if err != nil {
+		logger.Errorf(err.Error())
+		return
+	}
+	offset = binary.LittleEndian.Uint32(b)
+	return
+}
+
 func newHintFileReader(path string, chunkID, bufsize int) (reader *hintFileReader) {
 	return &hintFileReader{
 		path:    path,

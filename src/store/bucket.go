@@ -4,9 +4,17 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
+)
+
+const (
+	HTREE_SUFFIX       = "hash"
+	HINT_SUFFIX        = "s"
+	MERGED_HINT_SUFFIX = "m"
 )
 
 type Bucket struct {
@@ -23,15 +31,14 @@ type Bucket struct {
 	htree     *HTree
 	hints     *hintMgr
 	datas     *dataStore
-
-	htreechunk int
+	htreeID   HintID
 
 	GCHistory []GCState
 	lastGC    int
 }
 
-func (bkt *Bucket) getHtreePath(chunkID int) string {
-	return fmt.Sprintf("%s/%03d.hr", bkt.home, chunkID)
+func (bkt *Bucket) getHtreePath(chunkID, SplitID int) string {
+	return getIndexPath(bkt.home, chunkID, SplitID, "hash")
 }
 
 func (bkt *Bucket) getCollisionPath() string {
@@ -111,90 +118,105 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 	return
 }
 
-func (bkt *Bucket) open(id int, home string) (err error) {
+func (bkt *Bucket) checkHintWithData(chunkID int) (paths []string, err error) {
+	paths, maxoffset := bkt.getMaxoffset(chunkID)
+	l := len(paths)
+	if maxoffset < bkt.datas.filesizes[chunkID] {
+		p, e := bkt.buildHintFromData(chunkID, maxoffset, l)
+		if e != nil {
+			//TODO: FATAL?
+			err = e
+		} else {
+			paths = append(paths, p)
+		}
+	}
+	return
+}
+
+func (bkt *Bucket) getMaxoffset(chunkID int) (paths []string, maxoffset uint32) {
+	paths0 := bkt.hints.findChunk(chunkID, bkt.datas.filesizes[chunkID] < 1)
+	l := len(paths0)
+	if l == 0 {
+		return
+	}
+	for _, p := range paths0 {
+		offset, e := getMaxoffsetFromHint(p)
+		if e != nil {
+			logger.Errorf("rm bad hint: %s", p)
+			os.Remove(p)
+			return // abandon the remaining, build from datafile
+		} else {
+			paths = append(paths, p)
+			if offset > maxoffset {
+				maxoffset = offset
+			}
+		}
+	}
+	return
+}
+
+func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	// load HTree
-	bkt.id = id
+	bkt.id = bucketID
 	bkt.home = home
 	bkt.datas = NewdataStore(home)
 	bkt.hints = newHintMgr(home)
 	bkt.collisons = newCTable()
 	bkt.loadCollisions()
-	bkt.htree = newHTree(config.TreeDepth, id, config.TreeHeight)
+	bkt.htree = newHTree(config.TreeDepth, bucketID, config.TreeHeight)
+	bkt.htreeID = HintID{0, 0}
 
 	maxdata, err := bkt.datas.ListFiles()
 	if err != nil {
 		return err
 	}
-	filesizes := bkt.datas.filesizes
-	bkt.htreechunk = -1
-	var treePathToLoad string
-	for i := 0; i < MAX_NUM_CHUNK; i++ {
-		htreePath := bkt.getHtreePath(i)
-		_, err = os.Stat(htreePath)
-		if err == nil {
-			if i > maxdata {
-				logger.Errorf("remove htree beyond %d:%s", maxdata, htreePath)
-				os.Remove(htreePath)
+	htrees, ids := bkt.getAllIndex(HTREE_SUFFIX)
+	for i := len(htrees) - 1; i >= 0; i-- {
+		treepath := htrees[i]
+		id := ids[i]
+		if id.Chunk > maxdata {
+			logger.Errorf("remove htree beyond data %d:%s", maxdata, treepath)
+			os.Remove(treepath)
+		} else {
+			if bkt.htreeID.isLarger(id.Chunk, id.Split) {
+				err := bkt.htree.load(treepath)
+				if err != nil {
+					bkt.htreeID = HintID{0, 0}
+					bkt.htree = newHTree(config.TreeDepth, bucketID, config.TreeHeight)
+					continue
+				}
+				bkt.htreeID = id
 			} else {
-				bkt.htreechunk = i
-				treePathToLoad = htreePath
+				logger.Errorf("remove old htree %d:%s", maxdata, treepath)
+				os.Remove(treepath)
 			}
-		}
-	}
-	if bkt.htreechunk >= 0 {
-		err := bkt.htree.load(treePathToLoad)
-		if err != nil {
-			bkt.htreechunk = -1
-			bkt.htree = newHTree(config.TreeDepth, id, config.TreeHeight)
 		}
 	}
 
-	for i := bkt.htreechunk + 1; i < MAX_NUM_CHUNK; i++ {
-		paths := bkt.hints.findChunk(i, filesizes[i] < 1)
-		if len(paths) > 0 {
-			splitid := 0
-			maxoffset := uint32(0)
-			for _, p := range paths {
-				offset, e := bkt.updateHtreeFromHint(i, p)
-				if e != nil {
-					err = e
-					return
-				}
-				if offset > maxoffset {
-					maxoffset = offset
-				}
-				splitid++
-			}
-			if maxoffset < filesizes[i] {
-				p, e := bkt.buildHintFromData(i, maxoffset, splitid)
-				if e != nil {
-					err = e
-					return
-				}
-				if _, err = bkt.updateHtreeFromHint(i, p); err != nil {
-					return
-				}
-			}
-		} else if filesizes[i] > 0 {
-			p, e := bkt.buildHintFromData(i, 0, 0)
+	for i := bkt.htreeID.Chunk; i < MAX_NUM_CHUNK; i++ {
+		startsp := 0
+		if i == bkt.htreeID.Chunk {
+			startsp = bkt.htreeID.Split + 1
+		}
+		paths, e := bkt.checkHintWithData(i)
+		if e != nil {
+			err = e
+			logger.Fatalf("fail to start for bad data")
+		}
+		if startsp >= len(paths) { // rebuilt
+			continue
+		}
+		for _, path := range paths[startsp:] {
+			bkt.updateHtreeFromHint(i, path)
 			if e != nil {
 				err = e
-				return
-			}
-			if _, err = bkt.updateHtreeFromHint(i, p); err != nil {
 				return
 			}
 		}
 	}
 	go func() {
-		for i := 0; i < bkt.htreechunk+1; i++ {
-			paths := bkt.hints.findChunk(i, filesizes[i] < 1)
-			if (len(paths) == 0) && (filesizes[i] > 0) {
-				if _, err = bkt.buildHintFromData(i, 0, 0); err != nil {
-					return
-				}
-			}
-			// TODO: hints may fall behand data?
+		for i := 0; i < bkt.htreeID.Chunk; i++ {
+			bkt.checkHintWithData(i)
 		}
 	}()
 
@@ -220,18 +242,34 @@ func (bkt *Bucket) close() {
 }
 
 func (bkt *Bucket) dumpHtree() {
-	if bkt.htreechunk > 0 {
-		os.Remove(bkt.getHtreePath(bkt.htreechunk))
+	bkt.removeHtree()
+	bkt.htreeID = bkt.hints.maxDumpedHintID
+	bkt.htree.dump(bkt.getHtreePath(bkt.htreeID.Chunk, bkt.htreeID.Split))
+}
+
+func (bkt *Bucket) getAllIndex(suffix string) (paths []string, ids []HintID) {
+	pattern := getIndexPath(bkt.home, -1, -1, suffix)
+	paths0, _ := filepath.Glob(pattern)
+	sort.Sort(sort.StringSlice(paths0))
+	for _, p := range paths0 {
+		id, ok := parseIDFromPath(p)
+		if !ok {
+			logger.Errorf("find index file with wrong name %s", p)
+		} else {
+			paths = append(paths, p)
+			ids = append(ids, id)
+		}
 	}
-	bkt.htreechunk = bkt.datas.newHead
-	bkt.htree.dump(bkt.getHtreePath(bkt.htreechunk))
+	return
 }
 
 func (bkt *Bucket) removeHtree() {
-	if bkt.htreechunk > 0 {
-		os.Remove(bkt.getHtreePath(bkt.htreechunk))
+	paths, _ := bkt.getAllIndex(HTREE_SUFFIX)
+	for _, p := range paths {
+		logger.Infof("rm htree: %s", p)
+		os.Remove(p)
 	}
-	bkt.htreechunk = -1
+	bkt.htreeID.Chunk = -1
 }
 
 func (bkt *Bucket) checkVer(oldv, ver int32) (int32, bool) {

@@ -11,21 +11,59 @@ import (
 	"time"
 )
 
-const ()
+func idToStr(id int) string {
+	if id < 0 {
+		return "*"
+	}
+	return fmt.Sprintf("%03d", id)
+}
+
+func parseChunkIDFromName(name string) (int, error) {
+	return strconv.Atoi(name[:3])
+}
+
+func parseSplitIDFromName(name string) (int, error) {
+	return strconv.Atoi(name[4:7])
+}
+
+func parseIDFromPath(path string) (id HintID, ok bool) {
+	return parseIDFromName(filepath.Base(path))
+}
+
+func parseIDFromName(name string) (id HintID, ok bool) {
+	ck, err1 := parseChunkIDFromName(name)
+	sp, err2 := parseChunkIDFromName(name)
+	if err1 == nil && err2 == nil && ck < 256 && sp < 256 {
+		return HintID{ck, sp}, true
+	}
+	return
+}
+
+func getIndexPath(home string, chunkID, splitID int, suffix string) string {
+	return fmt.Sprintf("%s/%s.%s.idx.%s", home, idToStr(chunkID), idToStr(splitID), suffix)
+}
+
+func (h *hintMgr) getPath(chunkID, splitID int, merged bool) (path string) {
+	suffix := "s"
+	if merged {
+		suffix = "m"
+	}
+	return getIndexPath(h.home, chunkID, splitID, suffix)
+}
 
 type HintID struct {
 	Chunk int
 	Split int
 }
 
+func (id *HintID) isLarger(ck, sp int) bool {
+	return (ck > id.Chunk) || (ck == id.Chunk && sp >= id.Split)
+}
+
 func (id *HintID) setIfLarger(ck, sp int) {
-	if ck > id.Chunk {
+	if id.isLarger(ck, sp) {
 		id.Chunk = ck
 		id.Split = sp
-	} else if ck == id.Chunk {
-		if sp > id.Split {
-			id.Split = sp
-		}
 	}
 }
 
@@ -410,21 +448,6 @@ func (h *hintMgr) Merge() (err error) {
 	h.mergedHintID.Chunk = maxChunkID
 	h.mergedHintID.Split = maxChunkID
 	return
-}
-
-func idToStr(id int) string {
-	if id < 0 {
-		return "*"
-	}
-	return fmt.Sprintf("%03d", id)
-}
-
-func (h *hintMgr) getPath(chunkID, splitID int, big bool) (path string) {
-	suffix := "s"
-	if big {
-		suffix = "m"
-	}
-	return fmt.Sprintf("%s/%s.%s.idx.%s", h.home, idToStr(chunkID), idToStr(splitID), suffix)
 }
 
 func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
