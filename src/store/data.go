@@ -66,7 +66,7 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	ds.Lock()
 	size := rec.Payload.RecSize
 	currOffset := ds.filesizes[ds.newHead]
-	if currOffset+size > dataConfig.MaxFileSize {
+	if currOffset+size > uint32(dataConfig.MaxFileSize) {
 		ds.newHead++
 		logger.Infof("rotate to %d, size %d, new rec size %d", ds.newHead, currOffset, size)
 		currOffset = 0

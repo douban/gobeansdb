@@ -13,6 +13,7 @@ import (
 
 var (
 	config = GoBeansdbConfig{
+		Addr:    "127.0.0.1:7900",
 		Listen:  "127.0.0.1",
 		Port:    7900,
 		WebPort: 7908,
@@ -56,10 +57,12 @@ func loadConfigs(confdir string) {
 	config.HStoreConfig.RouteConfig = rt.GetServerConfig(config.Addr)
 
 	// config store
-	config.HStoreConfig.InitForYaml()
-	config.HStoreConfig.Init()
+	err = config.HStoreConfig.Init()
+	if err != nil {
+		log.Fatalf("bad config: %#v")
+	}
 	store.SetConfig(config.HStoreConfig)
 	// config mc
 	mc.MaxKeyLength = config.HStoreConfig.MaxKeySize
-	mc.MaxBodyLength = config.HStoreConfig.MaxValueSize
+	mc.MaxBodyLength = int(config.HStoreConfig.MaxValueSize)
 }

@@ -168,7 +168,7 @@ func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *HintItem) {
 
 func TestHintBuffer(t *testing.T) {
 	n := 10
-	SetHintConfig(HintConfig{SplitCount: n, IndexIntervalSize: 128, SecondsBeforeDump: 3})
+	SetHintConfig(HintConfig{SplitCount: int64(n), IndexIntervalSize: 128, SecondsBeforeDump: 3})
 	buf := newHintBuffer()
 	items := genSortedHintItems(n + 1)
 	for i := 0; i < n; i++ {
@@ -197,7 +197,7 @@ func setAndCheckChunk(t *testing.T, ck *hintChunk, it *HintItem, rotate bool) {
 
 func TestHintChunk(t *testing.T) {
 	n := 10
-	SetHintConfig(HintConfig{SplitCount: n, IndexIntervalSize: 128, SecondsBeforeDump: 1})
+	SetHintConfig(HintConfig{SplitCount: int64(n), IndexIntervalSize: 128, SecondsBeforeDump: 1})
 	ck := newHintChunk(0)
 	items := genSortedHintItems(n + 2)
 	i := 0
@@ -274,7 +274,7 @@ func TestHintMgr(t *testing.T) {
 	defer clearTest()
 
 	persp := 10
-	SetHintConfig(HintConfig{SplitCount: persp, IndexIntervalSize: 128, SecondsBeforeDump: 1})
+	SetHintConfig(HintConfig{SplitCount: int64(persp), IndexIntervalSize: 128, SecondsBeforeDump: 1})
 	nsp := 2
 	n := persp * nsp
 	items := genSortedHintItems(n)

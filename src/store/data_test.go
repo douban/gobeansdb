@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -90,8 +91,9 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 	initDefaultConfig()
 	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq), 1)
 	defer clearTest()
+
+	dataConfig.MaxFileSizeStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
 	config.Init()
-	dataConfig.MaxFileSize = 256 * uint32(recordPerFile) * recsize
 
 	p := &Payload{Value: value}
 	ds := NewdataStore(config.Homes[0])
@@ -111,6 +113,6 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 			t.Fatalf("%d %#v", i, r.Payload)
 		}
 	}
-	checkFileSize(t, 0, dataConfig.MaxFileSize)
+	checkFileSize(t, 0, uint32(dataConfig.MaxFileSize))
 	checkFileSize(t, 1, 256*recsize)
 }

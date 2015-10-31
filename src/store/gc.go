@@ -140,7 +140,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 	var rec *Record
 	var r *DataStreamReader
 	var w *DataStreamWriter
-	mfs := dataConfig.MaxFileSize
+	mfs := uint32(dataConfig.MaxFileSize)
 
 	mgr.BeforeBucket(bkt, startChunkID, endChunkID)
 	defer mgr.AfterBucket(bkt)

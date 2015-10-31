@@ -34,7 +34,7 @@ func (idx *hintFileIndex) get(keyhash uint64, key string) (item *HintItem, err e
 	if j > 1 {
 		offset = arr[j-1].offset
 	}
-	reader := newHintFileReader(idx.path, 0, hintConfig.IndexIntervalSize)
+	reader := newHintFileReader(idx.path, 0, int(hintConfig.IndexIntervalSize))
 	err = reader.open()
 	if err != nil {
 		return
