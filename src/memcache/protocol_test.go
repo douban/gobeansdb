@@ -139,6 +139,7 @@ var reqTests = []reqTest{
 }
 
 func TestRequest(t *testing.T) {
+	InitTokens()
 	store := NewMapStore()
 	stats := NewStats()
 

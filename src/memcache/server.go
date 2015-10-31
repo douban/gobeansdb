@@ -2,7 +2,6 @@ package memcache
 
 import (
 	"bufio"
-	"cmem"
 	"errors"
 	"io"
 	"log"
@@ -13,9 +12,8 @@ import (
 )
 
 var (
-	SlowCmdTime   = time.Millisecond * 100 // 100ms
-	ReqTokenChan  chan int
-	ReqTokenOwner []*Request
+	SlowCmdTime = time.Millisecond * 100 // 100ms
+	RL          *ReqLimiter
 )
 
 type ServerConn struct {
@@ -48,8 +46,6 @@ func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) 
 	req := new(Request)
 	var resp *Response
 	for {
-		token := <-ReqTokenChan
-		ReqTokenOwner[token] = req
 		e = req.Read(rbuf)
 		if e != nil {
 			if strings.HasPrefix(e.Error(), "unknown") {
@@ -85,7 +81,6 @@ func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) 
 		}
 		req.Clear()
 		resp.CleanBuffer()
-		ReqTokenChan <- token
 		if c.closeAfterReply {
 			break
 		}
@@ -118,16 +113,8 @@ func (s *Server) Listen(addr string) (e error) {
 	return
 }
 
-func (s *Server) InitTokens() {
-	nt := cmem.GConfig.NumReqToken
-	ReqTokenChan = make(chan int, nt)
-	for i := 0; i < nt; i++ {
-		ReqTokenChan <- i
-	}
-}
-
 func (s *Server) Serve() (e error) {
-	s.InitTokens()
+	InitTokens()
 	if s.l == nil {
 		return errors.New("no listener")
 	}

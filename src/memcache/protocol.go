@@ -45,11 +45,31 @@ func (it *Item) String() (s string) {
 		it.Flag, it.Exptime, len(it.Body), it.Cas, it.Body)
 }
 
+func (item *Item) AllocBody(length int) {
+	if length > cmem.GConfig.AllocLimit {
+		item.alloc = cmem.Alloc(length)
+		item.Body = (*[1 << 30]byte)(unsafe.Pointer(item.alloc))[:length]
+		(*reflect.SliceHeader)(unsafe.Pointer(&item.Body)).Cap = length
+		runtime.SetFinalizer(item, func(item *Item) {
+			if item.alloc != nil {
+				//log.Print("free by finalizer: ", cap(item.Body))
+				cmem.Free(item.alloc, cap(item.Body))
+				item.Body = nil
+				item.alloc = nil
+			}
+		})
+	} else {
+		item.Body = make([]byte, length)
+	}
+}
+
 type Request struct {
 	Cmd     string   // get, set, delete, quit, etc.
 	Keys    []string // keys
 	Item    *Item
 	NoReply bool
+
+	Token int
 }
 
 func (req *Request) String() (s string) {
@@ -65,6 +85,7 @@ func (req *Request) Clear() {
 		req.Item.alloc = nil
 		req.Item = nil
 	}
+	RL.Put(req.Token)
 }
 
 func WriteFull(w io.Writer, buf []byte) error {
@@ -147,6 +168,7 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 			return errors.New("invalid cmd")
 		}
 		req.Keys = parts[1:]
+		RL.Get(req)
 
 	case "set", "add", "replace", "cas", "append", "prepend":
 		if len(parts) < 5 || len(parts) > 7 {
@@ -187,22 +209,9 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 			req.NoReply = len(parts) > 5 && parts[5] == "noreply"
 		}
 
+		RL.Get(req)
 		// FIXME
-		if length > cmem.GConfig.AllocLimit {
-			item.alloc = cmem.Alloc(length)
-			item.Body = (*[1 << 30]byte)(unsafe.Pointer(item.alloc))[:length]
-			(*reflect.SliceHeader)(unsafe.Pointer(&item.Body)).Cap = length
-			runtime.SetFinalizer(item, func(item *Item) {
-				if item.alloc != nil {
-					//log.Print("free by finalizer: ", cap(item.Body))
-					cmem.Free(item.alloc, cap(item.Body))
-					item.Body = nil
-					item.alloc = nil
-				}
-			})
-		} else {
-			item.Body = make([]byte, length)
-		}
+		item.AllocBody(length)
 		cmem.Add(cmem.TagSetData, length)
 		if _, e = io.ReadFull(b, item.Body); e != nil {
 			return e
@@ -224,6 +233,7 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 		req.Keys = parts[1:2]
 		req.Item = &Item{Body: []byte(parts[2])}
 		req.NoReply = len(parts) > 3 && parts[3] == "noreply"
+		RL.Get(req)
 
 	case "stats":
 		req.Keys = parts[1:]
@@ -301,21 +311,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			}
 
 			// FIXME
-			if length > cmem.GConfig.AllocLimit {
-				item.alloc = cmem.Alloc(length)
-				item.Body = (*[1 << 30]byte)(unsafe.Pointer(item.alloc))[:length]
-				(*reflect.SliceHeader)(unsafe.Pointer(&item.Body)).Cap = length
-				runtime.SetFinalizer(item, func(item *Item) {
-					if item.alloc != nil {
-						//log.Print("free by finalizer: ", cap(item.Body))
-						cmem.Free(item.alloc, cap(item.Body))
-						item.Body = nil
-						item.alloc = nil
-					}
-				})
-			} else {
-				item.Body = make([]byte, length)
-			}
+			item.AllocBody(length)
 			if _, e = io.ReadFull(b, item.Body); e != nil {
 				return e
 			}
