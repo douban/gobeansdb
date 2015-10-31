@@ -46,7 +46,7 @@ func init() {
 }
 
 func setupTest(casename string, numhome int) {
-	initDefaultConfig()
+	InitDefaultGlobalConfig()
 	// dir = time.Now().Format("20060102T030405")
 	dir = fmt.Sprintf("%s/%s", *tBase, casename)
 	logger.Infof("test in %s", dir)
@@ -131,7 +131,7 @@ func TestHStoreRestart1(t *testing.T) {
 }
 
 func testHStore(t *testing.T, op, numbucket int) {
-	initDefaultConfig()
+	InitDefaultGlobalConfig()
 	gen := newKVGen(numbucket)
 
 	setupTest(fmt.Sprintf("testHStore_%d_%d", op, numbucket), 1)

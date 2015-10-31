@@ -48,7 +48,7 @@ func TestLeafEnlarge(t *testing.T) {
 }
 
 func TestLeaf(t *testing.T) {
-	initDefaultConfig()
+	InitDefaultGlobalConfig()
 	var ni NodeInfo
 
 	config.NumBucket = 256

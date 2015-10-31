@@ -10,19 +10,19 @@ var (
 )
 
 var (
-	defaultHintConfig = HintConfig{
+	DefaultHintConfig = HintConfig{
 		NotDumpMerged:        false,
 		SplitCountStr:        "1M",
 		IndexIntervalSizeStr: "4K",
 		SecondsBeforeDump:    60,
 	}
 
-	defaultHTreeConfig HTreeConfig = HTreeConfig{
+	DefaultHTreeConfig HTreeConfig = HTreeConfig{
 		ThresholdListKey: 64 * 4,
 		ThresholdBigHash: 64 * 4,
-		TreeHeight:       0,
+		TreeHeight:       4,
 	}
-	defaultDataConfig = DataConfig{
+	DefaultDataConfig = DataConfig{
 		MaxKeySize:      250,
 		MaxValueSizeStr: "50M",
 		MaxFileSizeStr:  "4000M",
@@ -30,6 +30,13 @@ var (
 		FlushSizeStr:    "4M",
 		FlushSizeMin:    256,
 	}
+
+	DefaultLocalConfig = LocalConfig{
+		Hostname:    "127.0.0.1",
+		Homes:       []string{"./test"},
+		maxOldChunk: 255,
+	}
+	DefaultRouteConfig = route.RouteConfig{NumBucket: 16, Buckets: make([]int, 16)}
 
 	htreeConfig = &config.HTreeConfig
 	hintConfig  = &config.HintConfig
@@ -40,11 +47,25 @@ func SetConfig(c HStoreConfig) {
 	config = c
 }
 
-func initDefaultConfig() {
+func GetConfig() HStoreConfig {
+	return config
+}
+
+func InitDefaultGlobalConfig() {
 	config = HStoreConfig{}
-	config.HintConfig = defaultHintConfig
-	config.HTreeConfig = defaultHTreeConfig
-	config.DataConfig = defaultDataConfig
+	config.HintConfig = DefaultHintConfig
+	config.HTreeConfig = DefaultHTreeConfig
+	config.DataConfig = DefaultDataConfig
+}
+
+func InitDefaultConfig() {
+	InitDefaultGlobalConfig()
+	config.LocalConfig = DefaultLocalConfig
+	config.RouteConfig = DefaultRouteConfig
+	for i := 0; i < 16; i++ {
+		DefaultRouteConfig.Buckets[i] = 1
+	}
+	config.Init()
 }
 
 type HStoreConfig struct {
@@ -69,10 +90,6 @@ type LocalConfig struct {
 	Hostname    string   `yaml:",omitempty"`
 	Homes       []string `yaml:",omitempty"`
 	maxOldChunk int      `yaml:",omitempty"`
-	maxChunk    int      `yaml:",omitempty"` // may <= 255, for test
-}
-
-type DataConfigYaml struct {
 }
 
 type DataConfig struct {

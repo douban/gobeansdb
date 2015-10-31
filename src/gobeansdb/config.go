@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	mc "memcache"
+	"os"
 	"route"
 	"store"
 
@@ -18,7 +19,7 @@ var (
 		Port:    7900,
 		WebPort: 7908,
 		Threads: 4,
-		ZK:      "",
+		ZK:      "NO",
 	}
 )
 
@@ -46,18 +47,23 @@ func loadServerConfig(path string) {
 }
 
 func loadConfigs(confdir string) {
-	loadServerConfig(fmt.Sprintf("%s/%s", confdir, "server_global.yaml"))
-	loadServerConfig(fmt.Sprintf("%s/%s", confdir, "server_local.yaml"))
-	// route
-	rt, err := route.LoadRouteTable(fmt.Sprintf("%s/%s", confdir, "route.yaml"), config.ZK)
-	if err != nil {
-		log.Fatalf("fail to load route table")
+	store.InitDefaultConfig()
+	config.HStoreConfig = store.GetConfig()
+	if confdir != "" {
+		loadServerConfig(fmt.Sprintf("%s/%s", confdir, "server_global.yaml"))
+		loadServerConfig(fmt.Sprintf("%s/%s", confdir, "server_local.yaml"))
+		// route
+		rt, err := route.LoadRouteTable(fmt.Sprintf("%s/%s", confdir, "route.yaml"), config.ZK)
+		if err != nil {
+			log.Fatalf("fail to load route table")
+		}
+		config.Addr = fmt.Sprintf("%s:%d", config.HStoreConfig.Hostname, config.Port)
+		config.HStoreConfig.RouteConfig = rt.GetServerConfig(config.Addr)
+	} else {
+		os.MkdirAll("./test", 0777)
 	}
-	config.Addr = fmt.Sprintf("%s:%d", config.HStoreConfig.Hostname, config.Port)
-	config.HStoreConfig.RouteConfig = rt.GetServerConfig(config.Addr)
-
 	// config store
-	err = config.HStoreConfig.Init()
+	err := config.HStoreConfig.Init()
 	if err != nil {
 		log.Fatalf("bad config: %#v")
 	}
@@ -65,4 +71,13 @@ func loadConfigs(confdir string) {
 	// config mc
 	mc.MaxKeyLength = config.HStoreConfig.MaxKeySize
 	mc.MaxBodyLength = int(config.HStoreConfig.MaxValueSize)
+}
+
+func dumpConfigs() {
+	b, err := yaml.Marshal(config)
+	if err != nil {
+		log.Panicln(err)
+	} else {
+		fmt.Println(string(b))
+	}
 }

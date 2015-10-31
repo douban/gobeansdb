@@ -38,10 +38,16 @@ func handleSignals() {
 }
 
 func main() {
-	var confdir = flag.String("confdir", "", "path of server config file")
+	var confdir = flag.String("confdir", "", "path of server config dir")
+	var dumpconf = flag.Bool("dumpconf", false, "")
+
 	flag.Parse()
 
 	loadConfigs(*confdir)
+	if *dumpconf {
+		dumpConfigs()
+		return
+	}
 
 	log.Printf("gorivendb version %s starting at %d, config: %#v", mc.VERSION, config.Port, config)
 	runtime.GOMAXPROCS(config.Threads)

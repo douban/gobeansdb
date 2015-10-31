@@ -88,7 +88,7 @@ func TestDataCompatibility(t *testing.T) {
 }
 
 func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint32) {
-	initDefaultConfig()
+	InitDefaultGlobalConfig()
 	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq), 1)
 	defer clearTest()
 

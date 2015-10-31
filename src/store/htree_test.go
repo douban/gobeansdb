@@ -41,7 +41,7 @@ func TestHTree(t *testing.T) {
 
 	pos := 0xfe
 	for h := 2; h <= 6; h++ {
-		initDefaultConfig()
+		InitDefaultGlobalConfig()
 		config.TreeDepth = 2
 		config.TreeHeight = h
 		config.Init()
@@ -50,7 +50,7 @@ func TestHTree(t *testing.T) {
 
 	pos = 0xf
 	for h := 2; h <= 7; h++ {
-		initDefaultConfig()
+		InitDefaultGlobalConfig()
 		config.TreeDepth = 1
 		config.TreeHeight = h
 		config.Init()
@@ -188,7 +188,7 @@ type HTreeBench struct {
 }
 
 func (hb *HTreeBench) init() {
-	initDefaultConfig()
+	InitDefaultGlobalConfig()
 	htreeConfig.TreeHeight = *tHeigth
 	config.NumBucket = 1
 	config.Init()
@@ -363,7 +363,7 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 	}
 	runtime.GOMAXPROCS(8)
 
-	initDefaultConfig()
+	InitDefaultGlobalConfig()
 	config.NumBucket = *tNumbucket
 	config.TreeHeight = *tHeigth
 	config.Init()
