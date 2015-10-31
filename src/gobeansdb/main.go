@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	mc "memcache"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -36,18 +35,6 @@ func handleSignals() {
 
 		}
 	}(sch)
-}
-
-func initWeb() {
-	webaddr := fmt.Sprintf("%s:%d", config.Listen, config.WebPort)
-	go func() {
-		log.Printf("http listen at %s", webaddr)
-		err := http.ListenAndServe(webaddr, nil) //start web before load
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-
-	}()
 }
 
 func main() {
