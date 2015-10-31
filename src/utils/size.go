@@ -1,9 +1,6 @@
 package utils
 
-import (
-	"fmt"
-	"strconv"
-)
+import "strconv"
 
 const (
 	K = 1024
@@ -19,7 +16,6 @@ var (
 func StrToSize(s string) (n int64) {
 	l := len(s)
 	if l == 0 {
-		LastSizeErr = fmt.Errorf("size: zero length")
 		return 0
 	}
 	u := s[l-1]
