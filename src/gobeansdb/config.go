@@ -15,7 +15,7 @@ import (
 var (
 	config = GoBeansdbConfig{
 		Addr:    "127.0.0.1:7900",
-		Listen:  "127.0.0.1",
+		Listen:  "0.0.0.0",
 		Port:    7900,
 		WebPort: 7908,
 		Threads: 4,

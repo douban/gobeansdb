@@ -65,7 +65,6 @@ func InitDefaultConfig() {
 	for i := 0; i < 16; i++ {
 		DefaultRouteConfig.Buckets[i] = 1
 	}
-	config.Init()
 }
 
 type HStoreConfig struct {
@@ -146,6 +145,7 @@ func (c *HStoreConfig) Init() error {
 	}
 	// TreeDepth
 	n := c.NumBucket
+	c.TreeDepth = 0
 	for n > 1 {
 		c.TreeDepth += 1
 		n /= 16
