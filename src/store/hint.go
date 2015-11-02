@@ -336,7 +336,7 @@ func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
 	j := 0
 	for ; j < l-1; j++ {
 		if splits[j].needDump() {
-			logger.Infof("dump old %d %d", chunkID, j)
+			logger.Infof("dump old (%d, %d, %d)", h.bucketID, chunkID, j)
 			h.dump(chunkID, j)
 		}
 	}
@@ -453,7 +453,7 @@ func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
 	if chunkID > h.maxChunkID {
 		h.Lock()
 		if chunkID > h.maxChunkID {
-			logger.Infof("hint rotate %d -> %d", h.maxChunkID, chunkID)
+			logger.Infof("hint rotate %d -> %d, bucket %d", h.maxChunkID, chunkID, h.bucketID)
 			h.maxChunkID = chunkID
 			// chunkRotate  = true
 		}
