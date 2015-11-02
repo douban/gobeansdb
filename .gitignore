@@ -6,6 +6,9 @@
 # Folders
 _obj
 _test
+test
+src/gobeansdb/gobeansdb
+src/github.com
 
 # Architecture specific extensions/prefixes
 *.[568vq]
