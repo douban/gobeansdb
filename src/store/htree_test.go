@@ -42,7 +42,7 @@ func TestHTree(t *testing.T) {
 	pos := 0xfe
 	for h := 2; h <= 6; h++ {
 		InitDefaultGlobalConfig()
-		config.TreeDepth = 2
+		config.NumBucket = 256
 		config.TreeHeight = h
 		config.Init()
 		testHTree(t, 1, pos)
@@ -51,7 +51,7 @@ func TestHTree(t *testing.T) {
 	pos = 0xf
 	for h := 2; h <= 7; h++ {
 		InitDefaultGlobalConfig()
-		config.TreeDepth = 1
+		config.NumBucket = 16
 		config.TreeHeight = h
 		config.Init()
 		testHTree(t, 2, pos)

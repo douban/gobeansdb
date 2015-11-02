@@ -159,8 +159,8 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	// load HTree
 	bkt.id = bucketID
 	bkt.home = home
-	bkt.datas = NewdataStore(home)
-	bkt.hints = newHintMgr(home)
+	bkt.datas = NewdataStore(bucketID, home)
+	bkt.hints = newHintMgr(bucketID, home)
 	bkt.loadCollisions()
 	bkt.htree = newHTree(config.TreeDepth, bucketID, config.TreeHeight)
 	bkt.htreeID = HintID{0, 0}

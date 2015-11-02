@@ -237,7 +237,8 @@ func (chunk *hintChunk) silenceTime() int64 {
 }
 
 type hintMgr struct {
-	home string
+	bucketID int
+	home     string
 
 	sync.Mutex // protect maxChunkID
 	maxChunkID int
@@ -254,8 +255,8 @@ type hintMgr struct {
 	collisions *CollisionTable
 }
 
-func newHintMgr(home string) *hintMgr {
-	hm := &hintMgr{home: home}
+func newHintMgr(bucketID int, home string) *hintMgr {
+	hm := &hintMgr{bucketID: bucketID, home: home}
 	for i := 0; i < MAX_NUM_CHUNK; i++ {
 		hm.chunks[i] = newHintChunk(i)
 	}

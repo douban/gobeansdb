@@ -96,7 +96,7 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 	config.Init()
 
 	p := &Payload{Value: value}
-	ds := NewdataStore(config.Homes[0])
+	ds := NewdataStore(0, config.Homes[0])
 
 	for i := 0; i < recordPerFile+1; i++ {
 		p.Ver = int32(i)

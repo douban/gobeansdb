@@ -15,7 +15,8 @@ const (
 )
 
 type dataStore struct {
-	home string
+	bucketID int
+	home     string
 
 	sync.Mutex
 
@@ -29,8 +30,9 @@ type dataStore struct {
 	lastFlushTime time.Time
 }
 
-func NewdataStore(home string) *dataStore {
+func NewdataStore(bucketID int, home string) *dataStore {
 	ds := new(dataStore)
+	ds.bucketID = bucketID
 	ds.home = home
 
 	return ds

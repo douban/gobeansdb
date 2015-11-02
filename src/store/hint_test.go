@@ -278,7 +278,7 @@ func TestHintMgr(t *testing.T) {
 	nsp := 2
 	n := persp * nsp
 	items := genSortedHintItems(n)
-	hm := newHintMgr(dir)
+	hm := newHintMgr(0, dir)
 
 	chunkID := 3
 	// write 3

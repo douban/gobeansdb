@@ -63,7 +63,7 @@ func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
 // TODO: allow rescan
 func (store *HStore) scanBuckets() (err error) {
 
-	for _, home := range config.Homes {
+	for homeid, home := range config.Homes {
 		homefile, err := os.Open(home)
 		if err != nil {
 			return err
@@ -74,7 +74,7 @@ func (store *HStore) scanBuckets() (err error) {
 		}
 
 		homefile.Close()
-		for i, fi := range fileinfos {
+		for _, fi := range fileinfos {
 			valid, bucketID := checkBucketDir(fi)
 			fullpath := filepath.Join(home, fi.Name())
 			datas, err := filepath.Glob(filepath.Join(fullpath, "*.data"))
@@ -91,10 +91,10 @@ func (store *HStore) scanBuckets() (err error) {
 					if store.buckets[bucketID].state > 0 {
 						return fmt.Errorf("found dup bucket %d", bucketID)
 					}
-					logger.Debugf("found bucket %x", bucketID)
+					logger.Debugf("found bucket %x in %s", bucketID, config.Homes[homeid])
 					store.buckets[bucketID].state = 1
-					store.buckets[bucketID].homeID = i
-					store.homeToBuckets[i][bucketID] = true
+					store.buckets[bucketID].homeID = homeid
+					store.homeToBuckets[homeid][bucketID] = true
 				}
 			} else {
 				logger.Warnf("found unknown file %#v in %s", fi.Name(), home)
