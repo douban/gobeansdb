@@ -98,14 +98,24 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	if payload == nil {
+		return nil, nil
+	}
+
+	// TODO: use the one in htree
+	vhash := uint16(0)
+	if payload.Ver > 0 {
+		vhash = store.Getvhash(payload.Value)
+	}
+
 	var body string
 	if extended {
 		body = fmt.Sprintf("%d %d %d %d %d %d",
-			payload.Ver, payload.ValueHash, payload.Flag, payload.TS, pos.ChunkID, pos.Offset)
+			payload.Ver, vhash, payload.Flag, payload.TS, pos.ChunkID, pos.Offset)
 
 	} else {
 		body = fmt.Sprintf("%d %d %d %d",
-			payload.Ver, payload.ValueHash, payload.Flag, payload.TS)
+			payload.Ver, vhash, payload.Flag, payload.TS)
 	}
 	item := new(mc.Item)
 	item.Body = []byte(body)
