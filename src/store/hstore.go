@@ -223,7 +223,7 @@ func (store *HStore) updateNodesUpper(level, offset int) (node *Node) {
 	} else {
 		bkt := store.buckets[offset]
 		if bkt.htree != nil {
-			root := bkt.htree.levels[0][0]
+			root := bkt.htree.Update()
 			node.hash = root.hash
 			node.count = root.count
 		}

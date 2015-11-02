@@ -239,6 +239,12 @@ func (tree *HTree) getReq(req *HTreeReq) (found bool) {
 	return
 }
 
+func (tree *HTree) Update() (node *Node) {
+	tree.Lock()
+	defer tree.Unlock()
+	return tree.updateNodes(0, 0)
+}
+
 func (tree *HTree) updateNodes(level, offset int) (node *Node) {
 	node = &tree.levels[level][offset]
 	if node.isValid {
