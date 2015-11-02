@@ -97,7 +97,10 @@ func handleRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleBuffers(w http.ResponseWriter, r *http.Request) {
-	handleJson(w, cmem.AllocedSize, cmem.AllocedCount)
+	m := make(map[string]interface{})
+	m["sizesSetFlushGet"] = cmem.AllocedSize
+	m["countSetFlushGet"] = cmem.AllocedCount
+	handleJson(w, m)
 }
 
 func handleReload(w http.ResponseWriter, r *http.Request) {
