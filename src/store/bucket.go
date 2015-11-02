@@ -220,6 +220,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	}()
 
 	bkt.loadGCHistroy()
+	logger.Infof("bucket %d opened", bucketID)
 	return nil
 }
 
@@ -232,7 +233,7 @@ func abs(n int32) int32 {
 
 // called by hstore, data already flushed
 func (bkt *Bucket) close() {
-	logger.Debugf("closing bucket %s", bkt.home)
+	logger.Infof("closing bucket %s", bkt.home)
 	bkt.dumpGCHistroy()
 	bkt.dumpCollisions()
 	bkt.datas.flush(-1, true)
@@ -272,9 +273,8 @@ func (bkt *Bucket) removeHtree() {
 }
 
 func (bkt *Bucket) checkVer(oldv, ver int32) (int32, bool) {
-	// TODO: accounts
 	if ver == 0 {
-		if oldv > 0 {
+		if oldv >= 0 {
 			ver = oldv + 1
 		} else {
 			ver = -oldv + 1
@@ -292,25 +292,27 @@ func (bkt *Bucket) checkVer(oldv, ver int32) (int32, bool) {
 func (bkt *Bucket) getset(ki *KeyInfo, v *Payload) error {
 	bkt.writeLock.Lock()
 	defer bkt.writeLock.Unlock()
+	oldv := int32(0)
+
 	payload, _, err := bkt.get(ki, true)
 	if err != nil {
 		return err
 	}
-	ver := v.Ver
 	if payload != nil {
-		var valid bool
-		ver, valid = bkt.checkVer(payload.Ver, v.Ver)
-		if !valid {
-			return nil
-		}
-		if payload.Ver > 1 {
+		oldv = payload.Ver
+		if oldv > 1 {
 			vhash := Getvhash(v.Value)
 			if vhash == payload.ValueHash {
 				return nil
 			}
 		}
 	}
-	v.Ver = ver
+
+	var valid bool
+	v.Ver, valid = bkt.checkVer(oldv, v.Ver)
+	if !valid {
+		return nil
+	}
 	bkt.set(ki, v)
 	return nil
 }
