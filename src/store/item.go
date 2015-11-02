@@ -97,6 +97,9 @@ func (p *Payload) RawValueSize() int {
 }
 
 func (rec *Record) Compress() {
+	if rec.Payload.Ver < 0 {
+		return
+	}
 	p := rec.Payload
 	if p.Flag&FLAG_CLIENT_COMPRESS != 0 || p.Flag&FLAG_COMPRESS != 0 {
 		return
