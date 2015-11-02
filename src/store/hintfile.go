@@ -146,14 +146,19 @@ func (reader *hintFileReader) close() {
 
 func newHintFileWriter(path string, maxOffset uint32, bufsize int) (w *hintFileWriter, err error) {
 	var fd *os.File
-	logger.Infof("create hint file: %s", path)
-	fd, err = os.Create(path)
+	tmp := path + ".tmp"
+	logger.Infof("create hint file: %s", tmp)
+	fd, err = os.Create(tmp)
 	if err != nil {
 		logger.Errorf(err.Error())
 		return nil, err
 	}
 	wbuf := bufio.NewWriterSize(fd, bufsize)
-	w = &hintFileWriter{fd: fd, wbuf: wbuf, offset: HINTFILE_HEAD_SIZE,
+	w = &hintFileWriter{
+		fd:           fd,
+		wbuf:         wbuf,
+		offset:       HINTFILE_HEAD_SIZE,
+		path:         path,
 		hintFileMeta: hintFileMeta{maxOffset: maxOffset}}
 	w.wbuf.Write(w.buf[:HINTFILE_HEAD_SIZE])
 	w.index = newHintFileIndex()
@@ -197,5 +202,13 @@ func (w *hintFileWriter) close() error {
 	binary.LittleEndian.PutUint32(buf[12:16], w.maxOffset)
 	w.fd.Write(buf[:])
 	w.fd.Close()
+	tmp := w.path + ".tmp"
+	err := os.Rename(tmp, w.path)
+	if err != nil {
+		return err
+	} else {
+		logger.Infof("moved %s -> %s", tmp, w.path)
+	}
+
 	return nil
 }
