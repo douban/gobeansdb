@@ -103,7 +103,9 @@ func (ds *dataStore) flusher() {
 }
 
 func (ds *dataStore) flush(chunk int, force bool) error {
-	// TODO: need a flush lock
+	if ds.wbufSize == 0 {
+		return nil
+	}
 	ds.Lock()
 	if !force && (time.Since(ds.lastFlushTime) < time.Duration(dataConfig.DataFlushSec)*time.Second) && (ds.wbufSize < (1 << 20)) {
 		ds.Unlock()
