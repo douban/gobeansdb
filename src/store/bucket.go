@@ -340,19 +340,23 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		_ = meta
 	} else {
 		pos = decodePos(hintit.Pos)
+		meta = &Meta{
+			Ver:       hintit.Ver,
+			ValueHash: hintit.Vhash,
+			RecSize:   0,
+			TS:        0,
+			Flag:      0,
+		}
 	}
 
 	var rec *Record
 	if memOnly {
-		if hintit != nil {
-			payload = new(Payload)
-			payload.Ver = hintit.Ver
-			payload.ValueHash = hintit.Vhash
-		} else if found {
-			payload = new(Payload)
-			payload.Meta = *meta
-		}
+		payload = new(Payload)
+		payload.Meta = *meta
 		return // omit collision
+	}
+	if meta.Ver < 0 {
+		return
 	}
 
 	rec, err = bkt.getRecordByPos(pos)
