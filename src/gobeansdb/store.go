@@ -219,7 +219,7 @@ func (s *StorageClient) Incr(key string, value int) (int, error) {
 
 func (s *StorageClient) Delete(key string) (bool, error) {
 	defer handlePanic("delete")
-	if store.IsValidKeyString(key) {
+	if !store.IsValidKeyString(key) {
 		return false, fmt.Errorf("invalid key %s", key)
 	}
 	s.prepare(key, false)
