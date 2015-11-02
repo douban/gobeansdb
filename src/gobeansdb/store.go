@@ -117,7 +117,8 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 
 	defer handlePanic("get")
 	if key[0] == '@' {
-		if key[1] == '@' {
+
+		if len(key) > 1 && key[1] == '@' {
 			key2 := key[2:]
 			if len(key2) != 16 {
 				return nil, fmt.Errorf("bad command line format") //FIXME: SERVER_ERROR
@@ -133,8 +134,8 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 			item.Body = rec.Dumps()
 			item.Flag = 0
 			return item, nil
-		} else if "collision_" == key[1:11] {
-			if "all_" == key[11:15] {
+		} else if len(key) > 11 && "collision_" == key[1:11] {
+			if len(key) > 15 && "all_" == key[11:15] {
 				return nil, nil
 			} else {
 				item := new(mc.Item) // TODO: avoid alloc?
@@ -142,8 +143,10 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 				item.Flag = 0
 				return item, nil
 			}
+		} else {
+			return s.listDir(key[1:])
 		}
-		return s.listDir(key[1:])
+
 	} else if key[0] == '?' {
 		extended := false
 		if len(key) > 1 {
