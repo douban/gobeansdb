@@ -378,7 +378,9 @@ func (resp *Response) Write(w io.Writer) error {
 			if e := WriteFull(w, item.Body); e != nil {
 				return e
 			}
-			cmem.Sub(cmem.TagGetData, len(item.Body))
+			if key[0] != '@' && key[0] != '?' {
+				cmem.Sub(cmem.TagGetData, len(item.Body))
+			}
 			WriteFull(w, []byte("\r\n"))
 		}
 		io.WriteString(w, "END\r\n")

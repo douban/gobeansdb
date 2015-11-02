@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmem"
 	"errors"
 	"fmt"
 	"log"
@@ -106,6 +107,7 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 	vhash := uint16(0)
 	if payload.Ver > 0 {
 		vhash = store.Getvhash(payload.Value)
+		cmem.Sub(cmem.TagGetData, len(payload.Value))
 	}
 
 	var body string

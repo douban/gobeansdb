@@ -38,12 +38,14 @@ func init() {
 }
 
 func Add(tag int, size int) {
+	//log.Printf("add %d %d", tag, size)
 	atomic.AddInt64(&AllocedSize[tag], int64(size))
 	atomic.AddInt64(&AllocedCount[tag], 1)
 }
 
 func Sub(tag int, size int) {
-	atomic.AddInt64(&AllocedSize[tag], int64(size))
+	//log.Printf("sub %d %d", tag, size)
+	atomic.AddInt64(&AllocedSize[tag], -int64(size))
 	atomic.AddInt64(&AllocedCount[tag], -1)
 }
 

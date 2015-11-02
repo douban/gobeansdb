@@ -80,7 +80,9 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	ds.wbufs[ds.newHead] = append(ds.wbufs[ds.newHead], wrec)
 	ds.filesizes[ds.newHead] += size
 	ds.wbufSize += size
-	cmem.Sub(cmem.TagSetData, int(wrec.vsz))
+	if rec.Payload.Ver > 0 {
+		cmem.Sub(cmem.TagSetData, int(wrec.vsz))
+	}
 	cmem.Add(cmem.TagFlushData, int(size))
 	if cmem.AllocedSize[cmem.TagFlushData] > int64(dataConfig.FlushSize) {
 		select {
@@ -125,8 +127,9 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		wrec := ds.wbufs[chunk][i]
 		ds.Unlock()
 		w.append(wrec)
-		ds.wbufSize -= wrec.rec.Payload.RecSize
-		cmem.Sub(cmem.TagFlushData, int(wrec.vsz))
+		size := wrec.rec.Payload.RecSize
+		ds.wbufSize -= size
+		cmem.Sub(cmem.TagFlushData, int(size))
 	}
 	ds.Lock()
 	ds.wbufs[chunk] = ds.wbufs[chunk][n:]
