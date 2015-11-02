@@ -30,7 +30,7 @@ func TestParse(t *testing.T) {
 	}
 	s := "89abcdef"
 	for i := 0; i < 8; i++ {
-		path = ParsePathString(s[:i], pathbuf[:16])
+		path, _ = ParsePathString(s[:i], pathbuf[:16])
 		if !isSamePath(path, path0[:i], i) {
 			t.Errorf("parse %d, error: %v != %v", i, path, path0)
 		}

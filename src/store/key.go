@@ -72,16 +72,16 @@ func ParsePathUint64(khash uint64, buf []int) []int {
 	return buf
 }
 
-func ParsePathString(pathStr string, buf []int) []int {
+func ParsePathString(pathStr string, buf []int) ([]int, error) {
 	path := buf[:len(pathStr)]
 	for i := 0; i < len(pathStr); i++ {
 		idx, err := strconv.ParseInt(pathStr[i:i+1], 16, 0)
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		path[i] = int(idx)
 	}
-	return path
+	return path, nil
 }
 
 func checkKey(key []byte) error {
@@ -112,9 +112,9 @@ func (ki *KeyInfo) getKeyHash() {
 	}
 }
 
-func (ki *KeyInfo) Prepare() {
+func (ki *KeyInfo) Prepare() (err error) {
 	if ki.KeyIsPath {
-		ki.KeyPath = ParsePathString(ki.StringKey, ki.KeyPathBuf[:16])
+		ki.KeyPath, err = ParsePathString(ki.StringKey, ki.KeyPathBuf[:16])
 		ki.getKeyHash()
 		if len(ki.KeyPath) < config.TreeDepth {
 			ki.BucketID = -1

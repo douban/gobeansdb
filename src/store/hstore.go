@@ -254,7 +254,10 @@ func (store *HStore) ListUpper(ki *KeyInfo) ([]byte, error) {
 }
 
 func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
-	ki.Prepare()
+	err := ki.Prepare()
+	if err != nil {
+		return nil, nil
+	}
 	if ki.BucketID >= 0 {
 		return store.buckets[ki.BucketID].listDir(ki)
 	}
