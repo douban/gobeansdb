@@ -8,6 +8,8 @@ import (
 	mc "memcache"
 	"net/http"
 	_ "net/http/pprof"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 // TODO:
@@ -49,7 +51,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w,
 		`
     <a href='/debug/pprof'> /debug/pprof </a> <p/>
-    <a href='/config'> /workers </a> <p/>
+    <a href='/config'> /config </a> <p/>
     <a href='/requests'> /requests </a> <p/>
     <a href='/buffers'> /buffers </a> <p/>
     <a href='/log'> /log </a> <p/>
@@ -67,8 +69,23 @@ func handleWebPanic(w http.ResponseWriter) {
 
 func handleJson(w http.ResponseWriter, v ...interface{}) {
 	defer handleWebPanic(w)
-	b, _ := json.Marshal(v)
-	w.Write(b)
+	b, err := json.Marshal(v)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+	} else {
+		w.Write(b)
+	}
+
+}
+
+func handleYaml(w http.ResponseWriter, v ...interface{}) {
+	defer handleWebPanic(w)
+	b, err := yaml.Marshal(v)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+	} else {
+		w.Write(b)
+	}
 }
 
 func handleConfig(w http.ResponseWriter, r *http.Request) {
