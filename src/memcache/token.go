@@ -6,9 +6,18 @@ import (
 	"time"
 )
 
+type ReqHistoy struct {
+	Cmd        string
+	Keys       []string
+	WaitTime   time.Duration
+	ServeStart time.Time
+	ServeTime  time.Duration
+}
+
 type ReqLimiter struct {
-	Chan   chan int
-	Owners []*Request
+	Chan      chan int   `json:"-"`
+	Owners    []*Request `json:"-"`
+	Histories []ReqHistoy
 
 	// TODO: more!
 	NumWait int32
@@ -22,25 +31,42 @@ func NewReqLimiter(n int) *ReqLimiter {
 		rl.Chan <- i
 	}
 	rl.Owners = make([]*Request, n)
+	rl.Histories = make([]ReqHistoy, n)
 	return rl
 }
 
-func (rl *ReqLimiter) Get(req *Request) (t int) {
+func (rl *ReqLimiter) Get(req *Request) {
 	st := time.Now()
 	atomic.AddInt32(&(rl.NumWait), 1)
-	t = <-rl.Chan
+	t := <-rl.Chan
+	req.Token = t
+
+	req.Working = true
+	//logger.Debugf("get %d", t)
 	atomic.AddInt32(&rl.NumWait, -1)
-	d := time.Since(st)
+	ed := time.Now()
+
+	d := ed.Sub(st)
+
+	rl.Histories[t] = ReqHistoy{
+		Cmd:        req.Cmd,
+		Keys:       req.Keys,
+		ServeStart: time.Now(),
+	}
 	if d > rl.MaxWait {
 		rl.MaxWait = d
 	}
 	rl.Owners[t] = req
+
 	return
 }
 
-func (rl *ReqLimiter) Put(t int) {
+func (rl *ReqLimiter) Put(req *Request) {
+	t := req.Token
+	//logger.Debugf("put %d", t)
+	rl.Histories[t].ServeTime = time.Since(rl.Histories[t].ServeStart)
+	rl.Owners[t].Working = false
 	rl.Chan <- t
-	rl.Owners[t] = nil
 }
 
 func InitTokens() {

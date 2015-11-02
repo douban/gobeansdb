@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"loghub"
 	"net"
 	"strings"
 	"sync"
@@ -14,18 +15,27 @@ import (
 var (
 	SlowCmdTime = time.Millisecond * 100 // 100ms
 	RL          *ReqLimiter
+	logger      = loghub.Default
 )
 
 type ServerConn struct {
 	RemoteAddr      string
 	rwc             io.ReadWriteCloser // i/o connection
 	closeAfterReply bool
+
+	rbuf *bufio.Reader
+	wbuf *bufio.Writer
+	req  *Request
 }
 
 func newServerConn(conn net.Conn) *ServerConn {
 	c := new(ServerConn)
 	c.RemoteAddr = conn.RemoteAddr().String()
 	c.rwc = conn
+
+	c.rbuf = bufio.NewReader(c.rwc)
+	c.wbuf = bufio.NewWriter(c.rwc)
+	c.req = new(Request)
 	return c
 }
 
@@ -40,50 +50,52 @@ func (c *ServerConn) Shutdown() {
 	c.closeAfterReply = true
 }
 
-func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) {
-	rbuf := bufio.NewReader(c.rwc)
-	wbuf := bufio.NewWriter(c.rwc)
-	req := new(Request)
-	var resp *Response
-	for {
-		e = req.Read(rbuf)
-		if e != nil {
-			if strings.HasPrefix(e.Error(), "unknown") {
-				status, msg, ok := storageClient.Process(req.Cmd, req.Keys)
-				if ok {
-					resp = new(Response)
-					resp.status = status
-					resp.msg = msg
-					if resp.Write(wbuf) != nil || wbuf.Flush() != nil {
-						break
-					}
-					req.Clear()
-					resp.CleanBuffer()
-				}
-			}
-			break
-		} else {
-			t := time.Now()
-			resp, _ = req.Process(storageClient, stats)
-			if resp == nil {
-				break
-			}
-			dt := time.Since(t)
-			if dt > SlowCmdTime {
-				stats.UpdateStat("slow_cmd", 1)
-			}
-
-			if !resp.noreply {
-				if resp.Write(wbuf) != nil || wbuf.Flush() != nil {
-					break
-				}
-			}
-		}
+func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (e error) {
+	req := c.req
+	var resp *Response = nil
+	defer func() {
 		req.Clear()
-		resp.CleanBuffer()
-		if c.closeAfterReply {
-			break
+		if resp != nil {
+			resp.CleanBuffer()
 		}
+	}()
+	e = req.Read(c.rbuf)
+	if e != nil {
+		if strings.HasPrefix(e.Error(), "unknown") {
+			status, msg, ok := storageClient.Process(req.Cmd, req.Keys)
+			if ok {
+				resp = new(Response)
+				resp.status = status
+				resp.msg = msg
+				if resp.Write(c.wbuf) != nil || c.wbuf.Flush() != nil {
+					return
+				}
+			}
+		}
+		return
+	} else {
+		t := time.Now()
+		resp, _ = req.Process(storageClient, stats)
+		if resp == nil {
+			return
+		}
+		dt := time.Since(t)
+		if dt > SlowCmdTime {
+			stats.UpdateStat("slow_cmd", 1)
+		}
+
+		if !resp.noreply {
+			if resp.Write(c.wbuf) != nil || c.wbuf.Flush() != nil {
+				return
+			}
+		}
+	}
+	return
+}
+
+func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) {
+	for !c.closeAfterReply {
+		c.ServeOnce(storageClient, stats)
 	}
 	c.Close()
 	return

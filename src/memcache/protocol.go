@@ -36,7 +36,7 @@ type Item struct {
 	Flag        int
 	Exptime     int
 	Cas         int
-	Body        []byte
+	Body        []byte `json:"-"`
 	alloc       *byte
 }
 
@@ -69,7 +69,8 @@ type Request struct {
 	Item    *Item
 	NoReply bool
 
-	Token int
+	Token   int
+	Working bool
 }
 
 func (req *Request) String() (s string) {
@@ -85,7 +86,10 @@ func (req *Request) Clear() {
 		req.Item.alloc = nil
 		req.Item = nil
 	}
-	RL.Put(req.Token)
+
+	if req.Working {
+		RL.Put(req)
+	}
 }
 
 func WriteFull(w io.Writer, buf []byte) error {
@@ -138,7 +142,7 @@ func (req *Request) Write(w io.Writer) (e error) {
 		_, e = io.WriteString(w, "\r\n")
 
 	default:
-		log.Printf("unkown request cmd:", req.Cmd)
+		logger.Errorf("unkown request cmd: ", req.Cmd)
 		return errors.New("unknown cmd: " + req.Cmd)
 	}
 

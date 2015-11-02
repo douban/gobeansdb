@@ -165,5 +165,6 @@ func TestRequest(t *testing.T) {
 			t.Errorf("test %d: expect %s[%d], bug got %s[%d]\n", i,
 				test.anwser, len(test.anwser), ans, len(ans))
 		}
+		req.Clear()
 	}
 }
