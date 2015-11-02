@@ -12,7 +12,7 @@ var (
 var (
 	DefaultHintConfig = HintConfig{
 		NotDumpMerged:        false,
-		SplitCountStr:        "1M",
+		SplitCountStr:        "1k",
 		IndexIntervalSizeStr: "4K",
 		SecondsBeforeDump:    60,
 	}
@@ -20,7 +20,7 @@ var (
 	DefaultHTreeConfig HTreeConfig = HTreeConfig{
 		ThresholdListKey: 64 * 4,
 		ThresholdBigHash: 64 * 4,
-		TreeHeight:       4,
+		TreeHeight:       3,
 	}
 	DefaultDataConfig = DataConfig{
 		MaxKeySize:      250,
