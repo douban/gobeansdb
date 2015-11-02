@@ -184,13 +184,15 @@ func (tree *HTree) getNode(ki *KeyInfo, ni *NodeInfo) {
 	if len(ki.KeyPath) < l {
 		l = len(ki.KeyPath)
 	}
-	h := tree.depth + 1
+
+	h := tree.depth
+
 	for ; h < l; h += 1 {
-		offset = offset*16 + ki.KeyPath[h-1]
+		offset = offset*16 + ki.KeyPath[h]
 	}
-	ni.level = h - tree.depth
+	ni.level = l - tree.depth
 	if ni.level > len(tree.levels)-1 {
-		panic(fmt.Sprintf("level TOO LARGE %d l=%d", h, l))
+		panic(fmt.Sprintf("Bug: level TOO LARGE %d l=%d", h, l))
 	}
 	ni.offset = offset
 	ni.node = &tree.levels[ni.level][ni.offset]
@@ -289,11 +291,10 @@ func (tree *HTree) listDir(ki *KeyInfo) (items []HTreeItem, nodes []*Node) {
 	var ni NodeInfo
 	if len(ki.KeyPath) == tree.depth {
 		ni.node = &tree.levels[0][0]
-		ni.path = []int{0xf, 0xe}
+		ni.path = ki.KeyPath
 	} else {
 		tree.getNode(ki, &ni)
 	}
-
 	node := ni.node
 	tree.updateNodes(ni.level, ni.offset)
 	if ni.level >= len(tree.levels)-1 || node.count < htreeConfig.ThresholdListKey {
@@ -320,7 +321,6 @@ func (tree *HTree) ListDir(ki *KeyInfo) (ret []byte, err error) {
 	defer tree.Unlock()
 
 	items, nodes := tree.listDir(ki)
-	logger.Debugf("%v %v", items, nodes)
 	var buffer bytes.Buffer
 	if items != nil {
 
