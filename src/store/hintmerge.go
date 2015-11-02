@@ -146,8 +146,6 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 		if mr.curr != nil {
 			mr.curr.Pos |= uint32(mr.r.chunkID)
 			heap.Push(&h, mr)
-		} else {
-			// logger.Debugf("%s done", mr.r.path)
 		}
 	}
 	for _, mr := range hp {

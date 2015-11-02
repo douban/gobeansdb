@@ -91,7 +91,7 @@ func (store *HStore) scanBuckets() (err error) {
 					if store.buckets[bucketID].state > 0 {
 						return fmt.Errorf("found dup bucket %d", bucketID)
 					}
-					logger.Debugf("found bucket %x in %s", bucketID, config.Homes[homeid])
+					logger.Infof("found bucket %x in %s", bucketID, config.Homes[homeid])
 					store.buckets[bucketID].state = 1
 					store.buckets[bucketID].homeID = homeid
 					store.homeToBuckets[homeid][bucketID] = true

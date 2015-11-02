@@ -206,7 +206,7 @@ func (chunk *hintChunk) getMemOnly(keyhash uint64, key string) (it *HintItem, sp
 func (chunk *hintChunk) get(keyhash uint64, key string, memOnly bool) (it *HintItem, err error) {
 	it, split := chunk.getMemOnly(keyhash, key)
 	if it != nil {
-		logger.Debugf("hint get %016x %s, hit buffer (%d, %d)", keyhash, key, chunk.id, split)
+		logger.Infof("hint get %016x %s, hit buffer (%d, %d)", keyhash, key, chunk.id, split)
 		return
 	}
 	if memOnly {
@@ -224,7 +224,7 @@ func (chunk *hintChunk) get(keyhash uint64, key string, memOnly bool) (it *HintI
 			logger.Warnf("%v", err.Error())
 			return
 		} else if it != nil {
-			logger.Debugf("hint get %016x %s, hit file (%d, %d)", keyhash, key, chunk.id, i)
+			logger.Infof("hint get %016x %s, hit file (%d, %d)", keyhash, key, chunk.id, i)
 			return
 		}
 	}
@@ -495,7 +495,7 @@ func (h *hintMgr) getItem(keyhash uint64, key string, memOnly bool) (it *HintIte
 			if err != nil {
 				return
 			} else if it != nil {
-				logger.Debugf("hint get hit merged %#v", it)
+				logger.Infof("hint get hit merged %#v", it)
 				chunkID = int(it.Pos & 0xff)
 				it.Pos -= uint32(chunkID)
 			}

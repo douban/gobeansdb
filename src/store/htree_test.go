@@ -430,12 +430,11 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 
 // list bucket[:d], bucket[:d+1], bucket[:d+1]..
 func ListAll(tree *HTree, bucket string) {
-	logger.Debugf("list all %s", bucket)
+	logger.Infof("list all %s", bucket)
 	ki := NewKeyInfoFromBytes([]byte(bucket), 0, true)
 	for i := tree.depth; i < 16; i++ {
 		ki.StringKey = bucket[:i]
 		ki.Prepare()
-		// logger.Debugf("list %#v", ki)
 		s, err := tree.ListDir(ki)
 		if err != nil {
 			logger.Fatalf("list @%s\n%s", ki.StringKey, err)
@@ -444,6 +443,6 @@ func ListAll(tree *HTree, bucket string) {
 		if s == nil {
 			return
 		}
-		logger.Debugf("@%s\n%sEND\n", ki.StringKey, string(s))
+		logger.Infof("@%s\n%sEND\n", ki.StringKey, string(s))
 	}
 }
