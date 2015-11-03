@@ -173,7 +173,10 @@ func (ds *dataStore) Truncate(chunk int, size uint32) error {
 		return err
 	}
 	logger.Infof("truncate %s %d to %d", path, st.Size(), size)
-	return os.Truncate(ds.genPath(chunk), int64(size))
+	if size == 0 {
+		return os.Remove(path)
+	}
+	return os.Truncate(path, int64(size))
 }
 
 func (ds *dataStore) ListFiles() (max int, err error) {
