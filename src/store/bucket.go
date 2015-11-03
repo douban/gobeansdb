@@ -235,11 +235,16 @@ func abs(n int32) int32 {
 // called by hstore, data already flushed
 func (bkt *Bucket) close() {
 	logger.Infof("closing bucket %s", bkt.home)
-	bkt.dumpGCHistroy()
-	bkt.dumpCollisions()
 	bkt.datas.flush(-1, true)
+	datas, _ := filepath.Glob(fmt.Sprintf("%s/*.data", bkt.home))
+	if len(datas) == 0 {
+		return
+	}
+
+	bkt.dumpCollisions()
 	bkt.hints.close()
 	bkt.dumpHtree()
+	bkt.dumpGCHistroy()
 }
 
 func (bkt *Bucket) dumpHtree() {
