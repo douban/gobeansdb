@@ -3,6 +3,7 @@ package memcache
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"loghub"
@@ -50,7 +51,7 @@ func (c *ServerConn) Shutdown() {
 	c.closeAfterReply = true
 }
 
-func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (e error) {
+func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err error) {
 	req := c.req
 	var resp *Response = nil
 	defer func() {
@@ -59,35 +60,41 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (e err
 			resp.CleanBuffer()
 		}
 	}()
-	e = req.Read(c.rbuf)
-	if e != nil {
-		if strings.HasPrefix(e.Error(), "unknown") {
+	err = req.Read(c.rbuf)
+
+	t := time.Now()
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "unknown") {
 			status, msg, ok := storageClient.Process(req.Cmd, req.Keys)
 			if ok {
 				resp = new(Response)
 				resp.status = status
 				resp.msg = msg
-				if resp.Write(c.wbuf) != nil || c.wbuf.Flush() != nil {
-					return
-				}
+				err = nil
+			} else {
+				logger.Errorf(err.Error())
 			}
-		}
-		return
-	} else {
-		t := time.Now()
-		resp, _ = req.Process(storageClient, stats)
-		if resp == nil {
-			return
-		}
-		dt := time.Since(t)
-		if dt > SlowCmdTime {
-			stats.UpdateStat("slow_cmd", 1)
 		}
 
-		if !resp.noreply {
-			if resp.Write(c.wbuf) != nil || c.wbuf.Flush() != nil {
-				return
-			}
+		return
+	} else {
+		resp, err = req.Process(storageClient, stats)
+	}
+	dt := time.Since(t)
+	if dt > SlowCmdTime {
+		stats.UpdateStat("slow_cmd", 1)
+	}
+	if resp == nil {
+		if err == nil {
+			return fmt.Errorf("nil resp")
+		}
+	}
+	if !resp.noreply {
+		if err = resp.Write(c.wbuf); err != nil {
+			return
+		}
+		if err = c.wbuf.Flush(); err != nil {
+			return
 		}
 	}
 	return
@@ -95,7 +102,11 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (e err
 
 func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) {
 	for !c.closeAfterReply {
-		c.ServeOnce(storageClient, stats)
+		e = c.ServeOnce(storageClient, stats)
+		if e != nil {
+			logger.Debugf("conn err: %s", e.Error())
+			break
+		}
 	}
 	c.Close()
 	return

@@ -250,7 +250,6 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 
 	default:
 		req.Keys = parts[1:]
-		log.Print("unknown command", req.Cmd)
 		return errors.New("unknown command: " + req.Cmd)
 	}
 
