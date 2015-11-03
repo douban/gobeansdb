@@ -86,7 +86,9 @@ func (store *HStore) scanBuckets() (err error) {
 			if valid {
 				if empty {
 					logger.Warnf("remove empty bucket dir %s", fullpath)
-					os.Remove(fullpath)
+					if err = os.RemoveAll(fullpath); err != nil {
+						logger.Errorf("fail to delete empty bucket %s", fullpath)
+					}
 				} else {
 					if store.buckets[bucketID].state > 0 {
 						return fmt.Errorf("found dup bucket %d", bucketID)
