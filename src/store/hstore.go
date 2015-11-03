@@ -134,6 +134,7 @@ func (store *HStore) getBucketPath(homeID, bucketID int) string {
 
 func NewHStore() (store *HStore, err error) {
 	store = new(HStore)
+	store.gcMgr = new(GCMgr)
 	store.buckets = make([]*Bucket, config.NumBucket)
 	for i := 0; i < config.NumBucket; i++ {
 		store.buckets[i] = &Bucket{id: i}
