@@ -232,8 +232,12 @@ func (s *StorageClient) Delete(key string) (bool, error) {
 
 	err := s.hstore.Set(&s.ki, s.payload)
 	if err != nil {
-		log.Printf("err to delete %s: %s", key, err.Error())
-		return false, err
+		if err.Error() == "NOT_FOUND" {
+			return false, nil
+		} else {
+			log.Printf("err to delete %s: %s", key, err.Error())
+			return false, err
+		}
 	}
 	return true, nil
 }

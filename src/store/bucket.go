@@ -322,6 +322,9 @@ func (bkt *Bucket) getset(ki *KeyInfo, v *Payload) error {
 	if !valid {
 		return nil
 	}
+	if v.Ver < 0 && (payload == nil || oldv < 0) {
+		return fmt.Errorf("NOT_FOUND")
+	}
 	bkt.set(ki, v)
 	return nil
 }
