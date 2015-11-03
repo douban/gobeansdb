@@ -1,4 +1,4 @@
-all:test
+all:install
 
 GOPATH:=$(CURDIR)
 export GOPATH
@@ -15,3 +15,6 @@ test:dep
 	go test cmem
 	go test quicklz
 	go test store
+
+install:
+	go install gobeansdb

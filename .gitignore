@@ -8,7 +8,9 @@ _obj
 _test
 test
 src/gobeansdb/gobeansdb
-src/github.com
+src/gopkg.in/
+bin/
+src/github.com/
 
 # Architecture specific extensions/prefixes
 *.[568vq]
