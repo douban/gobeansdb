@@ -242,9 +242,12 @@ func (bkt *Bucket) close() {
 }
 
 func (bkt *Bucket) dumpHtree() {
-	bkt.removeHtree()
-	bkt.htreeID = bkt.hints.maxDumpedHintID
-	bkt.htree.dump(bkt.getHtreePath(bkt.htreeID.Chunk, bkt.htreeID.Split))
+	hintID := bkt.hints.maxDumpedHintID
+	if bkt.htreeID.isLarger(hintID.Chunk, hintID.Split) {
+		bkt.removeHtree()
+		bkt.htreeID = hintID
+		bkt.htree.dump(bkt.getHtreePath(bkt.htreeID.Chunk, bkt.htreeID.Split))
+	}
 }
 
 func (bkt *Bucket) getAllIndex(suffix string) (paths []string, ids []HintID) {
@@ -269,7 +272,7 @@ func (bkt *Bucket) removeHtree() {
 		logger.Infof("rm htree: %s", p)
 		os.Remove(p)
 	}
-	bkt.htreeID.Chunk = -1
+	bkt.htreeID = HintID{0, 0}
 }
 
 func (bkt *Bucket) checkVer(oldv, ver int32) (int32, bool) {

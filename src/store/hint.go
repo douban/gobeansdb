@@ -60,11 +60,13 @@ func (id *HintID) isLarger(ck, sp int) bool {
 	return (ck > id.Chunk) || (ck == id.Chunk && sp >= id.Split)
 }
 
-func (id *HintID) setIfLarger(ck, sp int) {
-	if id.isLarger(ck, sp) {
+func (id *HintID) setIfLarger(ck, sp int) (larger bool) {
+	larger = id.isLarger(ck, sp)
+	if larger {
 		id.Chunk = ck
 		id.Split = sp
 	}
+	return
 }
 
 type HintStatus struct {
@@ -318,7 +320,7 @@ func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 	path := h.getPath(chunkID, splitID, false)
 	logger.Warnf("dump %s", path)
 	sp.file, err = sp.buf.dump(path)
-	if err != nil {
+	if err == nil {
 		h.maxDumpedHintID.setIfLarger(chunkID, splitID)
 	}
 	sp.buf = nil
