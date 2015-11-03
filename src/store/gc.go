@@ -124,9 +124,10 @@ func (mgr *GCMgr) AfterBucket(bkt *Bucket) {
 }
 
 func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
-	if endChunkID < 0 {
-		endChunkID = bkt.datas.newHead
+	if endChunkID < 0 || endChunkID >= bkt.datas.newHead {
+		endChunkID = bkt.datas.newHead - 1
 	}
+	logger.Infof("begin GC bucket %d chunk [%d, %d]", bkt.id, startChunkID, endChunkID)
 	bkt.GCHistory = append(bkt.GCHistory, GCState{})
 	gc := &bkt.GCHistory[len(bkt.GCHistory)-1]
 	mgr.stat = gc
@@ -148,11 +149,11 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 
 	mgr.BeforeBucket(bkt, startChunkID, endChunkID)
 	defer mgr.AfterBucket(bkt)
-	for gc.Src = gc.Begin; gc.Src < gc.End; gc.Src++ {
+	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {
 		oldPos.ChunkID = gc.Src
 		var fileState GCFileState
 		// reader must have a larger buffer
-		logger.Infof("begin GC file %d -> %d", gc.Src, gc.Dst)
+		logger.Infof("begin GC bucket %d, file %d -> %d", bkt.id, gc.Src, gc.Dst)
 		if r, err = bkt.datas.GetStreamReader(gc.Src); err != nil {
 			logger.Errorf("gc failed: %s", err.Error())
 			return
