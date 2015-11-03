@@ -469,9 +469,10 @@ func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
 
 func (h *hintMgr) forceRotateSplit() {
 	h.Lock()
-	h.chunks[h.maxChunkID].Lock()
-	h.chunks[h.maxChunkID].rotate()
-	h.chunks[h.maxChunkID].Unlock()
+	ck := h.chunks[h.maxChunkID]
+	ck.Lock()
+	ck.rotate()
+	ck.Unlock()
 	h.Unlock()
 }
 
@@ -519,25 +520,34 @@ func (h *hintMgr) getItem(keyhash uint64, key string, memOnly bool) (it *HintIte
 	return
 }
 
-func (h *hintMgr) getItemCollision(keyhash uint64, key string) (it *HintItem, collision bool) {
-	for ck := h.maxChunkID; ck >= 0; ck-- {
-		chunk := h.chunks[ck]
-		chunk.Lock()
-		for sp := len(chunk.splits) - 1; sp >= 0; sp-- {
-			split := chunk.splits[sp]
-			if split.buf == nil {
+func (chunk *hintChunk) getItemCollision(keyhash uint64, key string) (it *HintItem, collision, stop bool) {
+	chunk.Lock()
+	defer chunk.Unlock()
+	for sp := len(chunk.splits) - 1; sp >= 0; sp-- {
+		split := chunk.splits[sp]
+		if split.buf == nil {
+			stop = true
+			return
+		} else {
+			if it = split.buf.get(key); it != nil {
+				collision = true
+				it.Pos |= uint32(chunk.id)
 				return
-			} else {
-				if it = split.buf.get(key); it != nil {
-					collision = true
-					it.Pos |= uint32(ck)
-					return
-				} else if !collision {
-					_, collision = split.buf.keyhashs[keyhash]
-				}
+			} else if !collision {
+				_, collision = split.buf.keyhashs[keyhash]
 			}
 		}
-		chunk.Unlock()
+	}
+	return
+}
+
+func (h *hintMgr) getItemCollision(keyhash uint64, key string) (it *HintItem, collision bool) {
+	for ck := h.maxChunkID; ck >= 0; ck-- {
+		var stop bool
+		it, collision, stop = h.chunks[ck].getItemCollision(keyhash, key)
+		if collision || stop {
+			return
+		}
 	}
 	return
 }
