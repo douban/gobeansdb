@@ -60,11 +60,15 @@ func (s *GCFileState) String() string {
 
 func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) (retain, updateHtree bool) {
 	ki := &mgr.ki
+	ki.KeyHash = getKeyHash(rec.Key)
 	ki.Key = rec.Key
+	ki.StringKey = string(ki.Key)
+	ki.KeyIsPath = false
+	ki.Prepare()
 	meta, pos, found := bkt.htree.get(ki)
 	if !found {
-		logger.Errorf("old key not found in htree bucket %d %s %#v %#v",
-			bkt.id, ki.StringKey, meta, oldPos)
+		logger.Errorf("old key not found in htree bucket %d %#v %#v %#v",
+			bkt.id, ki, meta, oldPos)
 		return true, true
 	} else if pos == oldPos {
 		return true, true
