@@ -163,7 +163,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	bkt.hints = newHintMgr(bucketID, home)
 	bkt.loadCollisions()
 	bkt.htree = newHTree(config.TreeDepth, bucketID, config.TreeHeight)
-	bkt.htreeID = HintID{0, 0}
+	bkt.htreeID = HintID{0, -1}
 
 	maxdata, err := bkt.datas.ListFiles()
 	if err != nil {
@@ -180,7 +180,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 			if bkt.htreeID.isLarger(id.Chunk, id.Split) {
 				err := bkt.htree.load(treepath)
 				if err != nil {
-					bkt.htreeID = HintID{0, 0}
+					bkt.htreeID = HintID{0, -1}
 					bkt.htree = newHTree(config.TreeDepth, bucketID, config.TreeHeight)
 					continue
 				}
@@ -205,12 +205,13 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 		if startsp >= len(paths) { // rebuilt
 			continue
 		}
-		for _, path := range paths[startsp:] {
+		for j, path := range paths[startsp:] {
 			bkt.updateHtreeFromHint(i, path)
 			if e != nil {
 				err = e
 				return
 			}
+			bkt.hints.maxDumpedHintID = HintID{i, startsp + j}
 		}
 	}
 	go func() {
