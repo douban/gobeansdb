@@ -207,7 +207,9 @@ func (ds *dataStore) GetCurrPos() Position {
 }
 
 func (ds *dataStore) DeleteFile(chunkID int) error {
-	return os.Remove(ds.genPath(chunkID))
+	path := ds.genPath(chunkID)
+	logger.Infof("remove data %s", path)
+	return os.Remove(path)
 }
 
 func (ds *dataStore) GetStreamReader(chunk int) (*DataStreamReader, error) {
