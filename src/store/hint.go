@@ -172,7 +172,11 @@ func newHintChunk(id int) *hintChunk {
 
 func (chunk *hintChunk) rotate() *hintSplit {
 	sp := newHintSplit()
+	n := len(chunk.splits)
 	chunk.splits = append(chunk.splits, sp)
+	if n > 1 {
+		logger.Infof("hint rotate split to %d, chunk %d", n, chunk.id)
+	}
 	return sp
 }
 
@@ -455,7 +459,7 @@ func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
 	if chunkID > h.maxChunkID {
 		h.Lock()
 		if chunkID > h.maxChunkID {
-			logger.Infof("hint rotate %d -> %d, bucket %d", h.maxChunkID, chunkID, h.bucketID)
+			logger.Infof("hint rotate chunk %d -> %d, bucket %d", h.maxChunkID, chunkID, h.bucketID)
 			h.maxChunkID = chunkID
 			// chunkRotate  = true
 		}
