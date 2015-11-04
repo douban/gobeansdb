@@ -77,6 +77,7 @@ func (bkt *Bucket) buildHintFromData(chunkID int, start uint32, splitID int) (hi
 		}
 		khash := getKeyHash(rec.Key)
 		p := rec.Payload
+		p.Decompress()
 		vhash := Getvhash(p.Value)
 		item := newHintItem(khash, p.Ver, vhash, Position{0, offset}, string(rec.Key))
 		err = w.writeItem(item)
