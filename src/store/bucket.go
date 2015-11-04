@@ -386,12 +386,17 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	if err != nil || hintit == nil {
 		return
 	}
+
+	vhash := uint16(0)
+	if rec.Payload.Ver > 0 {
+		vhash = Getvhash(rec.Payload.Value)
+	}
+	hintit2 := newHintItem(ki.KeyHash, rec.Payload.Ver, vhash, pos, string(rec.Key))
+	bkt.hints.collisions.set(hintit2) // the one in htree
+
 	pos = Position{chunkID, hintit.Pos}
 	hintit.Pos = pos.encode()
-
-	bkt.hints.collisions.set(hintit)
-	hintit2 := newHintItem(ki.KeyHash, rec.Payload.Ver, rec.Payload.ValueHash, pos, string(rec.Key))
-	bkt.hints.collisions.set(hintit2)
+	bkt.hints.collisions.set(hintit) // the one not in htree
 
 	rec, err = bkt.getRecordByPos(pos)
 	if err != nil {
