@@ -221,7 +221,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	}()
 
 	bkt.loadGCHistroy()
-	logger.Infof("bucket %d opened", bucketID)
+	logger.Infof("bucket %x opened", bucketID)
 	return nil
 }
 

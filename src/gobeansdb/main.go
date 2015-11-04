@@ -39,6 +39,7 @@ func handleSignals() {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	var confdir = flag.String("confdir", "", "path of server config dir")
 	var dumpconf = flag.Bool("dumpconf", false, "")
 
