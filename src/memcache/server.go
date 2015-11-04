@@ -65,6 +65,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	t := time.Now()
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "unknown") {
+			// process non memcache commands, e.g. 'gc', 'optimize_stat'.
 			status, msg, ok := storageClient.Process(req.Cmd, req.Keys)
 			if ok {
 				resp = new(Response)
@@ -73,16 +74,18 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 				err = nil
 			} else {
 				logger.Errorf(err.Error())
+				return
 			}
+		} else {
+			return
 		}
 
-		return
 	} else {
 		resp, err = req.Process(storageClient, stats)
-	}
-	dt := time.Since(t)
-	if dt > SlowCmdTime {
-		stats.UpdateStat("slow_cmd", 1)
+		dt := time.Since(t)
+		if dt > SlowCmdTime {
+			stats.UpdateStat("slow_cmd", 1)
+		}
 	}
 	if resp == nil {
 		if err == nil {
