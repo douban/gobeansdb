@@ -241,7 +241,7 @@ func (store *HStore) ListUpper(ki *KeyInfo) ([]byte, error) {
 	l := len(ki.KeyPath)
 	offset := 0
 	for h := 0; h < l; h += 1 {
-		offset = offset*16 + ki.KeyPath[h-1]
+		offset = offset*16 + ki.KeyPath[h]
 	}
 	store.updateNodesUpper(l, offset)
 	l += 1
@@ -261,7 +261,7 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 	if err != nil {
 		return nil, nil
 	}
-	if ki.BucketID >= 0 {
+	if len(ki.Key) >= config.TreeDepth {
 		return store.buckets[ki.BucketID].listDir(ki)
 	}
 	return store.ListUpper(ki)
