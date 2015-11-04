@@ -36,6 +36,7 @@ var (
 		Homes:       []string{"./test"},
 		maxOldChunk: 255,
 	}
+	//DefaultRouteConfig = route.RouteConfig{NumBucket: 256, Buckets: make([]int, 256)}
 	DefaultRouteConfig = route.RouteConfig{NumBucket: 16, Buckets: make([]int, 16)}
 
 	htreeConfig = &config.HTreeConfig
@@ -62,7 +63,7 @@ func InitDefaultConfig() {
 	InitDefaultGlobalConfig()
 	config.LocalConfig = DefaultLocalConfig
 	config.RouteConfig = DefaultRouteConfig
-	for i := 0; i < 16; i++ {
+	for i := 0; i < config.NumBucket; i++ {
 		DefaultRouteConfig.Buckets[i] = 1
 	}
 }
