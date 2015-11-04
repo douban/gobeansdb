@@ -281,7 +281,7 @@ func (bkt *Bucket) removeHtree() {
 	bkt.htreeID = HintID{0, 0}
 }
 
-func (bkt *Bucket) checkVer(oldv, ver int32) (int32, bool) {
+func (bkt *Bucket) checkAndUpdateVerison(oldv, ver int32) (int32, bool) {
 	if ver == 0 {
 		if oldv >= 0 {
 			ver = oldv + 1
@@ -318,7 +318,7 @@ func (bkt *Bucket) getset(ki *KeyInfo, v *Payload) error {
 	}
 
 	var valid bool
-	v.Ver, valid = bkt.checkVer(oldv, v.Ver)
+	v.Ver, valid = bkt.checkAndUpdateVerison(oldv, v.Ver)
 	if !valid {
 		return nil
 	}
