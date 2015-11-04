@@ -44,6 +44,13 @@ func loadServerConfig(path string) {
 	if err := yaml.Unmarshal(content, &config); err != nil {
 		log.Fatal("unmarshal yaml format config failed")
 	}
+	checkEmptyConfig(path)
+}
+
+func checkEmptyConfig(path string) {
+	if config.MaxKeySize == 0 || config.SplitCountStr == "" || config.ThresholdListKey == 0 {
+		log.Fatal("bad config: empty struct in ", path)
+	}
 }
 
 func loadConfigs(confdir string) {
