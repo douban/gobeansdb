@@ -1,0 +1,22 @@
+zk: "NO"
+listen: 0.0.0.0
+port: 7900
+webport: 7908
+threads: 4
+hstore:
+  global:
+    data:
+      maxkeysize: 250
+      dataflushsec: 10
+      flushsizemin: 256
+      maxvaluesizestr: 50M
+      maxfilesizestr: 4000M
+      flushsizestr: 16M
+    hint:
+      secondsbeforedump: 60
+      splitcountstr: 1k
+      indexintervalsizestr: 4K
+    htree:
+      thresholdlistkey: 256
+      thresholdbighash: 256
+      treeheight: 3
