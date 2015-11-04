@@ -220,8 +220,12 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 		if _, e = io.ReadFull(b, item.Body); e != nil {
 			return e
 		}
-		b.ReadByte() // \r
-		b.ReadByte() // \n
+		if c, e := b.ReadByte(); e != nil || c != '\r' {
+			return fmt.Errorf("bad data end in set cmd")
+		}
+		if c, e := b.ReadByte(); e != nil || c != '\n' {
+			return fmt.Errorf("bad data end in set cmd")
+		}
 
 	case "delete":
 		if len(parts) < 2 || len(parts) > 4 {
