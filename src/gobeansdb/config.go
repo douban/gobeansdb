@@ -58,7 +58,9 @@ func loadConfigs(confdir string) {
 			log.Fatalf("fail to load route table")
 		}
 		config.Addr = fmt.Sprintf("%s:%d", config.HStoreConfig.Hostname, config.Port)
+
 		config.HStoreConfig.RouteConfig = rt.GetServerConfig(config.Addr)
+		log.Printf("route table: %#v", rt)
 	} else {
 		os.MkdirAll("./test", 0777)
 	}
