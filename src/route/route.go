@@ -20,8 +20,8 @@ type RouteTable struct {
 }
 
 func (rt *RouteTable) GetServerConfig(addr string) RouteConfig {
-	r := RouteConfig{}
-	r.Buckets = make([]int, r.NumBucket)
+	r := RouteConfig{NumBucket: rt.NumBucket}
+	r.Buckets = make([]int, rt.NumBucket)
 	buckets := rt.Nodes[addr]
 	for b, _ := range buckets {
 		r.Buckets[b] = 1
