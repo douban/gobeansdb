@@ -102,7 +102,7 @@ func NewKeyInfoFromBytes(key []byte, keyhash uint64, keyIsPath bool) (ki *KeyInf
 	return
 }
 
-func (ki *KeyInfo) getKeyHash() {
+func (ki *KeyInfo) setKeyHashByPath() {
 	v := ki.KeyPath
 	shift := uint(60)
 	ki.KeyHash = 0
@@ -115,7 +115,7 @@ func (ki *KeyInfo) getKeyHash() {
 func (ki *KeyInfo) Prepare() (err error) {
 	if ki.KeyIsPath {
 		ki.KeyPath, err = ParsePathString(ki.StringKey, ki.KeyPathBuf[:16])
-		ki.getKeyHash()
+		ki.setKeyHashByPath()
 		if len(ki.KeyPath) < config.TreeDepth {
 			ki.BucketID = -1
 			return
@@ -128,7 +128,6 @@ func (ki *KeyInfo) Prepare() (err error) {
 		ki.BucketID <<= 4
 		ki.BucketID += v
 	}
-
 	return
 }
 

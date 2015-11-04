@@ -104,7 +104,6 @@ func (leaf bytesLeaf) enlarge2(size int) []byte {
 
 func (leaf bytesLeaf) Set(req *HTreeReq, ni *NodeInfo) (oldm HTreeItem, exist bool, newLeaf bytesLeaf) {
 	lenKHash := config.TreeKeyHashLen
-	// lenKHash = KHASH_LENS[len(ni.path)]
 	idx := leaf.find(req, ni)
 	exist = (idx >= 0)
 	var dst []byte

@@ -295,7 +295,7 @@ func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Posit
 func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
-	return store.buckets[ki.BucketID].getset(ki, p)
+	return store.buckets[ki.BucketID].checkAndSet(ki, p)
 }
 
 func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, error) {

@@ -298,7 +298,7 @@ func (bkt *Bucket) checkAndUpdateVerison(oldv, ver int32) (int32, bool) {
 	return ver, true
 }
 
-func (bkt *Bucket) getset(ki *KeyInfo, v *Payload) error {
+func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	bkt.writeLock.Lock()
 	defer bkt.writeLock.Unlock()
 	oldv := int32(0)
