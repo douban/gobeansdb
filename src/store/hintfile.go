@@ -33,18 +33,6 @@ type hintFileReader struct {
 	buf    [256]byte
 }
 
-// used for 1. dump hint 2. hint merge
-type hintFileWriter struct {
-	index *hintFileIndexBuffer
-	hintFileMeta
-	path string
-
-	fd     *os.File
-	wbuf   *bufio.Writer
-	offset int64
-	buf    [256]byte
-}
-
 func getMaxoffsetFromHint(path string) (offset uint32, err error) {
 	fd, err := os.Open(path)
 	if err != nil {
@@ -144,6 +132,18 @@ func (reader *hintFileReader) close() {
 	reader.fd.Close()
 }
 
+// used for 1. dump hint 2. hint merge
+type hintFileWriter struct {
+	index *hintFileIndexBuffer
+	hintFileMeta
+	path string
+
+	fd     *os.File
+	wbuf   *bufio.Writer
+	offset int64
+	buf    [256]byte
+}
+
 func newHintFileWriter(path string, maxOffset uint32, bufsize int) (w *hintFileWriter, err error) {
 	var fd *os.File
 	tmp := path + ".tmp"
@@ -188,7 +188,11 @@ func (w *hintFileWriter) close() error {
 	index := w.index
 	var buf [16]byte
 	for r := 0; r <= index.currRow; r++ {
-		for c := 0; c < index.currCol; c++ {
+		col := HINTINDEX_ROW_SIZE
+		if r == index.currRow {
+			col = index.currCol
+		}
+		for c := 0; c < col; c++ {
 			it := index.index[r][c]
 			binary.LittleEndian.PutUint64(buf[0:8], it.keyhash)
 			binary.LittleEndian.PutUint64(buf[8:16], uint64(it.offset))

@@ -19,7 +19,7 @@ type hintFileIndex struct {
 
 func newHintFileIndex() (idx *hintFileIndexBuffer) {
 	idx = new(hintFileIndexBuffer)
-	idx.index = make([][]hintIndexItem, 1, 4096)
+	idx.index = make([][]hintIndexItem, 4096)
 	idx.index[0] = make([]hintIndexItem, HINTINDEX_ROW_SIZE)
 	return
 }
