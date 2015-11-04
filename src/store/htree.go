@@ -134,7 +134,7 @@ func (tree *HTree) getHex(khash uint64, level int) int {
 
 func (tree *HTree) setLeaf(req *HTreeReq, ni *NodeInfo) {
 	node := ni.node
-	oldm, ok, newleaf := tree.leafs[ni.offset].Set(req, ni)
+	oldm, exist, newleaf := tree.leafs[ni.offset].Set(req, ni)
 	tree.leafs[ni.offset] = newleaf
 
 	vhash := uint16(0)
@@ -142,7 +142,7 @@ func (tree *HTree) setLeaf(req *HTreeReq, ni *NodeInfo) {
 		vhash += req.item.vhash
 		node.count += 1
 	}
-	if ok && oldm.ver > 0 {
+	if exist && oldm.ver > 0 {
 		vhash -= oldm.vhash
 		node.count -= 1
 	}
