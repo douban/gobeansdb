@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	server *mc.Server
+	server  *mc.Server
+	storage *Storage
 )
 
 func initLog() {
@@ -54,7 +55,7 @@ func main() {
 	initWeb()
 
 	var err error
-	storage := new(Storage)
+	storage = new(Storage)
 	storage.hstore, err = store.NewHStore()
 	if err != nil {
 		log.Fatal(err.Error())

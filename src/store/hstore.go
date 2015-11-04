@@ -318,3 +318,11 @@ func (store *HStore) merger(interval time.Duration) {
 		}
 	}
 }
+
+func (store *HStore) GetCollisionsByBucket(bucketID int) (content []byte) {
+	bkt := store.buckets[bucketID]
+	if bkt.state > 0 {
+		return bkt.hints.collisions.dumps()
+	}
+	return
+}

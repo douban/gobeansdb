@@ -8,6 +8,8 @@ import (
 	mc "memcache"
 	"net/http"
 	_ "net/http/pprof"
+	"path/filepath"
+	"strconv"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -30,6 +32,8 @@ func init() {
 	http.HandleFunc("/buckets", handleBuckets)
 
 	http.HandleFunc("/reload", handleReload)
+
+	http.HandleFunc("/collision/", handleCollision)
 
 }
 
@@ -56,6 +60,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
     <a href='/buffers'> /buffers </a> <p/>
     <a href='/log'> /log </a> <p/>
     <a href='/buckets'> /buckets </a> <p/>
+    <a href='/collision'> /collision </a> <p/>
 
     `)
 }
@@ -101,6 +106,21 @@ func handleBuffers(w http.ResponseWriter, r *http.Request) {
 	m["sizesSetFlushGet"] = cmem.AllocedSize
 	m["countSetFlushGet"] = cmem.AllocedCount
 	handleJson(w, m)
+}
+
+func handleCollision(w http.ResponseWriter, r *http.Request) {
+	e := []byte("need bucket id, e.g. /collision/c")
+	s := filepath.Base(r.URL.Path)
+	bucketID, err := strconv.ParseInt(s, 16, 16)
+	if err != nil {
+		w.Write(e)
+		return
+	}
+	if bucketID > int64(config.NumBucket) || bucketID < 0 {
+		w.Write(e)
+		return
+	}
+	w.Write(storage.hstore.GetCollisionsByBucket(int(bucketID)))
 }
 
 func handleReload(w http.ResponseWriter, r *http.Request) {

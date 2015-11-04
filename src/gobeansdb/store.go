@@ -14,7 +14,6 @@ import (
 )
 
 var (
-	S               *Storage
 	ErrorNotSupport = errors.New("operation not support")
 )
 
