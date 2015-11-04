@@ -451,6 +451,12 @@ func (h *hintMgr) Merge() (err error) {
 
 func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
 	it := newHintItem(ki.KeyHash, meta.Ver, meta.ValueHash, Position{0, pos.Offset}, ki.StringKey)
+	_, ok := h.collisions.get(ki.KeyHash, ki.StringKey)
+	if ok {
+		it2 := *it
+		it2.Pos |= uint32(pos.ChunkID)
+		h.collisions.set(&it2)
+	}
 	h.setItem(it, pos.ChunkID, recSize)
 }
 
