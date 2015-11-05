@@ -16,8 +16,19 @@ const (
 type hintFileMeta struct {
 	numKey      int
 	indexOffset int64
-	maxOffset   uint32
-	size        int64
+	datasize    uint32
+}
+
+func (fm *hintFileMeta) Dumps(buf []byte) {
+	binary.LittleEndian.PutUint64(buf[0:8], uint64(fm.indexOffset))
+	binary.LittleEndian.PutUint32(buf[8:12], uint32(fm.numKey))
+	binary.LittleEndian.PutUint32(buf[12:16], fm.datasize)
+}
+
+func (fm *hintFileMeta) Loads(buf []byte) {
+	fm.indexOffset = int64(binary.LittleEndian.Uint64(buf[:8]))
+	fm.numKey = int(binary.LittleEndian.Uint32(buf[8:12]))
+	fm.datasize = uint32(binary.LittleEndian.Uint32(buf[12:16]))
 }
 
 // used for 1. HTree scan 2. hint merge
@@ -26,6 +37,7 @@ type hintFileReader struct {
 	path    string
 	bufsize int
 	chunkID int
+	size    int64
 
 	fd     *os.File
 	rbuf   *bufio.Reader
@@ -77,9 +89,7 @@ func (reader *hintFileReader) open() (err error) {
 		logger.Errorf(err.Error())
 		return
 	}
-	reader.indexOffset = int64(binary.LittleEndian.Uint64(h[:8]))
-	reader.numKey = int(binary.LittleEndian.Uint32(h[8:12]))
-	reader.maxOffset = binary.LittleEndian.Uint32(h[12:16])
+	reader.hintFileMeta.Loads(h)
 	//logger.Infof("open hint for read %#v, %s", reader.hintFileMeta, reader.path)
 	fileInfo, _ := reader.fd.Stat()
 	reader.size = fileInfo.Size()
@@ -159,7 +169,7 @@ func newHintFileWriter(path string, maxOffset uint32, bufsize int) (w *hintFileW
 		wbuf:         wbuf,
 		offset:       HINTFILE_HEAD_SIZE,
 		path:         path,
-		hintFileMeta: hintFileMeta{maxOffset: maxOffset}}
+		hintFileMeta: hintFileMeta{datasize: maxOffset}}
 	w.wbuf.Write(w.buf[:HINTFILE_HEAD_SIZE])
 	w.index = newHintFileIndex()
 	return
@@ -201,9 +211,7 @@ func (w *hintFileWriter) close() error {
 	}
 	w.wbuf.Flush()
 	w.fd.Seek(0, 0)
-	binary.LittleEndian.PutUint64(buf[0:8], uint64(w.indexOffset))
-	binary.LittleEndian.PutUint32(buf[8:12], uint32(w.numKey))
-	binary.LittleEndian.PutUint32(buf[12:16], w.maxOffset)
+	w.hintFileMeta.Dumps(buf[:])
 	w.fd.Write(buf[:])
 	w.fd.Close()
 	tmp := w.path + ".tmp"

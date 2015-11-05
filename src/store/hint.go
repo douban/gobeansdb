@@ -147,7 +147,15 @@ func (h *hintBuffer) dump(path string) (index *hintFileIndex, err error) {
 		}
 	}
 	w.close()
-	return &hintFileIndex{w.index.toIndex(), path}, nil
+	index = &hintFileIndex{
+		w.index.toIndex(),
+		path,
+		hintFileMeta{
+			datasize: h.maxoffset,
+			numKey:   n,
+		},
+	}
+	return
 }
 
 func (h *hintSplit) needDump() bool {
@@ -270,37 +278,6 @@ func newHintMgr(bucketID int, home string) *hintMgr {
 
 	hm.collisions = newCollisionTable()
 	return hm
-}
-
-func (hm *hintMgr) findChunk(chunkID int, remove bool) (hints []string) {
-	pattern := hm.getPath(chunkID, -1, false)
-	paths, _ := filepath.Glob(pattern)
-	if len(paths) == 0 {
-		return
-	}
-
-	if remove {
-		for _, p := range paths {
-			os.Remove(p)
-		}
-		return
-	}
-	sort.Sort(sort.StringSlice(paths))
-	n := 0
-	for _, path := range paths {
-		name := filepath.Base(path)
-		sid, err := strconv.Atoi(name[4:7])
-		if err != nil {
-			logger.Errorf("bad hint path %s", path)
-		} else if sid != n {
-			logger.Errorf("bad hints %s", paths)
-			os.Remove(path)
-		} else {
-			hints = append(hints, path)
-			n++
-		}
-	}
-	return
 }
 
 type byKeyHash struct {
@@ -558,13 +535,71 @@ func (h *hintMgr) getItemCollision(keyhash uint64, key string) (it *HintItem, co
 	return
 }
 
+func (h *hintMgr) RemoveHintfilesByChunk(chunkID int) {
+	pattern := h.getPath(chunkID, -1, false)
+	paths, _ := filepath.Glob(pattern)
+	for _, p := range paths {
+		os.Remove(p)
+	}
+}
+
+func (hm *hintMgr) findValidPaths(chunkID int) (hints []string) {
+	pattern := hm.getPath(chunkID, -1, false)
+	paths, _ := filepath.Glob(pattern)
+	if len(paths) == 0 {
+		return
+	}
+
+	sort.Sort(sort.StringSlice(paths))
+	n := 0
+	for _, path := range paths {
+		name := filepath.Base(path)
+		sid, err := strconv.Atoi(name[4:7])
+		if err != nil {
+			logger.Errorf("remove bad hint path %s", path)
+			os.Remove(path)
+		} else if sid != n {
+			logger.Errorf("remove bad hint %s, expect split %d", paths, n)
+			os.Remove(path)
+		} else {
+			hints = append(hints, path)
+			n++
+		}
+	}
+	return
+}
+
+func (hm *hintMgr) loadHintsByChunk(chunkID int) (datasize uint32) {
+	paths0 := hm.findValidPaths(chunkID)
+	l := len(paths0)
+	if l == 0 {
+		return
+	}
+	ck := hm.chunks[chunkID]
+	var err error
+	for _, p := range paths0 {
+		if err != nil {
+			logger.Errorf("remove remaining hint: %s", p)
+			os.Remove(p)
+			continue
+		}
+		sp := &hintSplit{}
+		sp.file, err = loadHintIndex(p)
+		if err != nil {
+			logger.Errorf("fail to load hint, remove it: %s", p)
+			os.Remove(p)
+		} else {
+			l := len(ck.splits)
+			bufsp := ck.splits[l-1]
+			ck.splits[l-1] = sp
+			ck.splits = append(ck.splits, bufsp)
+		}
+	}
+	return ck.splits[len(ck.splits)-2].file.datasize
+}
 func (h *hintMgr) ClearChunks(min, max int) {
 	for i := min; i <= max; i++ {
 		h.chunks[i] = newHintChunk(i)
-		pattern := h.getPath(i, -1, false)
-		paths, _ := filepath.Glob(pattern)
-		for _, p := range paths {
-			os.Remove(p)
-		}
+		h.RemoveHintfilesByChunk(i)
 	}
 }

@@ -214,6 +214,7 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 	res = wrec.rec
 	offset = stream.offset
 	stream.offset += recsize
+	res.Payload.RecSize = recsize
 	return
 }
 
