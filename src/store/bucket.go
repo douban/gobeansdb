@@ -54,11 +54,12 @@ func (bkt *Bucket) loadCollisions() {
 }
 
 func (bkt *Bucket) buildHintFromData(chunkID int, start uint32) (err error) {
-	logger.Infof("buildHintFromData chunk %d ffset 0x%x", chunkID, start)
+	logger.Infof("buildHintFromData chunk %d offset 0x%x", chunkID, start)
 	r, err := bkt.datas.GetStreamReader(chunkID)
 	if err != nil {
 		return
 	}
+	r.seek(start)
 	defer r.Close()
 	for {
 		rec, offset, _, e := r.Next()
