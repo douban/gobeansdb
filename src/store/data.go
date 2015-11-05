@@ -19,6 +19,7 @@ type dataStore struct {
 	home     string
 
 	sync.Mutex
+	flushLock sync.Mutex
 
 	oldHead int // old tail == 0
 	newHead int
@@ -106,6 +107,8 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	if ds.wbufSize == 0 {
 		return nil
 	}
+	ds.flushLock.Lock()
+	defer ds.flushLock.Unlock()
 	ds.Lock()
 	if !force && (time.Since(ds.lastFlushTime) < time.Duration(dataConfig.DataFlushSec)*time.Second) && (ds.wbufSize < (1 << 20)) {
 		ds.Unlock()
