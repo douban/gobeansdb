@@ -56,7 +56,7 @@ func TestHintRW(t *testing.T) {
 	}
 	w.close()
 	readHintAndCheck(t, path, items)
-	index := &hintFileIndex{w.index.toIndex(), path}
+	index := &hintFileIndex{w.index.toIndex(), path, hintFileMeta{}}
 	t.Logf("#index = %d, %#v", len(index.index), index.index)
 	index2, err := loadHintIndex(path)
 	if err != nil {

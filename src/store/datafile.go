@@ -145,6 +145,11 @@ func newDataStreamReader(path string, bufsz int) (*DataStreamReader, error) {
 	return &DataStreamReader{fd: fd, rbuf: rbuf, offset: 0}, nil
 }
 
+func (stream *DataStreamReader) seek(offset uint32) {
+	stream.fd.Seek(int64(offset), os.SEEK_SET)
+	stream.offset = offset
+}
+
 // TODO: slow
 func (stream *DataStreamReader) nextValid() (rec *Record, offset uint32, sizeBroken uint32, err error) {
 	offset2 := stream.offset
@@ -214,6 +219,7 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 	res = wrec.rec
 	offset = stream.offset
 	stream.offset += recsize
+	res.Payload.RecSize = recsize
 	return
 }
 

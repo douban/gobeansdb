@@ -111,8 +111,8 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 
 	var body string
 	if extended {
-		body = fmt.Sprintf("%d %d %d %d %d %d",
-			payload.Ver, vhash, payload.Flag, payload.TS, pos.ChunkID, pos.Offset)
+		body = fmt.Sprintf("%d %d %d %d %d %d %d",
+			payload.Ver, vhash, payload.Flag, len(payload.Value), payload.TS, pos.ChunkID, pos.Offset)
 
 	} else {
 		body = fmt.Sprintf("%d %d %d %d",

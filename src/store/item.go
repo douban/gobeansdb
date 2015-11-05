@@ -79,7 +79,7 @@ func Getvhash(value []byte) uint16 {
 	} else {
 		hash += Fnv1a(value[:512])
 		hash *= 97
-		hash += Fnv1a(value[512:1024])
+		hash += Fnv1a(value[l-512 : l])
 	}
 	return uint16(hash)
 }

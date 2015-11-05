@@ -53,19 +53,14 @@ func (bkt *Bucket) loadCollisions() {
 	bkt.hints.collisions.load(bkt.getCollisionPath())
 }
 
-func (bkt *Bucket) buildHintFromData(chunkID int, start uint32, splitID int) (hintpath string, err error) {
-	logger.Infof("buildHintFromData chunk %d split %d offset 0x%x", chunkID, splitID, start)
+func (bkt *Bucket) buildHintFromData(chunkID int, start uint32) (err error) {
+	logger.Infof("buildHintFromData chunk %d offset 0x%x", chunkID, start)
 	r, err := bkt.datas.GetStreamReader(chunkID)
 	if err != nil {
 		return
 	}
+	r.seek(start)
 	defer r.Close()
-	hintpath = bkt.hints.getPath(chunkID, splitID, false)
-	w, err := newHintFileWriter(hintpath, bkt.datas.filesizes[chunkID], 1<<20)
-	if err != nil {
-		return
-	}
-	defer w.close()
 	for {
 		rec, offset, _, e := r.Next()
 		if e != nil {
@@ -77,13 +72,12 @@ func (bkt *Bucket) buildHintFromData(chunkID int, start uint32, splitID int) (hi
 		}
 		khash := getKeyHash(rec.Key)
 		p := rec.Payload
+		p.Decompress()
 		vhash := Getvhash(p.Value)
 		item := newHintItem(khash, p.Ver, vhash, Position{0, offset}, string(rec.Key))
-		err = w.writeItem(item)
-		if err != nil {
-			return
-		}
+		bkt.hints.setItem(item, chunkID, rec.Payload.RecSize)
 	}
+	bkt.hints.trydump(chunkID, true)
 	return
 }
 
@@ -95,7 +89,7 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 	pos.ChunkID = chunkID
 	r := newHintFileReader(path, chunkID, 1<<20)
 	r.open()
-	maxoffset = r.maxOffset
+	maxoffset = r.datasize
 	defer r.close()
 	for {
 		item, e := r.next()
@@ -118,39 +112,14 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 	return
 }
 
-func (bkt *Bucket) checkHintWithData(chunkID int) (paths []string, err error) {
-	paths, maxoffset := bkt.getMaxoffset(chunkID)
-	l := len(paths)
-	if maxoffset < bkt.datas.filesizes[chunkID] {
-		p, e := bkt.buildHintFromData(chunkID, maxoffset, l)
-		if e != nil {
-			//TODO: FATAL?
-			err = e
-		} else {
-			paths = append(paths, p)
-		}
-	}
-	return
-}
-
-func (bkt *Bucket) getMaxoffset(chunkID int) (paths []string, maxoffset uint32) {
-	paths0 := bkt.hints.findChunk(chunkID, bkt.datas.filesizes[chunkID] < 1)
-	l := len(paths0)
-	if l == 0 {
+func (bkt *Bucket) checkHintWithData(chunkID int) (err error) {
+	if bkt.datas.filesizes[chunkID] == 0 {
+		bkt.hints.RemoveHintfilesByChunk(chunkID)
 		return
 	}
-	for _, p := range paths0 {
-		offset, e := getMaxoffsetFromHint(p)
-		if e != nil {
-			logger.Errorf("rm bad hint: %s", p)
-			os.Remove(p)
-			return // abandon the remaining, build from datafile
-		} else {
-			paths = append(paths, p)
-			if offset > maxoffset {
-				maxoffset = offset
-			}
-		}
+	hintDataSize := bkt.hints.loadHintsByChunk(chunkID)
+	if hintDataSize < bkt.datas.filesizes[chunkID] {
+		err = bkt.buildHintFromData(chunkID, hintDataSize)
 	}
 	return
 }
@@ -197,16 +166,18 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 		if i == bkt.htreeID.Chunk {
 			startsp = bkt.htreeID.Split + 1
 		}
-		paths, e := bkt.checkHintWithData(i)
+		e := bkt.checkHintWithData(i)
 		if e != nil {
 			err = e
 			logger.Fatalf("fail to start for bad data")
 		}
-		if startsp >= len(paths) { // rebuilt
+		splits := bkt.hints.chunks[i].splits
+		numhintfile := len(splits) - 1
+		if startsp >= numhintfile { // rebuilt
 			continue
 		}
-		for j, path := range paths[startsp:] {
-			bkt.updateHtreeFromHint(i, path)
+		for j, sp := range splits[:numhintfile] {
+			bkt.updateHtreeFromHint(i, sp.file.path)
 			if e != nil {
 				err = e
 				return

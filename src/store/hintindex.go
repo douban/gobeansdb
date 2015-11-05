@@ -15,11 +15,12 @@ type hintIndexItem struct {
 type hintFileIndex struct {
 	index []hintIndexItem
 	path  string
+	hintFileMeta
 }
 
 func newHintFileIndex() (idx *hintFileIndexBuffer) {
 	idx = new(hintFileIndexBuffer)
-	idx.index = make([][]hintIndexItem, 1, 4096)
+	idx.index = make([][]hintIndexItem, 4096)
 	idx.index[0] = make([]hintIndexItem, HINTINDEX_ROW_SIZE)
 	return
 }
@@ -84,12 +85,15 @@ func loadHintIndex(path string) (index *hintFileIndex, err error) {
 		logger.Errorf(err.Error())
 		return
 	}
+
 	if readn < HINTFILE_HEAD_SIZE {
 		err = fmt.Errorf("bad hint file %s readn %d", path, readn)
 		logger.Errorf(err.Error())
 		return
 	}
-	start := int64(binary.LittleEndian.Uint64(head[:8]))
+	index = &hintFileIndex{path: path}
+	index.hintFileMeta.Loads(head[:])
+	start := index.indexOffset
 	num := int(size - start)
 	fd.Seek(start, 0)
 	raw := make([]byte, num)
@@ -110,10 +114,10 @@ func loadHintIndex(path string) (index *hintFileIndex, err error) {
 		arr[i].keyhash = binary.LittleEndian.Uint64(raw[offset : offset+8])
 		arr[i].offset = int64(binary.LittleEndian.Uint64(raw[offset+8 : offset+16]))
 	}
-	return &hintFileIndex{arr, path}, nil
+	index.index = arr
+	return
 }
 
-// used for 1. get
 type hintFileIndexBuffer struct {
 	index      [][]hintIndexItem
 	currRow    int

@@ -100,7 +100,7 @@ func (h *mergeHeap) Pop() interface{} {
 
 func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int) (idx *hintFileIndex, err error) {
 	n := len(src)
-	maxoffset := uint32(0)
+	datasize := uint32(0)
 	hp := make([]*mergeReader, n)
 	for i := 0; i < n; i++ {
 		err := src[i].open()
@@ -115,13 +115,13 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 			logger.Errorf("%s", err.Error())
 			return nil, err
 		}
-		if src[i].maxOffset > maxoffset {
-			maxoffset = src[i].maxOffset
+		if src[i].datasize > datasize {
+			datasize = src[i].datasize
 		}
 	}
 	var w *hintFileWriter
 	if !config.NotDumpMerged {
-		w, err = newHintFileWriter(dst, maxoffset, 1<<20)
+		w, err = newHintFileWriter(dst, datasize, 1<<20)
 		if err != nil {
 			logger.Errorf("%s", err.Error())
 			w = nil
@@ -154,7 +154,7 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 	mw.flush()
 	if mw.w != nil {
 		mw.w.close()
-		idx = &hintFileIndex{mw.w.index.toIndex(), dst}
+		idx = &hintFileIndex{mw.w.index.toIndex(), dst, w.hintFileMeta}
 	}
 	if err != nil {
 		os.Remove(dst)
