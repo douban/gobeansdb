@@ -44,14 +44,11 @@ type Storage struct {
 func (s *Storage) Client() mc.StorageClient {
 	return &StorageClient{
 		s.hstore,
-		store.KeyInfo{},
-		&store.Payload{}}
+	}
 }
 
 type StorageClient struct {
-	hstore  *store.HStore
-	ki      store.KeyInfo
-	payload *store.Payload
+	hstore *store.HStore
 }
 
 func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, error) {
@@ -59,13 +56,14 @@ func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, erro
 	if key[0] == '?' || key[0] == '@' {
 		return false, fmt.Errorf("invalid key %s", key)
 	}
-	s.prepare(key, false)
-	s.payload.Flag = uint32(item.Flag)
-	s.payload.Value = item.Body
-	s.payload.Ver = int32(item.Exptime)
-	s.payload.TS = uint32(item.ReceiveTime.Unix())
+	ki := s.prepare(key, false)
+	payload := &store.Payload{}
+	payload.Flag = uint32(item.Flag)
+	payload.Value = item.Body
+	payload.Ver = int32(item.Exptime)
+	payload.TS = uint32(item.ReceiveTime.Unix())
 
-	err := s.hstore.Set(&s.ki, s.payload)
+	err := s.hstore.Set(ki, payload)
 	if err != nil {
 		log.Printf("err to get %s: %s", key, err.Error())
 		return false, err
@@ -73,16 +71,18 @@ func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, erro
 	return true, nil
 }
 
-func (s *StorageClient) prepare(key string, isPath bool) {
-	s.ki.StringKey = key
-	s.ki.Key = []byte(key)
-	s.ki.KeyIsPath = isPath
+func (s *StorageClient) prepare(key string, isPath bool) *store.KeyInfo {
+	ki := &store.KeyInfo{}
+	ki.StringKey = key
+	ki.Key = []byte(key)
+	ki.KeyIsPath = isPath
+	return ki
 }
 
 func (s *StorageClient) listDir(path string) (*mc.Item, error) {
 	// TODO: check valid
-	s.prepare(path, true)
-	body, err := s.hstore.ListDir(&s.ki)
+	ki := s.prepare(path, true)
+	body, err := s.hstore.ListDir(ki)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +93,8 @@ func (s *StorageClient) listDir(path string) (*mc.Item, error) {
 }
 
 func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
-	s.prepare(key, false)
-	payload, pos, err := s.hstore.Get(&s.ki, false)
+	ki := s.prepare(key, false)
+	payload, pos, err := s.hstore.Get(ki, false)
 	if err != nil {
 		return nil, err
 	}
@@ -134,8 +134,8 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 			if len(key2) != 16 {
 				return nil, fmt.Errorf("bad command line format") //FIXME: SERVER_ERROR
 			}
-			s.prepare(key2, true)
-			rec, err := s.hstore.GetRecordByKeyHash(&s.ki)
+			ki := s.prepare(key2, true)
+			rec, err := s.hstore.GetRecordByKeyHash(ki)
 			if err != nil {
 				return nil, err
 			} else if rec == nil {
@@ -173,8 +173,8 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 		}
 		return s.getMeta(key, extended)
 	}
-	s.prepare(key, false)
-	payload, _, err := s.hstore.Get(&s.ki, false)
+	ki := s.prepare(key, false)
+	payload, _, err := s.hstore.Get(ki, false)
 	if err != nil {
 		log.Printf("err to get %s: %s", key, err.Error())
 		return nil, err
@@ -213,8 +213,8 @@ func (s *StorageClient) Incr(key string, value int) (int, error) {
 	if key[0] == '?' || key[0] == '@' {
 		return 0, fmt.Errorf("invalid key %s", key)
 	}
-	s.prepare(key, false)
-	newvalue := s.hstore.Incr(&s.ki, value)
+	ki := s.prepare(key, false)
+	newvalue := s.hstore.Incr(ki, value)
 	return newvalue, nil
 }
 
@@ -223,13 +223,14 @@ func (s *StorageClient) Delete(key string) (bool, error) {
 	if !store.IsValidKeyString(key) {
 		return false, fmt.Errorf("invalid key %s", key)
 	}
-	s.prepare(key, false)
-	s.payload.Flag = 0
-	s.payload.Value = nil
-	s.payload.Ver = -1
-	s.payload.TS = uint32(time.Now().Unix()) // TODO:
+	ki := s.prepare(key, false)
+	payload := &store.Payload{}
+	payload.Flag = 0
+	payload.Value = nil
+	payload.Ver = -1
+	payload.TS = uint32(time.Now().Unix()) // TODO:
 
-	err := s.hstore.Set(&s.ki, s.payload)
+	err := s.hstore.Set(ki, payload)
 	if err != nil {
 		if err.Error() == "NOT_FOUND" {
 			return false, nil
