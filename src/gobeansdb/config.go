@@ -74,7 +74,7 @@ func loadConfigs(confdir string) {
 	// config store
 	err := config.HStoreConfig.Init()
 	if err != nil {
-		log.Fatalf("bad config: %#v")
+		log.Fatalf("bad config: %s", err.Error())
 	}
 	store.SetConfig(config.HStoreConfig)
 	// config mc
