@@ -134,10 +134,10 @@ func (store *HStore) getBucketPath(homeID, bucketID int) string {
 }
 
 func NewHStore() (store *HStore, err error) {
+	mergeChan = nil
 	st := time.Now()
 	store = new(HStore)
 	store.gcMgr = new(GCMgr)
-	mergeChan = make(chan int, 2)
 	store.buckets = make([]*Bucket, config.NumBucket)
 	for i := 0; i < config.NumBucket; i++ {
 		store.buckets[i] = &Bucket{id: i}
@@ -315,6 +315,7 @@ func (store *HStore) Incr(ki *KeyInfo, value int) int {
 }
 
 func (store *HStore) merger(interval time.Duration) {
+	mergeChan = make(chan int, 2)
 	for {
 		select {
 		case _ = <-mergeChan:

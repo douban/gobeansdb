@@ -187,10 +187,7 @@ func (chunk *hintChunk) rotate() *hintSplit {
 	chunk.splits = append(chunk.splits, sp)
 	if n > 1 {
 		logger.Infof("hint rotate split to %d, chunk %d", n, chunk.id)
-		select {
-		case mergeChan <- 1:
-		default:
-		}
+
 	}
 
 	return sp
@@ -446,7 +443,17 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
 }
 
 func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
-	h.chunks[chunkID].set(it, recSize)
+	rotated := h.chunks[chunkID].set(it, recSize)
+	if rotated {
+		if mergeChan != nil {
+			select {
+			case mergeChan <- 1:
+			default:
+			}
+		} else {
+			h.trydump(chunkID, false)
+		}
+	}
 	if chunkID > h.maxChunkID {
 		h.Lock()
 		if chunkID > h.maxChunkID {
