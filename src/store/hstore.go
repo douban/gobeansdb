@@ -134,6 +134,7 @@ func (store *HStore) getBucketPath(homeID, bucketID int) string {
 }
 
 func NewHStore() (store *HStore, err error) {
+	st := time.Now()
 	store = new(HStore)
 	store.gcMgr = new(GCMgr)
 	mergeChan = make(chan int, 2)
@@ -169,6 +170,7 @@ func NewHStore() (store *HStore, err error) {
 		}
 	}
 
+	n := 0
 	for i := 0; i < config.NumBucket; i++ {
 		bkt := store.buckets[i]
 		if config.Buckets[i] > 0 {
@@ -176,11 +178,13 @@ func NewHStore() (store *HStore, err error) {
 			if err != nil {
 				return
 			}
+			n += 1
 		}
 	}
 	if config.TreeDepth > 0 {
 		store.htree = newHTree(0, 0, config.TreeDepth+1)
 	}
+	logger.Infof("all %d bucket loaded, ready to serve, maxrss = %d, use time %s", n, GetMaxRSS(), time.Since(st))
 
 	go store.merger(1 * time.Minute)
 	return

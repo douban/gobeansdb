@@ -152,7 +152,7 @@ func (tree *HTree) dump(path string) {
 		return
 	}
 	os.Rename(tmp, path)
-	logger.Debugf("dumped %s, min leaf %d, max leaf", path, minleaf, maxleaf)
+	logger.Debugf("dumped %s, min leaf %d, max leaf %d", path, minleaf, maxleaf)
 }
 
 func (tree *HTree) getHex(khash uint64, level int) int {

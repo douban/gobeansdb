@@ -125,6 +125,7 @@ func (bkt *Bucket) checkHintWithData(chunkID int) (err error) {
 }
 
 func (bkt *Bucket) open(bucketID int, home string) (err error) {
+	st := time.Now()
 	// load HTree
 	bkt.id = bucketID
 	bkt.home = home
@@ -192,7 +193,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	}()
 
 	bkt.loadGCHistroy()
-	logger.Infof("bucket %x opened", bucketID)
+	logger.Infof("bucket %x opened, max rss = %d, use time %s", bucketID, GetMaxRSS(), time.Since(st))
 	return nil
 }
 
