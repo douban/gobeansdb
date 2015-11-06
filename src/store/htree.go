@@ -21,13 +21,38 @@ var (
 
 type HTree struct {
 	sync.Mutex
-	// args
-	depth int
-	pos   int
 
-	// runtime
-	levels  [][]Node
-	leafs   []bytesLeaf
+	/*
+	 *            Root of hstore.tree
+	 *               /  | ... \
+	 *              /   |      \
+	 * depth -->  ht1  ht2     htN     # root of bucket trees (also are the leafs of hstore tree)
+	 *             ^
+	 *             |
+	 *            pos
+	 *
+	 * #bucket (number of buckets) = 16 ^ bucket_tree.depth
+	 */
+
+	// depth is level (0-based) of root Node (of this htree) in hstore.tree
+	depth int
+
+	// pos is position of this htree in the list of htrees at same level.
+	// pos is equal to bucketID.
+	pos int
+
+	/* runtime */
+
+	// levels[i] is a list of nodes at same level `i` of htree,
+	// Node stores the summary info of its childs.
+	// Height of htree = len(levels)
+	levels [][]Node
+
+	// leafs is the place to store key related info (e.g. keyhash, version, vhash etc.)
+	leafs []bytesLeaf
+
+	// maxLeaf is the max number of bytesLeafs in a leaf node of the htree.
+	// It's just a statistical information, not a threshold.
 	maxLeaf int
 
 	// tmp, to avoid alloc
@@ -35,9 +60,13 @@ type HTree struct {
 }
 
 type Node struct {
+	// count is the number of keys under this node.
 	count uint32
-	// size    uint32 //including deleted
-	hash    uint16
+
+	// hash is the summary of it's child nodes.
+	hash uint16
+
+	// isValid is true iff hash value of updated.
 	isValid bool
 }
 

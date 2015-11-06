@@ -13,8 +13,8 @@ import (
 )
 
 /*
-hstore  do NOT known relation between khash and key
-*/
+ * hstore should NOT known relation between khash and key
+ */
 
 var (
 	logger                 = loghub.Default
