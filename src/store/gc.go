@@ -15,15 +15,16 @@ type GCState struct {
 	BeginTS time.Time
 	EndTS   time.Time
 
+	// Begin and End are chunckIDs, they determine the range of GC.
 	Begin int
 	End   int
 
-	// curr
+	// Src and Dst are chunkIDs, they are tmp variables used in gc process.
 	Src int
 	Dst int
 
-	StopReason error
-	Running    bool
+	Err     error
+	Running bool
 
 	// sum
 	GCFileState
@@ -128,17 +129,16 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 		endChunkID = bkt.datas.newHead - 1
 	}
 	logger.Infof("begin GC bucket %d chunk [%d, %d]", bkt.id, startChunkID, endChunkID)
+
 	bkt.GCHistory = append(bkt.GCHistory, GCState{})
 	gc := &bkt.GCHistory[len(bkt.GCHistory)-1]
 	mgr.stat = gc
-
-	gc.Begin = startChunkID
-	gc.End = endChunkID
-	gc.Dst = startChunkID
 	gc.Running = true
 	defer func() {
 		gc.Running = false
 	}()
+	gc.Begin = startChunkID
+	gc.End = endChunkID
 
 	var oldPos Position
 	var newPos Position
@@ -149,23 +149,28 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 
 	mgr.BeforeBucket(bkt, startChunkID, endChunkID)
 	defer mgr.AfterBucket(bkt)
+
+	gc.Dst = startChunkID
 	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {
 		oldPos.ChunkID = gc.Src
 		var fileState GCFileState
 		// reader must have a larger buffer
 		logger.Infof("begin GC bucket %d, file %d -> %d", bkt.id, gc.Src, gc.Dst)
 		if r, err = bkt.datas.GetStreamReader(gc.Src); err != nil {
+			gc.Err = err
 			logger.Errorf("gc failed: %s", err.Error())
 			return
 		}
 		w, err = bkt.datas.GetStreamWriter(gc.Dst, gc.Dst != gc.Src)
 		if err != nil {
+			gc.Err = err
 			return
 		}
 		for {
 			var sizeBroken uint32
 			rec, oldPos.Offset, sizeBroken, err = r.Next()
 			if err != nil {
+				gc.Err = err
 				logger.Errorf("gc failed: %s", err.Error())
 				return
 			}
@@ -180,6 +185,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 				gc.Dst++
 				newPos.ChunkID = gc.Dst
 				if w, err = bkt.datas.GetStreamWriter(gc.Dst, gc.Dst != gc.Src); err != nil {
+					gc.Err = err
 					logger.Errorf("gc failed: %s", err.Error())
 					return
 				}
@@ -187,6 +193,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 			isRetained, updateHtree := mgr.ShouldRetainRecord(bkt, rec, oldPos)
 			if isRetained {
 				if newPos.Offset, err = w.Append(rec); err != nil {
+					gc.Err = err
 					logger.Errorf("gc failed: %s", err.Error())
 					return
 				}
