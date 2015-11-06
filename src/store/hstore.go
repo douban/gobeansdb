@@ -19,6 +19,7 @@ hstore  do NOT known relation between khash and key
 var (
 	logger                 = loghub.Default
 	bucketPattern []string = []string{"0", "%x", "%02x", "%03x"}
+	mergeChan     chan int
 )
 
 type HStore struct {
@@ -133,6 +134,8 @@ func (store *HStore) getBucketPath(homeID, bucketID int) string {
 }
 
 func NewHStore() (store *HStore, err error) {
+	mergeChan = nil
+	st := time.Now()
 	store = new(HStore)
 	store.gcMgr = new(GCMgr)
 	store.buckets = make([]*Bucket, config.NumBucket)
@@ -167,6 +170,7 @@ func NewHStore() (store *HStore, err error) {
 		}
 	}
 
+	n := 0
 	for i := 0; i < config.NumBucket; i++ {
 		bkt := store.buckets[i]
 		if config.Buckets[i] > 0 {
@@ -174,11 +178,13 @@ func NewHStore() (store *HStore, err error) {
 			if err != nil {
 				return
 			}
+			n += 1
 		}
 	}
 	if config.TreeDepth > 0 {
 		store.htree = newHTree(0, 0, config.TreeDepth+1)
 	}
+	logger.Infof("all %d bucket loaded, ready to serve, maxrss = %d, use time %s", n, GetMaxRSS(), time.Since(st))
 
 	go store.merger(1 * time.Minute)
 	return
@@ -309,8 +315,13 @@ func (store *HStore) Incr(ki *KeyInfo, value int) int {
 }
 
 func (store *HStore) merger(interval time.Duration) {
+	mergeChan = make(chan int, 2)
 	for {
-		<-time.After(interval)
+		select {
+		case _ = <-mergeChan:
+		case <-time.After(interval):
+		}
+
 		for _, bkt := range store.buckets {
 			if bkt.state > 0 {
 				bkt.hints.dumpAndMerge(false)

@@ -92,7 +92,6 @@ func newHintBuffer() *hintBuffer {
 	buf := &hintBuffer{}
 	buf.keys = make(map[string]int)
 	buf.keyhashs = make(map[uint64]bool)
-	buf.array = make([]*HintItem, hintConfig.SplitCount)
 	return buf
 }
 
@@ -101,6 +100,10 @@ func newHintSplit() *hintSplit {
 }
 
 func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
+	if len(h.keys) == 0 {
+		h.array = make([]*HintItem, hintConfig.SplitCount)
+	}
+
 	idx, found := h.keys[it.Key]
 	if !found {
 		h.expsize += len(it.Key) + 8*4 // meta and at least 4 pointers
@@ -184,7 +187,9 @@ func (chunk *hintChunk) rotate() *hintSplit {
 	chunk.splits = append(chunk.splits, sp)
 	if n > 1 {
 		logger.Infof("hint rotate split to %d, chunk %d", n, chunk.id)
+
 	}
+
 	return sp
 }
 
@@ -438,7 +443,17 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
 }
 
 func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
-	h.chunks[chunkID].set(it, recSize)
+	rotated := h.chunks[chunkID].set(it, recSize)
+	if rotated {
+		if mergeChan != nil {
+			select {
+			case mergeChan <- 1:
+			default:
+			}
+		} else {
+			h.trydump(chunkID, false)
+		}
+	}
 	if chunkID > h.maxChunkID {
 		h.Lock()
 		if chunkID > h.maxChunkID {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -45,23 +46,6 @@ type hintFileReader struct {
 	buf    [256]byte
 }
 
-func getMaxoffsetFromHint(path string) (offset uint32, err error) {
-	fd, err := os.Open(path)
-	if err != nil {
-		logger.Errorf(err.Error())
-		return
-	}
-	defer fd.Close()
-	b := make([]byte, 4)
-	_, err = fd.ReadAt(b, 12)
-	if err != nil {
-		logger.Errorf(err.Error())
-		return
-	}
-	offset = binary.LittleEndian.Uint32(b)
-	return
-}
-
 func newHintFileReader(path string, chunkID, bufsize int) (reader *hintFileReader) {
 	return &hintFileReader{
 		path:    path,
@@ -79,7 +63,7 @@ func (reader *hintFileReader) open() (err error) {
 	reader.rbuf = bufio.NewReaderSize(reader.fd, reader.bufsize)
 	h := reader.buf[:HINTFILE_HEAD_SIZE]
 	var readn int
-	readn, err = reader.fd.Read(h)
+	readn, err = io.ReadFull(reader.rbuf, h)
 	if err != nil {
 		logger.Errorf(err.Error())
 		return
@@ -109,7 +93,7 @@ func (reader *hintFileReader) next() (item *HintItem, err error) {
 	h := reader.buf[:HINTITEM_HEAD_SIZE]
 	item = new(HintItem)
 	var readn int
-	readn, err = reader.fd.Read(h)
+	readn, err = io.ReadFull(reader.rbuf, h)
 	if err != nil {
 		logger.Errorf(err.Error())
 		return
@@ -124,7 +108,7 @@ func (reader *hintFileReader) next() (item *HintItem, err error) {
 	item.Vhash = binary.LittleEndian.Uint16(h[16:18])
 	ksz := int(h[18])
 	key := reader.buf[:ksz]
-	readn, err = reader.fd.Read(key)
+	readn, err = io.ReadFull(reader.rbuf, key)
 	if err != nil {
 		logger.Errorf(err.Error())
 		return

@@ -9,7 +9,9 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"syscall"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -28,13 +30,15 @@ func init() {
 	//stats
 	http.HandleFunc("/requests", handleRequests)
 	http.HandleFunc("/buffers", handleBuffers)
+	http.HandleFunc("/memstats", handleMemStates)
+	http.HandleFunc("/rusage", handleRusage)
 
 	http.HandleFunc("/buckets", handleBuckets)
 
 	http.HandleFunc("/reload", handleReload)
 
+	// dir
 	http.HandleFunc("/collision/", handleCollision)
-
 }
 
 func initWeb() {
@@ -58,6 +62,8 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
     <a href='/config'> /config </a> <p/>
     <a href='/requests'> /requests </a> <p/>
     <a href='/buffers'> /buffers </a> <p/>
+    <a href='/memstats'> /memstats </a> <p/>
+    <a href='/rusage'> /rusage </a> <p/>
     <a href='/log'> /log </a> <p/>
     <a href='/buckets'> /buckets </a> <p/>
     <a href='/collision'> /collision </a> <p/>
@@ -99,6 +105,18 @@ func handleConfig(w http.ResponseWriter, r *http.Request) {
 
 func handleRequests(w http.ResponseWriter, r *http.Request) {
 	handleJson(w, mc.RL)
+}
+
+func handleRusage(w http.ResponseWriter, r *http.Request) {
+	var rusage syscall.Rusage
+	syscall.Getrusage(syscall.RUSAGE_SELF, &rusage)
+	handleJson(w, rusage)
+}
+
+func handleMemStates(w http.ResponseWriter, r *http.Request) {
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	handleJson(w, ms)
 }
 
 func handleBuffers(w http.ResponseWriter, r *http.Request) {
