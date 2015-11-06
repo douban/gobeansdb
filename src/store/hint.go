@@ -187,7 +187,12 @@ func (chunk *hintChunk) rotate() *hintSplit {
 	chunk.splits = append(chunk.splits, sp)
 	if n > 1 {
 		logger.Infof("hint rotate split to %d, chunk %d", n, chunk.id)
+		select {
+		case mergeChan <- 1:
+		default:
+		}
 	}
+
 	return sp
 }
 

@@ -19,6 +19,7 @@ hstore  do NOT known relation between khash and key
 var (
 	logger                 = loghub.Default
 	bucketPattern []string = []string{"0", "%x", "%02x", "%03x"}
+	mergeChan     chan int
 )
 
 type HStore struct {
@@ -135,6 +136,7 @@ func (store *HStore) getBucketPath(homeID, bucketID int) string {
 func NewHStore() (store *HStore, err error) {
 	store = new(HStore)
 	store.gcMgr = new(GCMgr)
+	mergeChan = make(chan int, 2)
 	store.buckets = make([]*Bucket, config.NumBucket)
 	for i := 0; i < config.NumBucket; i++ {
 		store.buckets[i] = &Bucket{id: i}
@@ -310,7 +312,11 @@ func (store *HStore) Incr(ki *KeyInfo, value int) int {
 
 func (store *HStore) merger(interval time.Duration) {
 	for {
-		<-time.After(interval)
+		select {
+		case _ = <-mergeChan:
+		case <-time.After(interval):
+		}
+
 		for _, bkt := range store.buckets {
 			if bkt.state > 0 {
 				bkt.hints.dumpAndMerge(false)
