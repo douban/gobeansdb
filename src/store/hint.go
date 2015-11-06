@@ -92,7 +92,6 @@ func newHintBuffer() *hintBuffer {
 	buf := &hintBuffer{}
 	buf.keys = make(map[string]int)
 	buf.keyhashs = make(map[uint64]bool)
-	buf.array = make([]*HintItem, hintConfig.SplitCount)
 	return buf
 }
 
@@ -101,6 +100,10 @@ func newHintSplit() *hintSplit {
 }
 
 func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
+	if len(h.keys) == 0 {
+		h.array = make([]*HintItem, hintConfig.SplitCount)
+	}
+
 	idx, found := h.keys[it.Key]
 	if !found {
 		h.expsize += len(it.Key) + 8*4 // meta and at least 4 pointers
