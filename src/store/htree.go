@@ -126,9 +126,18 @@ func (tree *HTree) dump(path string) {
 			return
 		}
 	}
+	minleaf := 1 << 30
+	maxleaf := 0
 	for i := 0; i < size; i++ {
 		leaf := tree.leafs[i]
-		binary.LittleEndian.PutUint32(buf[0:4], uint32(len(leaf)))
+		ll := len(leaf)
+		if ll > maxleaf {
+			maxleaf = ll
+		} else if ll < minleaf {
+			minleaf = ll
+		}
+
+		binary.LittleEndian.PutUint32(buf[0:4], uint32(ll))
 		if _, err := writer.Write(buf[:4]); err != nil {
 			logger.Errorf("write leafsize fail %s %s", path, err.Error())
 			return
@@ -143,6 +152,7 @@ func (tree *HTree) dump(path string) {
 		return
 	}
 	os.Rename(tmp, path)
+	logger.Debugf("dumped %s, min leaf %d, max leaf", path, minleaf, maxleaf)
 }
 
 func (tree *HTree) getHex(khash uint64, level int) int {
