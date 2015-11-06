@@ -12,10 +12,6 @@ import (
 	"time"
 )
 
-/*
- * hstore should NOT known relation between khash and key
- */
-
 var (
 	logger                 = loghub.Default
 	bucketPattern []string = []string{"0", "%x", "%02x", "%03x"}

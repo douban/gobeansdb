@@ -37,12 +37,12 @@ type HTree struct {
 	// depth is level (0-based) of root Node (of this htree) in hstore.tree
 	depth int
 
-	// pos is position of this htree in the list of htrees at same level.
-	// pos is equal to bucketID.
-	pos int
+	// bucketID is position (offset) of this htree in the list of htrees at same level.
+	bucketID int
 
 	/* runtime */
 
+	// level[0][0] is root of a htree,
 	// levels[i] is a list of nodes at same level `i` of htree,
 	// Node stores the summary info of its childs.
 	// Height of htree = len(levels)
@@ -51,23 +51,19 @@ type HTree struct {
 	// leafs is the place to store key related info (e.g. keyhash, version, vhash etc.)
 	leafs []bytesLeaf
 
-	// maxLeaf is the max number of bytesLeafs in a leaf node of the htree.
-	// It's just a statistical information, not a threshold.
-	maxLeaf int
-
 	// tmp, to avoid alloc
 	ni NodeInfo
 }
 
 type Node struct {
-	// count is the number of keys under this node.
+	// count is the number of keys (with version > 0) under this node.
 	count uint32
 
 	// hash is the summary of it's child nodes.
 	hash uint16
 
-	// isValid is true iff hash value of updated.
-	isValid bool
+	// isHashUpdated is true iff the hash value of node is updated.
+	isHashUpdated bool
 }
 
 type NodeInfo struct {
@@ -77,13 +73,13 @@ type NodeInfo struct {
 	path   []int
 }
 
-func newHTree(depth, pos, height int) *HTree {
+func newHTree(depth, bucketID, height int) *HTree {
 	if depth+height > MAX_DEPTH {
 		panic("HTree too high")
 	}
 	tree := new(HTree)
 	tree.depth = depth
-	tree.pos = pos
+	tree.bucketID = bucketID
 	tree.levels = make([][]Node, height)
 	size := 1
 	for i := 0; i < height; i++ {
@@ -93,7 +89,7 @@ func newHTree(depth, pos, height int) *HTree {
 	size /= 16
 	leafnodes := tree.levels[height-1]
 	for i := 0; i < size; i++ {
-		leafnodes[i].isValid = true
+		leafnodes[i].isHashUpdated = true
 	}
 	tree.leafs = make([]bytesLeaf, size)
 	return tree
@@ -224,10 +220,10 @@ func (tree *HTree) getLeafAndInvalidNodes(ki *KeyInfo, ni *NodeInfo) {
 
 	ni.offset = 0
 	path := ki.KeyPath[tree.depth:]
-	tree.levels[0][0].isValid = false
+	tree.levels[0][0].isHashUpdated = false
 	for level := 1; level < len(tree.levels)-1; level += 1 {
 		ni.offset = ni.offset*16 + path[level-1]
-		tree.levels[level][ni.offset].isValid = false
+		tree.levels[level][ni.offset].isHashUpdated = false
 	}
 	ni.offset = ni.offset*16 + path[ni.level-1]
 	ni.node = &tree.levels[ni.level][ni.offset]
@@ -273,9 +269,6 @@ func (tree *HTree) setReq(req *HTreeReq) {
 
 	tree.getLeafAndInvalidNodes(req.ki, &tree.ni)
 	tree.setLeaf(req, &tree.ni)
-	if int(tree.ni.node.count) > tree.maxLeaf {
-		tree.maxLeaf = int(tree.ni.node.count)
-	}
 }
 
 func (tree *HTree) get(ki *KeyInfo) (meta *Meta, pos Position, found bool) {
@@ -305,7 +298,7 @@ func (tree *HTree) Update() (node *Node) {
 
 func (tree *HTree) updateNodes(level, offset int) (node *Node) {
 	node = &tree.levels[level][offset]
-	if node.isValid {
+	if node.isHashUpdated {
 		return
 	}
 	node.count = 0
@@ -322,7 +315,7 @@ func (tree *HTree) updateNodes(level, offset int) (node *Node) {
 		}
 		node.hash += hashs[i]
 	}
-	node.isValid = true
+	node.isHashUpdated = true
 	return
 }
 
@@ -404,7 +397,7 @@ func (tree *HTree) ListDir(ki *KeyInfo) (ret []byte, err error) {
 }
 
 func (tree *HTree) ListTop() {
-	path := fmt.Sprintf("%x", tree.pos)
+	path := fmt.Sprintf("%x", tree.bucketID)
 	ki := &KeyInfo{
 		StringKey: path,
 		Key:       []byte(path),
