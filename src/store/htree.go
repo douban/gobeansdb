@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 )
@@ -82,15 +83,21 @@ func (tree *HTree) load(path string) (err error) {
 	leafnodes := tree.levels[htreeConfig.TreeHeight-1]
 	size := len(leafnodes)
 	for i := 0; i < size; i++ {
-		reader.Read(buf)
+		if _, err = io.ReadFull(reader, buf); err != nil {
+			return
+		}
 		leafnodes[i].count = binary.LittleEndian.Uint32(buf[0:4])
 		leafnodes[i].hash = binary.LittleEndian.Uint16(buf[4:6])
 	}
 	for i := 0; i < size; i++ {
-		reader.Read(buf[0:4])
-		l := binary.LittleEndian.Uint32(buf[0:4])
+		if _, err = io.ReadFull(reader, buf[:4]); err != nil {
+			return
+		}
+		l := int(binary.LittleEndian.Uint32(buf[:4]))
 		tree.leafs[i] = tree.leafs[i].enlarge(int(l))
-		reader.Read(tree.leafs[i])
+		if _, err = io.ReadFull(reader, tree.leafs[i]); err != nil {
+			return
+		}
 	}
 	tree.ListTop()
 	return nil
@@ -114,15 +121,27 @@ func (tree *HTree) dump(path string) {
 	for i := 0; i < size; i++ {
 		binary.LittleEndian.PutUint32(buf[0:4], leafnodes[i].count)
 		binary.LittleEndian.PutUint16(buf[4:6], leafnodes[i].hash)
-		writer.Write(buf)
+		if _, err := writer.Write(buf); err != nil {
+			logger.Errorf("write node fail %s %s", path, err.Error())
+			return
+		}
 	}
 	for i := 0; i < size; i++ {
 		leaf := tree.leafs[i]
 		binary.LittleEndian.PutUint32(buf[0:4], uint32(len(leaf)))
-		writer.Write(buf[:4])
-		writer.Write(leaf)
+		if _, err := writer.Write(buf[:4]); err != nil {
+			logger.Errorf("write leafsize fail %s %s", path, err.Error())
+			return
+		}
+		if _, err := writer.Write(leaf); err != nil {
+			logger.Errorf("write leaf fail %s %s", path, err.Error())
+			return
+		}
 	}
-	writer.Flush()
+	if err := writer.Flush(); err != nil {
+		logger.Errorf("flush htree fail %s %s", path, err.Error())
+		return
+	}
 	os.Rename(tmp, path)
 }
 
