@@ -49,7 +49,7 @@ type HTree struct {
 	levels [][]Node
 
 	// leafs is the place to store key related info (e.g. keyhash, version, vhash etc.)
-	leafs []bytesLeaf
+	leafs []SliceHeader
 
 	// tmp, to avoid alloc
 	ni NodeInfo
@@ -91,7 +91,7 @@ func newHTree(depth, bucketID, height int) *HTree {
 	for i := 0; i < size; i++ {
 		leafnodes[i].isHashUpdated = true
 	}
-	tree.leafs = make([]bytesLeaf, size)
+	tree.leafs = make([]SliceHeader, size)
 	return tree
 }
 
@@ -119,11 +119,14 @@ func (tree *HTree) load(path string) (err error) {
 			return
 		}
 		l := int(binary.LittleEndian.Uint32(buf[:4]))
-		tree.leafs[i] = tree.leafs[i].enlarge(int(l))
-		if _, err = io.ReadFull(reader, tree.leafs[i]); err != nil {
-			return
+		if l > 0 {
+			tree.leafs[i].enlarge(int(l))
+			if _, err = io.ReadFull(reader, tree.leafs[i].ToBytes()); err != nil {
+				return
+			}
 		}
 	}
+
 	tree.ListTop()
 	return nil
 }
@@ -155,7 +158,7 @@ func (tree *HTree) dump(path string) {
 	maxleaf := 0
 	for i := 0; i < size; i++ {
 		leaf := tree.leafs[i]
-		ll := len(leaf)
+		ll := leaf.Len
 		if ll > maxleaf {
 			maxleaf = ll
 		} else if ll < minleaf {
@@ -167,7 +170,7 @@ func (tree *HTree) dump(path string) {
 			logger.Errorf("write leafsize fail %s %s", path, err.Error())
 			return
 		}
-		if _, err := writer.Write(leaf); err != nil {
+		if _, err := writer.Write(leaf.ToBytes()); err != nil {
 			logger.Errorf("write leaf fail %s %s", path, err.Error())
 			return
 		}
@@ -188,8 +191,7 @@ func (tree *HTree) getHex(khash uint64, level int) int {
 
 func (tree *HTree) setLeaf(req *HTreeReq, ni *NodeInfo) {
 	node := ni.node
-	oldm, exist, newleaf := tree.leafs[ni.offset].Set(req, ni)
-	tree.leafs[ni.offset] = newleaf
+	oldm, exist := tree.leafs[ni.offset].Set(req, ni)
 
 	vhash := uint16(0)
 	if req.item.ver > 0 {

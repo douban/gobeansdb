@@ -26,7 +26,15 @@ const LEN_USE_C_FIND = 100
 
 // BlockArrayLeaf
 
-type bytesLeaf []byte
+type SliceHeader reflect.SliceHeader
+
+func (sh *SliceHeader) ToBytes() (b []byte) {
+	sb := (*SliceHeader)((unsafe.Pointer(&b)))
+	sb.Data = sh.Data
+	sb.Cap = sh.Cap
+	sb.Len = sh.Len
+	return
+}
 
 type ItemFunc func(uint64, *HTreeItem)
 
@@ -58,7 +66,7 @@ func bytesToKhash(b []byte) (khash uint64) {
 	return binary.LittleEndian.Uint64(b)
 }
 
-func (leaf bytesLeaf) find(req *HTreeReq, ni *NodeInfo) int {
+func findInBytes(leaf []byte, req *HTreeReq, ni *NodeInfo) int {
 	lenKHash := config.TreeKeyHashLen
 	lenItem := lenKHash + 10
 	size := len(leaf)
@@ -82,49 +90,38 @@ func (leaf bytesLeaf) find(req *HTreeReq, ni *NodeInfo) int {
 }
 
 // not filled with 0!
-func (leaf bytesLeaf) enlarge(size int) []byte {
-	var b []byte
-	src := (*reflect.SliceHeader)((unsafe.Pointer(&leaf)))
-	dst := (*reflect.SliceHeader)((unsafe.Pointer(&b)))
-	if leaf != nil {
-		dst.Data = uintptr(C.realloc(unsafe.Pointer(src.Data), C.size_t(size)))
+func (sh *SliceHeader) enlarge(size int) {
+	if sh.Len != 0 {
+		sh.Data = uintptr(C.realloc(unsafe.Pointer(sh.Data), C.size_t(size)))
 	} else {
-		dst.Data = uintptr(C.malloc(C.size_t(size)))
+		sh.Data = uintptr(C.malloc(C.size_t(size)))
 	}
-	dst.Cap = size
-	dst.Len = size
-	return b
+	sh.Cap = size
+	sh.Len = size
 }
 
-func (leaf bytesLeaf) enlarge2(size int) []byte {
-	tmp := make([]byte, size)
-	copy(tmp, []byte(leaf))
-	return tmp
-}
-
-func (leaf bytesLeaf) Set(req *HTreeReq, ni *NodeInfo) (oldm HTreeItem, exist bool, newLeaf bytesLeaf) {
+func (sh *SliceHeader) Set(req *HTreeReq, ni *NodeInfo) (oldm HTreeItem, exist bool) {
+	leaf := sh.ToBytes()
 	lenKHash := config.TreeKeyHashLen
-	idx := leaf.find(req, ni)
+	idx := findInBytes(leaf, req, ni)
 	exist = (idx >= 0)
 	var dst []byte
-	var tmp []byte
 	if exist {
 		bytesToItem(leaf[idx+lenKHash:], &oldm)
 		dst = leaf[idx:]
-		newLeaf = leaf
 	} else {
 		newSize := len(leaf) + lenKHash + 10
-		tmp = leaf.enlarge(newSize)
-		dst = tmp[len(leaf):]
-		newLeaf = tmp
+		sh.enlarge(newSize)
+		dst = sh.ToBytes()[len(leaf):]
 	}
 	khashToBytes(dst, req.ki.KeyHash)
 	itemToBytes(dst[lenKHash:], &req.item)
 	return
 }
 
-func (leaf bytesLeaf) Get(req *HTreeReq, ni *NodeInfo) (exist bool) {
-	idx := leaf.find(req, ni)
+func (sh *SliceHeader) Get(req *HTreeReq, ni *NodeInfo) (exist bool) {
+	leaf := sh.ToBytes()
+	idx := findInBytes(leaf, req, ni)
 	exist = (idx >= 0)
 	if exist {
 		//TODO
@@ -133,7 +130,8 @@ func (leaf bytesLeaf) Get(req *HTreeReq, ni *NodeInfo) (exist bool) {
 	return
 }
 
-func (leaf bytesLeaf) Iter(f ItemFunc, ni *NodeInfo) {
+func (sh *SliceHeader) Iter(f ItemFunc, ni *NodeInfo) {
+	leaf := sh.ToBytes()
 	lenKHash := config.TreeKeyHashLen
 	lenItem := lenKHash + 10
 	mask := config.TreeKeyHashMask

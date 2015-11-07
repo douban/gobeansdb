@@ -34,14 +34,16 @@ func TestBytes(t *testing.T) {
 }
 
 func TestLeafEnlarge(t *testing.T) {
-	var leaf bytesLeaf
-	leaf = leaf.enlarge(10)
+	var sh SliceHeader
+	sh.enlarge(10)
+	leaf := sh.ToBytes()
 	if len(leaf) != 10 {
-		t.Fatalf("%v", leaf)
+		t.Fatalf("%v %v", leaf, sh)
 	}
 	data := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	copy(leaf, data)
-	leaf = leaf.enlarge(20)
+	sh.enlarge(20)
+	leaf = sh.ToBytes()
 	if len(leaf) != 20 || 0 != bytes.Compare(leaf[:10], data) {
 		t.Fatalf("%v", leaf)
 	}
@@ -59,7 +61,8 @@ func TestLeaf(t *testing.T) {
 	lenKHash := config.TreeKeyHashLen
 	lenItem := lenKHash + 10
 
-	var leaf bytesLeaf
+	var sh SliceHeader
+	var leaf []byte
 	var base uint64 = 0xfe * (1 << 56)
 	N := 16
 	exist := true
@@ -79,9 +82,10 @@ func TestLeaf(t *testing.T) {
 	for i := 0; i < N; i++ {
 		ki.Prepare()
 		req.encode()
-		_, exist, leaf = leaf.Set(&req, &ni)
+		_, exist = sh.Set(&req, &ni)
+		leaf = sh.ToBytes()
 		if exist || len(leaf) != (i+1)*lenItem {
-			t.Fatalf("i = %d, leaf = %v, exist = %d", i, leaf, exist)
+			t.Fatalf("i = %d, leaf = %v, sh = %v, exist = %v", i, leaf, sh, exist)
 		}
 		req.Offset += PADDING
 		ki.KeyHash++
@@ -95,7 +99,8 @@ func TestLeaf(t *testing.T) {
 	for i := 0; i < N; i++ {
 		ki.Prepare()
 		req.encode()
-		_, exist, leaf = leaf.Set(&req, &ni)
+		_, exist = sh.Set(&req, &ni)
+		leaf = sh.ToBytes()
 		if !exist || len(leaf) != N*lenItem {
 			t.Fatalf("i = %d, leaf = %v, exist = %v", i, leaf, exist)
 		}
@@ -107,7 +112,7 @@ func TestLeaf(t *testing.T) {
 	reset()
 	for i := 0; i < N; i++ {
 		ki.Prepare()
-		found := leaf.Get(&req, &ni)
+		found := sh.Get(&req, &ni)
 		if !found || req.item.pos != (uint32(i)+shift)*PADDING {
 			t.Fatalf("i=%d, shift=%d, found=%v, req.item=%#v", i, shift, found, req.item)
 		}
@@ -122,5 +127,5 @@ func TestLeaf(t *testing.T) {
 		}
 		i += 1
 	}
-	leaf.Iter(f, &ni)
+	sh.Iter(f, &ni)
 }
