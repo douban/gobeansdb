@@ -414,7 +414,6 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 	if *tPort == 0 {
 		StopCpuProfile(pf)
 	}
-	logger.Infof("max leaf %d", tree.maxLeaf)
 	ListAll(tree, *tPos+"00000000")
 	WriteHeapProfile("BenchmarkHints")
 	if *tPort != 0 {

@@ -18,7 +18,8 @@ const (
 )
 
 type Bucket struct {
-	writeLock sync.Mutex // todo replace with hashlock later (crc)
+	// TODO: replace with hashlock later (crc)
+	writeLock sync.Mutex
 
 	// pre open init
 	state  int
