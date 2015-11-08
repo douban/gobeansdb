@@ -26,12 +26,15 @@ const LEN_USE_C_FIND = 100
 
 // BlockArrayLeaf
 
-type SliceHeader reflect.SliceHeader
+type SliceHeader struct {
+	Data uintptr
+	Len  int
+}
 
 func (sh *SliceHeader) ToBytes() (b []byte) {
-	sb := (*SliceHeader)((unsafe.Pointer(&b)))
+	sb := (*reflect.SliceHeader)((unsafe.Pointer(&b)))
 	sb.Data = sh.Data
-	sb.Cap = sh.Cap
+	sb.Cap = sh.Len
 	sb.Len = sh.Len
 	return
 }
@@ -96,7 +99,6 @@ func (sh *SliceHeader) enlarge(size int) {
 	} else {
 		sh.Data = uintptr(C.malloc(C.size_t(size)))
 	}
-	sh.Cap = size
 	sh.Len = size
 }
 
