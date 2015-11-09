@@ -25,15 +25,14 @@ func CCompress(src []byte) []byte {
 	return dst[:size]
 }
 
-func CDecompress(src []byte) []byte {
-	dst := make([]byte, len(src)+400)
+func CDecompress(src []byte, sizeD int) []byte {
+	dst := make([]byte, sizeD)
 	buf := make([]byte, DecompressBufferSize)
 	c_src := (*C.char)(unsafe.Pointer(&src[0]))
 	c_dst := (unsafe.Pointer(&dst[0]))
 	c_buf := (*C.char)(unsafe.Pointer(&buf[0]))
 	c_size := C.qlz_decompress(c_src, c_dst, c_buf)
-	size := int(c_size)
-	return dst[:size]
+	return dst[:int(c_size)]
 }
 
 func DecompressSafe(src []byte) (dst []byte, err error) {
@@ -68,13 +67,12 @@ func CDecompressSafe(src []byte) (dst []byte, err error) {
 			}
 		}
 	}()
-	c_src := (*C.char)(unsafe.Pointer(&src[0]))
-	sizeC := int(C.qlz_size_compressed(c_src))
+	sizeC := SizeCompressed(src)
 	if len(src) != sizeC {
 		return nil, fmt.Errorf("bad sizeCompressed, expect %d, got %d", sizeC, len(src))
 	}
-	sizeD := int(C.qlz_size_decompressed(c_src))
-	dst = Decompress(src)
+	sizeD := SizeDecompressed(src)
+	dst = CDecompress(src, sizeD)
 	if len(dst) != sizeD {
 		return nil, fmt.Errorf("bad sizeDecompressed, expect %d, got %d", sizeD, len(dst))
 	}
