@@ -35,7 +35,7 @@ var (
 
 	DefaultLocalConfig = LocalConfig{
 		Hostname:    "127.0.0.1",
-		Homes:       []string{"./test"},
+		Homes:       []string{"./testdb"},
 		maxOldChunk: 255,
 	}
 	//DefaultRouteConfig = route.RouteConfig{NumBucket: 256, Buckets: make([]int, 256)}
