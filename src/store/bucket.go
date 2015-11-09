@@ -379,11 +379,11 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		vhash = Getvhash(rec.Payload.Value)
 	}
 	hintit2 := newHintItem(ki.KeyHash, rec.Payload.Ver, vhash, pos, string(rec.Key))
-	bkt.hints.collisions.set(hintit2) // the one in htree
+	bkt.hints.collisions.compareAndSet(hintit2) // the one in htree
 
 	pos = Position{chunkID, hintit.Pos}
 	hintit.Pos = pos.encode()
-	bkt.hints.collisions.set(hintit) // the one not in htree
+	bkt.hints.collisions.compareAndSet(hintit) // the one not in htree
 
 	rec, err = bkt.getRecordByPos(pos)
 	if err != nil {

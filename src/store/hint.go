@@ -447,7 +447,7 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
 	if ok {
 		it2 := *it
 		it2.Pos |= uint32(pos.ChunkID)
-		h.collisions.set(&it2)
+		h.collisions.compareAndSet(&it2)
 	}
 	h.setItem(it, pos.ChunkID, recSize)
 }
