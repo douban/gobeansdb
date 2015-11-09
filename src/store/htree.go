@@ -189,9 +189,9 @@ func (tree *HTree) getHex(khash uint64, level int) int {
 	return int(0xf & (khash >> uint32(shift)))
 }
 
-func (tree *HTree) setLeaf(req *HTreeReq, ni *NodeInfo) {
+func (tree *HTree) setToLeaf(ni *NodeInfo, req *HTreeReq) {
 	node := ni.node
-	oldm, exist := tree.leafs[ni.offset].Set(req, ni)
+	oldm, exist := tree.leafs[ni.offset].Set(req)
 
 	vhash := uint16(0)
 	if req.item.ver > 0 {
@@ -203,6 +203,15 @@ func (tree *HTree) setLeaf(req *HTreeReq, ni *NodeInfo) {
 		node.count -= 1
 	}
 	node.hash += vhash * uint16(req.ki.KeyHash>>32)
+}
+
+func (tree *HTree) remvoeFromLeaf(ni *NodeInfo, ki *KeyInfo, oldPos Position) {
+	node := ni.node
+	oldm, removed := tree.leafs[ni.offset].Remove(ki, oldPos)
+	if removed && oldm.ver > 0 {
+		node.hash += oldm.vhash * uint16(ki.KeyHash>>32)
+		node.count -= 1
+	}
 }
 
 func (tree *HTree) getLeaf(ki *KeyInfo, ni *NodeInfo) {
@@ -270,7 +279,16 @@ func (tree *HTree) setReq(req *HTreeReq) {
 	defer tree.Unlock()
 
 	tree.getLeafAndInvalidNodes(req.ki, &tree.ni)
-	tree.setLeaf(req, &tree.ni)
+	tree.setToLeaf(&tree.ni, req)
+}
+
+// remove if same offset or oldPos.ChunkID = -1
+func (tree *HTree) remove(ki *KeyInfo, oldPos Position) {
+	tree.Lock()
+	defer tree.Unlock()
+
+	tree.getLeafAndInvalidNodes(ki, &tree.ni)
+	tree.remvoeFromLeaf(&tree.ni, ki, oldPos)
 }
 
 func (tree *HTree) get(ki *KeyInfo) (meta *Meta, pos Position, found bool) {
@@ -288,7 +306,7 @@ func (tree *HTree) getReq(req *HTreeReq) (found bool) {
 	ni := &tree.ni
 	tree.getLeaf(req.ki, ni)
 
-	found = tree.leafs[ni.offset].Get(req, ni)
+	found = tree.leafs[ni.offset].Get(req)
 	return
 }
 

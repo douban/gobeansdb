@@ -69,12 +69,12 @@ func bytesToKhash(b []byte) (khash uint64) {
 	return binary.LittleEndian.Uint64(b)
 }
 
-func findInBytes(leaf []byte, req *HTreeReq, ni *NodeInfo) int {
+func findInBytes(leaf []byte, keyhash uint64) int {
 	lenKHash := config.TreeKeyHashLen
 	lenItem := lenKHash + 10
 	size := len(leaf)
 	var khashBytes [8]byte
-	khashToBytes(khashBytes[0:], req.ki.KeyHash)
+	khashToBytes(khashBytes[0:], keyhash)
 	kb := khashBytes[:lenKHash]
 	n := len(leaf) / lenItem
 	if n < LEN_USE_C_FIND {
@@ -102,10 +102,10 @@ func (sh *SliceHeader) enlarge(size int) {
 	sh.Len = size
 }
 
-func (sh *SliceHeader) Set(req *HTreeReq, ni *NodeInfo) (oldm HTreeItem, exist bool) {
+func (sh *SliceHeader) Set(req *HTreeReq) (oldm HTreeItem, exist bool) {
 	leaf := sh.ToBytes()
 	lenKHash := config.TreeKeyHashLen
-	idx := findInBytes(leaf, req, ni)
+	idx := findInBytes(leaf, req.ki.KeyHash)
 	exist = (idx >= 0)
 	var dst []byte
 	if exist {
@@ -121,9 +121,25 @@ func (sh *SliceHeader) Set(req *HTreeReq, ni *NodeInfo) (oldm HTreeItem, exist b
 	return
 }
 
-func (sh *SliceHeader) Get(req *HTreeReq, ni *NodeInfo) (exist bool) {
+func (sh *SliceHeader) Remove(ki *KeyInfo, oldPos Position) (oldm HTreeItem, removed bool) {
 	leaf := sh.ToBytes()
-	idx := findInBytes(leaf, req, ni)
+	lenKHash := config.TreeKeyHashLen
+	itemLen := lenKHash + 10
+	idx := findInBytes(leaf, ki.KeyHash)
+	if idx >= 0 {
+		bytesToItem(leaf[idx+lenKHash:], &oldm)
+		if oldPos.ChunkID == -1 || oldm.pos&0xffffff00 == oldPos.Offset {
+			removed = true
+			copy(leaf[idx:], leaf[idx+itemLen:])
+			sh.Len -= itemLen
+		}
+	}
+	return
+}
+
+func (sh *SliceHeader) Get(req *HTreeReq) (exist bool) {
+	leaf := sh.ToBytes()
+	idx := findInBytes(leaf, req.ki.KeyHash)
 	exist = (idx >= 0)
 	if exist {
 		//TODO
