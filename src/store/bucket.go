@@ -353,9 +353,19 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		logger.Errorf("%s", err.Error())
 		return
 	} else if rec == nil {
+		err = fmt.Errorf("bad htree item, get nothing,  pos %v", pos)
+		logger.Errorf("%s", err.Error())
 		return
 	} else if bytes.Compare(rec.Key, ki.Key) == 0 {
 		payload = rec.Payload
+		return
+	}
+
+	keyhash := getKeyHash(rec.Key)
+	if keyhash != ki.KeyHash {
+		bkt.htree.remove(ki, pos)
+		err = fmt.Errorf("bad htree item %016x != %016x, pos %v", keyhash, ki.KeyHash, pos)
+		logger.Errorf("%s", err.Error())
 		return
 	}
 
