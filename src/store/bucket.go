@@ -101,14 +101,18 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 		if item == nil {
 			return
 		}
+		ki := NewKeyInfoFromBytes([]byte(item.Key), item.Keyhash, false)
+		ki.Prepare()
+		meta.ValueHash = item.Vhash
+		meta.Ver = item.Ver
+		pos.Offset = item.Pos
 		if item.Ver > 0 {
-			ki := NewKeyInfoFromBytes([]byte(item.Key), item.Keyhash, false)
-			ki.Prepare()
-			meta.ValueHash = item.Vhash
-			meta.Ver = item.Ver
-			pos.Offset = item.Pos
 			tree.set(ki, &meta, pos)
+		} else {
+			pos.ChunkID = -1
+			tree.remove(ki, pos)
 		}
+
 	}
 	return
 }
