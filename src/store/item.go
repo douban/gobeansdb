@@ -104,8 +104,8 @@ func (rec *Record) Compress() {
 	if p.Flag&FLAG_CLIENT_COMPRESS != 0 || p.Flag&FLAG_COMPRESS != 0 {
 		return
 	}
-	size := rec.Size()
-	if size < 256 {
+
+	if rec.Size() <= 256 {
 		return
 	}
 	v := quicklz.CCompress(rec.Payload.Value)

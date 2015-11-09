@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -255,8 +256,9 @@ func fillChunk(t *testing.T, dir string, hm *hintMgr, items []*HintItem, chunkID
 	logger.Infof("fill %d", chunkID)
 	n := len(items)
 	setAndCheckMgr(t, hm, items[0], chunkID)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 4)
 	hm.dumpAndMerge(false)
+	hm.Merge()
 	logger.Infof("check %d", chunkID)
 	checkFiles(t, dir, files)
 
@@ -272,6 +274,7 @@ func fillChunk(t *testing.T, dir string, hm *hintMgr, items []*HintItem, chunkID
 func TestHintMgr(t *testing.T) {
 	setupTest("testHintMgr", 0)
 	defer clearTest()
+	runtime.GOMAXPROCS(4)
 
 	persp := 10
 	SetHintConfig(HintConfig{SplitCount: int64(persp), IndexIntervalSize: 128, SecondsBeforeDump: 1})

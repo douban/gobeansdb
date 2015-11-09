@@ -266,10 +266,12 @@ type hintMgr struct {
 
 	maxDumpedHintID HintID
 
+	dumpLock           sync.Mutex
 	mergeLock          sync.Mutex
 	maxDumpableChunkID int
 	merged             *hintFileIndex
 	dumpAndMergeState  int
+	mergeing           bool
 
 	collisions *CollisionTable
 }
@@ -357,11 +359,11 @@ func (h *hintMgr) close() {
 }
 
 func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
-	h.mergeLock.Lock()
+	h.dumpLock.Lock()
 	h.dumpAndMergeState = HintStatetWorking
 	defer func() {
 		h.dumpAndMergeState = HintStateIdle
-		h.mergeLock.Unlock()
+		h.dumpLock.Unlock()
 		if err := recover(); err != nil {
 			logger.Errorf("Merge Error: %#v, stack: %s", err, loghub.GetStack(1000))
 		}
@@ -382,8 +384,8 @@ func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
 	if h.maxDumpableChunkID < MAX_CHUNK_ID { // gcing
 		return
 	}
-	if h.maxChunkID-h.collisions.Chunk > 1 {
-		h.Merge()
+	if !h.mergeing && (h.maxChunkID-h.collisions.Chunk > config.MergeChunkInterval) {
+		go h.Merge()
 	}
 	return
 }
@@ -397,6 +399,14 @@ func (h *hintMgr) RemoveMerged() {
 }
 
 func (h *hintMgr) Merge() (err error) {
+	h.mergeLock.Lock()
+	h.mergeing = true
+	st := time.Now()
+	defer func() {
+		logger.Infof("merged done, %#v, %s", h.collisions.HintID, time.Since(st))
+		h.mergeing = false
+		h.mergeLock.Unlock()
+	}()
 	h.RemoveMerged()
 
 	// TODO: check hint with datas!
@@ -437,7 +447,7 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
 	if ok {
 		it2 := *it
 		it2.Pos |= uint32(pos.ChunkID)
-		h.collisions.set(&it2)
+		h.collisions.compareAndSet(&it2)
 	}
 	h.setItem(it, pos.ChunkID, recSize)
 }

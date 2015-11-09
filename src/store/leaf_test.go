@@ -34,14 +34,16 @@ func TestBytes(t *testing.T) {
 }
 
 func TestLeafEnlarge(t *testing.T) {
-	var leaf bytesLeaf
-	leaf = leaf.enlarge(10)
+	var sh SliceHeader
+	sh.enlarge(10)
+	leaf := sh.ToBytes()
 	if len(leaf) != 10 {
-		t.Fatalf("%v", leaf)
+		t.Fatalf("%v %v", leaf, sh)
 	}
 	data := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 	copy(leaf, data)
-	leaf = leaf.enlarge(20)
+	sh.enlarge(20)
+	leaf = sh.ToBytes()
 	if len(leaf) != 20 || 0 != bytes.Compare(leaf[:10], data) {
 		t.Fatalf("%v", leaf)
 	}
@@ -49,17 +51,17 @@ func TestLeafEnlarge(t *testing.T) {
 
 func TestLeaf(t *testing.T) {
 	InitDefaultGlobalConfig()
-	var ni NodeInfo
 
 	config.NumBucket = 256
 	config.Init()
-	ni.path = []int{0xf, 0xe}
+
 	// lenKHash := KHASH_LENS[len(ni.path)]
 	// t.Logf("%d %d", lenKHash, config.TreeKeyHashLen)
 	lenKHash := config.TreeKeyHashLen
 	lenItem := lenKHash + 10
 
-	var leaf bytesLeaf
+	var sh SliceHeader
+	var leaf []byte
 	var base uint64 = 0xfe * (1 << 56)
 	N := 16
 	exist := true
@@ -79,9 +81,10 @@ func TestLeaf(t *testing.T) {
 	for i := 0; i < N; i++ {
 		ki.Prepare()
 		req.encode()
-		_, exist, leaf = leaf.Set(&req, &ni)
+		_, exist = sh.Set(&req)
+		leaf = sh.ToBytes()
 		if exist || len(leaf) != (i+1)*lenItem {
-			t.Fatalf("i = %d, leaf = %v, exist = %d", i, leaf, exist)
+			t.Fatalf("i = %d, leaf = %v, sh = %v, exist = %v", i, leaf, sh, exist)
 		}
 		req.Offset += PADDING
 		ki.KeyHash++
@@ -95,7 +98,8 @@ func TestLeaf(t *testing.T) {
 	for i := 0; i < N; i++ {
 		ki.Prepare()
 		req.encode()
-		_, exist, leaf = leaf.Set(&req, &ni)
+		_, exist = sh.Set(&req)
+		leaf = sh.ToBytes()
 		if !exist || len(leaf) != N*lenItem {
 			t.Fatalf("i = %d, leaf = %v, exist = %v", i, leaf, exist)
 		}
@@ -107,13 +111,27 @@ func TestLeaf(t *testing.T) {
 	reset()
 	for i := 0; i < N; i++ {
 		ki.Prepare()
-		found := leaf.Get(&req, &ni)
+		found := sh.Get(&req)
 		if !found || req.item.pos != (uint32(i)+shift)*PADDING {
 			t.Fatalf("i=%d, shift=%d, found=%v, req.item=%#v", i, shift, found, req.item)
 		}
-		req.Offset++
 		ki.KeyHash++
 	}
+
+	// remove
+	reset()
+	req.Offset += shift * PADDING
+	for i := 0; i < N; i++ {
+		ki.Prepare()
+		oldm, removed := sh.Remove(ki, Position{0, req.Offset})
+		if !removed || oldm.pos != req.Offset || sh.Len != lenItem*(N-i-1) {
+			t.Fatalf("i=%d, offset=%x, removed=%v, oldm =%#v, %v",
+				i, req.Offset, removed, oldm, sh.Len/lenItem)
+		}
+		req.Offset += PADDING
+		ki.KeyHash++
+	}
+
 	// iter
 	i := 0
 	f := func(h uint64, m *HTreeItem) {
@@ -122,5 +140,8 @@ func TestLeaf(t *testing.T) {
 		}
 		i += 1
 	}
-	leaf.Iter(f, &ni)
+
+	var ni NodeInfo
+	ni.path = []int{0xf, 0xe}
+	sh.Iter(f, &ni)
 }

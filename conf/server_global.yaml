@@ -16,6 +16,8 @@ hstore:
       secondsbeforedump: 60
       splitcountstr: 1k
       indexintervalsizestr: 4K
+      notdumpmerged: true
+      mergechunkinterval: 1
     htree:
       thresholdlistkey: 256
       thresholdbighash: 256

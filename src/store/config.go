@@ -15,6 +15,7 @@ var (
 		SplitCountStr:        "1k",
 		IndexIntervalSizeStr: "4K",
 		SecondsBeforeDump:    60,
+		MergeChunkInterval:   1,
 	}
 
 	DefaultHTreeConfig HTreeConfig = HTreeConfig{
@@ -115,10 +116,11 @@ type HTreeConfig struct {
 }
 
 type HintConfig struct {
-	NotDumpMerged     bool  `yaml:",omitempty"`
-	SplitCount        int64 `yaml:",omitempty"`
-	IndexIntervalSize int64 `yaml:",omitempty"`
-	SecondsBeforeDump int64 `yaml:",omitempty"`
+	NotDumpMerged      bool  `yaml:",omitempty"`
+	SplitCount         int64 `yaml:",omitempty"`
+	IndexIntervalSize  int64 `yaml:",omitempty"`
+	SecondsBeforeDump  int64 `yaml:",omitempty"`
+	MergeChunkInterval int   `yaml:",omitempty"`
 
 	// sizes
 	SplitCountStr        string `yaml:",omitempty"`
