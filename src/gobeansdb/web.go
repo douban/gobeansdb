@@ -120,10 +120,7 @@ func handleMemStates(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleBuffers(w http.ResponseWriter, r *http.Request) {
-	m := make(map[string]interface{})
-	m["sizesSetFlushGet"] = cmem.AllocedSize
-	m["countSetFlushGet"] = cmem.AllocedCount
-	handleJson(w, m)
+	handleJson(w, &cmem.DBRL)
 }
 
 func handleCollision(w http.ResponseWriter, r *http.Request) {

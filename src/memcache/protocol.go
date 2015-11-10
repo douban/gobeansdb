@@ -216,7 +216,7 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 		RL.Get(req)
 		// FIXME
 		item.AllocBody(length)
-		cmem.Add(cmem.TagSetData, length)
+		cmem.DBRL.SetData.AddSize(int64(length + len(req.Keys[0])))
 		if _, e = io.ReadFull(b, item.Body); e != nil {
 			return e
 		}
@@ -378,11 +378,12 @@ func (resp *Response) Write(w io.Writer) error {
 				fmt.Fprintf(w, "VALUE %s %d %d\r\n", key, item.Flag,
 					len(item.Body))
 			}
-			if e := WriteFull(w, item.Body); e != nil {
-				return e
-			}
+			e := WriteFull(w, item.Body)
 			if key[0] != '@' && key[0] != '?' {
-				cmem.Sub(cmem.TagGetData, len(item.Body))
+				cmem.DBRL.GetData.SubSize(int64(len(key) + len(item.Body)))
+			}
+			if e != nil {
+				return e
 			}
 			WriteFull(w, []byte("\r\n"))
 		}

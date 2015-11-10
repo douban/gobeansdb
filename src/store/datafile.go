@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"quicklz"
 )
 
 const (
@@ -106,13 +107,15 @@ func readRecordAt(f *os.File, offset uint32) (*WriteRecord, error) {
 		return nil, err
 	}
 	wrec.decodeHeader()
-	kv := make([]byte, wrec.ksz+wrec.vsz)
+	kvSize := int64(wrec.ksz + wrec.vsz)
+	kv := make([]byte, kvSize)
 
-	cmem.Add(cmem.TagGetData, int(wrec.vsz))
+	cmem.DBRL.GetData.AddSize(kvSize)
 	wrec.rec.Key = kv[:wrec.ksz]
 	wrec.rec.Payload.Value = kv[wrec.ksz:]
 	if n, err := f.ReadAt(kv, int64(offset)+recHeaderSize); err != nil {
 		logger.Infof(err.Error(), n)
+		cmem.DBRL.GetData.SubSize(int64(kvSize))
 		return nil, err
 	}
 
@@ -120,7 +123,14 @@ func readRecordAt(f *os.File, offset uint32) (*WriteRecord, error) {
 	if wrec.crc != crc {
 		err := fmt.Errorf("crc check fail")
 		logger.Infof(err.Error())
+		cmem.DBRL.GetData.SubSize(int64(kvSize))
 		return nil, err
+	}
+	wrec.rec.Payload.AccountingSize = kvSize
+	if wrec.rec.Payload.IsCompressed() {
+		diff := int64(quicklz.SizeDecompressed(wrec.rec.Payload.Value) - int(wrec.vsz))
+		cmem.DBRL.GetData.AddSize(diff)
+		wrec.rec.Payload.AccountingSize += diff
 	}
 	return wrec, nil
 }
@@ -166,6 +176,7 @@ func (stream *DataStreamReader) nextValid() (rec *Record, offset uint32, sizeBro
 			stream.fd.Seek(int64(offset3), 0)
 			stream.rbuf.Reset(stream.fd)
 			stream.offset = offset2 + rsize
+			cmem.DBRL.GetData.SubSize(wrec.rec.Payload.AccountingSize)
 			return wrec.rec, offset2, sizeBroken, nil
 		}
 		sizeBroken += 1

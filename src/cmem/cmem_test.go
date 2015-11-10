@@ -1,18 +1,9 @@
 package cmem
 
-import (
-	"runtime"
-	"testing"
-)
+import "testing"
 
 func TestCmem(t *testing.T) {
 	size := 1024 * 1024 * 10
 	s := Alloc(size)
 	Free(s, size)
-	if Alloced() != 0 {
-		runtime.Gosched()
-		if Alloced() != 0 {
-			t.Error("memory leak")
-		}
-	}
 }

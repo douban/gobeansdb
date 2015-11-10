@@ -82,12 +82,12 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	ds.filesizes[ds.newHead] += size
 	ds.wbufSize += size
 	if rec.Payload.Ver > 0 {
-		cmem.Sub(cmem.TagSetData, int(wrec.vsz))
+		cmem.DBRL.SetData.SubSize(rec.Payload.AccountingSize)
+		cmem.DBRL.FlushData.AddSize(rec.Payload.AccountingSize)
 	}
-	cmem.Add(cmem.TagFlushData, int(size))
-	if cmem.AllocedSize[cmem.TagFlushData] > int64(dataConfig.FlushSize) {
+	if cmem.DBRL.FlushData.Size > int64(dataConfig.FlushSize) {
 		select {
-		case cmem.Chans[cmem.TagFlushData] <- 1:
+		case cmem.DBRL.FlushData.Chan <- 1:
 		default:
 		}
 	}
@@ -134,7 +134,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		w.append(wrec)
 		size := wrec.rec.Payload.RecSize
 		ds.wbufSize -= size
-		cmem.Sub(cmem.TagFlushData, int(size))
+		cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
 	}
 	ds.Lock()
 	ds.wbufs[chunk] = ds.wbufs[chunk][n:]
@@ -152,6 +152,7 @@ func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
 		for _, wrec := range wbuf {
 			if wrec.pos.Offset == pos.Offset {
 				// TODO: otherwise may need ref count to release []byte?
+				cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
 				res = wrec.rec.Copy()
 			}
 		}

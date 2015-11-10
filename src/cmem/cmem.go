@@ -7,46 +7,42 @@ import "C"
 import "unsafe"
 import "sync/atomic"
 
-const (
-	TagSetData = iota
-	TagFlushData
-	TagGetData
-	TagGuard
-)
-
-type Config struct {
-	NumReqToken int
-	AllocLimit  int
+type ResourceLimiter struct {
+	Count    int64
+	Size     int64
+	MaxCount int64
+	MaxSize  int64
+	Chan     chan int `json:"-"`
 }
 
-var GConfig = Config{
-	16,
-	1024 * 4,
+func (rl *ResourceLimiter) reset() {
+	*rl = ResourceLimiter{}
+	rl.Chan = make(chan int, 1)
 }
 
-var (
-	AllocedSize  []int64 = make([]int64, TagGuard)
-	AllocedCount []int64 = make([]int64, TagGuard)
-	Chans        []chan int
-)
-
-func init() {
-	Chans = make([]chan int, TagGuard)
-	for i := 0; i < TagGuard; i++ {
-		Chans[i] = make(chan int, 1)
+func (rl *ResourceLimiter) AddSize(size int64) {
+	//log.Printf("add %d %d", tag, size)
+	atomic.AddInt64(&rl.Size, int64(size))
+	atomic.AddInt64(&rl.Count, 1)
+	if rl.Size > rl.MaxSize {
+		rl.MaxSize = rl.Size
+	}
+	if rl.Count > rl.MaxCount {
+		rl.MaxCount = rl.Count
 	}
 }
 
-func Add(tag int, size int) {
+func (rl *ResourceLimiter) SubSize(size int64) {
 	//log.Printf("add %d %d", tag, size)
-	atomic.AddInt64(&AllocedSize[tag], int64(size))
-	atomic.AddInt64(&AllocedCount[tag], 1)
+	atomic.AddInt64(&rl.Size, -int64(size))
+	atomic.AddInt64(&rl.Count, -1)
 }
 
-func Sub(tag int, size int) {
-	//log.Printf("sub %d %d", tag, size)
-	atomic.AddInt64(&AllocedSize[tag], -int64(size))
-	atomic.AddInt64(&AllocedCount[tag], -1)
+func (rl *ResourceLimiter) AddCount(count int64) {
+	atomic.AddInt64(&rl.Count, count)
+	if rl.Count > rl.MaxCount {
+		rl.MaxCount = rl.Count
+	}
 }
 
 func Alloc(size int) *byte {
@@ -55,12 +51,4 @@ func Alloc(size int) *byte {
 
 func Free(ptr *byte, size int) {
 	C.free(unsafe.Pointer(ptr))
-}
-
-func Alloced() int64 {
-	var allocedAll int64
-	for i := 0; i < TagGuard; i++ {
-		allocedAll += AllocedSize[i]
-	}
-	return int64(allocedAll)
 }
