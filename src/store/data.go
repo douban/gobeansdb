@@ -167,7 +167,11 @@ func (ds *dataStore) GetRecordByPosInBuffer(pos Position) (res *Record, err erro
 
 func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
 	res, err = ds.GetRecordByPosInBuffer(pos)
-	if err != nil || res != nil {
+	if err != nil {
+		return
+	}
+	if res != nil {
+		res.Payload.Decompress()
 		return
 	}
 	wrec, e := readRecordAtPath(ds.genPath(pos.ChunkID), pos.Offset)
