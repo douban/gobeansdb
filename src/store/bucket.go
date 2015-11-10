@@ -287,7 +287,7 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	}
 	if payload != nil {
 		oldv = payload.Ver
-		if oldv > 0 {
+		if config.CheckValueHash && oldv > 0 {
 			vhash := Getvhash(v.Value)
 			if vhash == payload.ValueHash {
 				return nil
