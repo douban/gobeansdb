@@ -131,6 +131,7 @@ func (store *HStore) getBucketPath(homeID, bucketID int) string {
 
 func NewHStore() (store *HStore, err error) {
 	mergeChan = nil
+	cmem.DBRL.ResetAll()
 	st := time.Now()
 	store = new(HStore)
 	store.gcMgr = new(GCMgr)
@@ -190,7 +191,7 @@ func (store *HStore) Flusher() {
 
 	for {
 		select {
-		case <-cmem.Chans[cmem.TagFlushData]:
+		case <-cmem.DBRL.FlushData.Chan:
 		case <-time.After(time.Duration(dataConfig.DataFlushSec) * time.Second):
 		}
 		store.flushdatas(false)
@@ -295,6 +296,7 @@ func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Posit
 }
 
 func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
+	p.AccountingSize = int64(len(p.Value) + len(ki.Key))
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
 	return store.buckets[ki.BucketID].checkAndSet(ki, p)

@@ -30,6 +30,7 @@ var (
 		DataFlushSec:    5, // 5s
 		FlushSizeStr:    "4M",
 		FlushSizeMin:    256,
+		CheckValueHash:  false,
 	}
 
 	DefaultLocalConfig = LocalConfig{
@@ -100,6 +101,8 @@ type DataConfig struct {
 	DataFlushSec int   `yaml:",omitempty"`
 	FlushSize    int64 `yaml:"-"`
 	FlushSizeMin int   `yaml:",omitempty"`
+
+	CheckValueHash bool `yaml:",omitempty"`
 
 	// sizes
 

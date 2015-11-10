@@ -2,7 +2,6 @@ package store
 
 import (
 	"bytes"
-	"cmem"
 	"fmt"
 	"quicklz"
 )
@@ -22,6 +21,9 @@ type Meta struct {
 	// computed once
 	ValueHash uint16
 	RecSize   uint32
+	// not change, make accounting easier
+	// = ksz + vsz
+	AccountingSize int64
 }
 
 type HTreeReq struct {
@@ -110,7 +112,6 @@ func (rec *Record) Compress() {
 	}
 	v := quicklz.CCompress(rec.Payload.Value)
 	if float32(len(v))/float32(len(p.Value)) < COMPRESS_RATIO_LIMIT {
-		cmem.Sub(cmem.TagSetData, len(p.Value)-len(v))
 		p.Value = v
 		p.Flag += FLAG_COMPRESS
 	}
@@ -121,12 +122,10 @@ func (p *Payload) Decompress() (err error) {
 		return
 	}
 
-	v, err := quicklz.CDecompressSafe(p.Value)
+	p.Value, err = quicklz.CDecompressSafe(p.Value)
 	if err != nil {
 		return
 	}
-	cmem.Sub(cmem.TagGetData, len(p.Value)-len(v))
-	p.Value = v
 	p.Flag -= FLAG_COMPRESS
 	return
 }

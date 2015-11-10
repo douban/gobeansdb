@@ -5,6 +5,7 @@ import (
 	"cmem"
 	"fmt"
 	"os"
+	"sort"
 	"sync"
 	"time"
 )
@@ -82,12 +83,12 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	ds.filesizes[ds.newHead] += size
 	ds.wbufSize += size
 	if rec.Payload.Ver > 0 {
-		cmem.Sub(cmem.TagSetData, int(wrec.vsz))
+		cmem.DBRL.SetData.SubSize(rec.Payload.AccountingSize)
+		cmem.DBRL.FlushData.AddSize(rec.Payload.AccountingSize)
 	}
-	cmem.Add(cmem.TagFlushData, int(size))
-	if cmem.AllocedSize[cmem.TagFlushData] > int64(dataConfig.FlushSize) {
+	if cmem.DBRL.FlushData.Size > int64(dataConfig.FlushSize) {
 		select {
-		case cmem.Chans[cmem.TagFlushData] <- 1:
+		case cmem.DBRL.FlushData.Chan <- 1:
 		default:
 		}
 	}
@@ -134,7 +135,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		w.append(wrec)
 		size := wrec.rec.Payload.RecSize
 		ds.wbufSize -= size
-		cmem.Sub(cmem.TagFlushData, int(size))
+		cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
 	}
 	ds.Lock()
 	ds.wbufs[chunk] = ds.wbufs[chunk][n:]
@@ -143,21 +144,34 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	return w.Close()
 }
 
-func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
-	res = nil
+func (ds *dataStore) GetRecordByPosInBuffer(pos Position) (res *Record, err error) {
 	ds.Lock()
+	defer ds.Unlock()
+
 	wbuf := ds.wbufs[pos.ChunkID]
 	n := len(wbuf)
 	if n > 0 && pos.Offset >= wbuf[0].pos.Offset {
-		for _, wrec := range wbuf {
-			if wrec.pos.Offset == pos.Offset {
-				// TODO: otherwise may need ref count to release []byte?
-				res = wrec.rec.Copy()
-			}
+		idx := sort.Search(n, func(i int) bool { return wbuf[i].pos.Offset >= pos.Offset })
+		wrec := wbuf[idx]
+		if wrec.pos.Offset == pos.Offset {
+			cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
+			res = wrec.rec.Copy()
+			return
+		} else {
+			err = fmt.Errorf("rec should in buffer, but not, pos = %#v", pos)
+			return
 		}
 	}
-	ds.Unlock()
+	return
+}
+
+func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
+	res, err = ds.GetRecordByPosInBuffer(pos)
+	if err != nil {
+		return
+	}
 	if res != nil {
+		res.Payload.Decompress()
 		return
 	}
 	wrec, e := readRecordAtPath(ds.genPath(pos.ChunkID), pos.Offset)

@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -216,7 +217,7 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 		RL.Get(req)
 		// FIXME
 		item.AllocBody(length)
-		cmem.Add(cmem.TagSetData, length)
+		cmem.DBRL.SetData.AddSize(int64(length + len(req.Keys[0])))
 		if _, e = io.ReadFull(b, item.Body); e != nil {
 			return e
 		}
@@ -378,11 +379,12 @@ func (resp *Response) Write(w io.Writer) error {
 				fmt.Fprintf(w, "VALUE %s %d %d\r\n", key, item.Flag,
 					len(item.Body))
 			}
-			if e := WriteFull(w, item.Body); e != nil {
-				return e
-			}
+			e := WriteFull(w, item.Body)
 			if key[0] != '@' && key[0] != '?' {
-				cmem.Sub(cmem.TagGetData, len(item.Body))
+				cmem.DBRL.GetData.SubSize(int64(len(key) + len(item.Body)))
+			}
+			if e != nil {
+				return e
 			}
 			WriteFull(w, []byte("\r\n"))
 		}
@@ -447,16 +449,17 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 				resp.msg = err.Error()
 				return
 			}
-			stat.cmd_get += int64(len(req.Keys))
-			stat.get_hits += int64(len(resp.items))
-			stat.get_misses += int64(len(req.Keys) - len(resp.items))
+			atomic.AddInt64(&stat.cmd_get, int64(len(req.Keys)))
+			atomic.AddInt64(&stat.get_hits, int64(len(resp.items)))
+			atomic.AddInt64(&stat.get_misses, int64(len(req.Keys)-len(resp.items)))
+
 			bytes := int64(0)
 			for _, item := range resp.items {
 				bytes += int64(len(item.Body))
 			}
 			stat.bytes_written += bytes
 		} else {
-			stat.cmd_get++
+			atomic.AddInt64(&stat.cmd_get, 1)
 			key := req.Keys[0]
 			var item *Item
 			item, err = store.Get(key)
@@ -466,11 +469,11 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 				return
 			}
 			if item == nil {
-				stat.get_misses++
+				atomic.AddInt64(&stat.get_misses, 1)
 			} else {
 				resp.items = make(map[string]*Item, 1)
 				resp.items[key] = item
-				stat.get_hits++
+				atomic.AddInt64(&stat.get_hits, 1)
 				stat.bytes_written += int64(len(item.Body))
 			}
 		}
@@ -485,7 +488,7 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			break
 		}
 
-		stat.cmd_set++
+		atomic.AddInt64(&stat.cmd_set, 1)
 		stat.bytes_read += int64(len(req.Item.Body))
 		if suc {
 			resp.status = "STORED"
@@ -503,7 +506,7 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			return
 		}
 
-		stat.cmd_set++
+		atomic.AddInt64(&stat.cmd_set, 1)
 		stat.bytes_read += int64(len(req.Item.Body))
 		if suc {
 			resp.status = "STORED"
@@ -512,7 +515,7 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 		}
 
 	case "incr":
-		stat.cmd_set++
+		atomic.AddInt64(&stat.cmd_set, 1)
 		stat.bytes_read += int64(len(req.Item.Body))
 		resp.noreply = req.NoReply
 		key := req.Keys[0]

@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"cmem"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -286,7 +287,7 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	}
 	if payload != nil {
 		oldv = payload.Ver
-		if oldv > 0 {
+		if config.CheckValueHash && oldv > 0 {
 			vhash := Getvhash(v.Value)
 			if vhash == payload.ValueHash {
 				return nil
@@ -366,8 +367,11 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		bkt.htree.remove(ki, pos)
 		err = fmt.Errorf("bad htree item %016x != %016x, pos %v", keyhash, ki.KeyHash, pos)
 		logger.Errorf("%s", err.Error())
+		cmem.DBRL.GetData.SubSize(rec.Payload.AccountingSize)
 		return
 	}
+
+	// here: same key hash, diff key
 
 	hintit, chunkID, err := bkt.hints.getItem(ki.KeyHash, ki.StringKey, false)
 	if err != nil || hintit == nil {
@@ -402,6 +406,7 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 	}
 
 	if payload != nil {
+		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
 		s := string(payload.Value)
 		if payload.Flag != FLAG_INCR {
 			logger.Errorf("incr with flag 0x%x", payload.Flag)

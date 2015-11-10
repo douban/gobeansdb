@@ -162,6 +162,7 @@ func testHStore(t *testing.T, op, numbucket int) {
 			t.Fatal(err)
 		}
 	}
+	logger.Infof("set done")
 	switch op {
 	case 1:
 		store.flushdatas(true)
