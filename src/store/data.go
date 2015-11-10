@@ -5,6 +5,7 @@ import (
 	"cmem"
 	"fmt"
 	"os"
+	"sort"
 	"sync"
 	"time"
 )
@@ -143,22 +144,30 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	return w.Close()
 }
 
-func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
-	res = nil
+func (ds *dataStore) GetRecordByPosInBuffer(pos Position) (res *Record, err error) {
 	ds.Lock()
+	defer ds.Unlock()
+
 	wbuf := ds.wbufs[pos.ChunkID]
 	n := len(wbuf)
 	if n > 0 && pos.Offset >= wbuf[0].pos.Offset {
-		for _, wrec := range wbuf {
-			if wrec.pos.Offset == pos.Offset {
-				// TODO: otherwise may need ref count to release []byte?
-				cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
-				res = wrec.rec.Copy()
-			}
+		idx := sort.Search(n, func(i int) bool { return wbuf[i].pos.Offset >= pos.Offset })
+		wrec := wbuf[idx]
+		if wrec.pos.Offset == pos.Offset {
+			cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
+			res = wrec.rec.Copy()
+			return
+		} else {
+			err = fmt.Errorf("rec should in buffer, but not, pos = %#v", pos)
+			return
 		}
 	}
-	ds.Unlock()
-	if res != nil {
+	return
+}
+
+func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
+	res, err = ds.GetRecordByPosInBuffer(pos)
+	if err != nil || res != nil {
 		return
 	}
 	wrec, e := readRecordAtPath(ds.genPath(pos.ChunkID), pos.Offset)
