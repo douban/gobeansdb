@@ -53,8 +53,8 @@ type StorageClient struct {
 
 func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, error) {
 	defer handlePanic("set")
-	if key[0] == '?' || key[0] == '@' {
-		return false, fmt.Errorf("invalid key %s", key)
+	if !store.IsValidKeyString(key) {
+		return false, nil
 	}
 	ki := s.prepare(key, false)
 	payload := &store.Payload{}
@@ -128,7 +128,6 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 
 	defer handlePanic("get")
 	if key[0] == '@' {
-
 		if len(key) > 1 && key[1] == '@' {
 			key2 := key[2:]
 			if len(key2) != 16 {
@@ -167,12 +166,15 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 			} else {
 				key = key[1:]
 			}
-
+			if !store.IsValidKeyString(key) {
+				return nil, nil
+			}
 		} else {
 			return nil, fmt.Errorf("bad key %s", key)
 		}
 		return s.getMeta(key, extended)
 	}
+
 	ki := s.prepare(key, false)
 	payload, _, err := s.hstore.Get(ki, false)
 	if err != nil {
@@ -210,8 +212,8 @@ func (s *StorageClient) Append(key string, value []byte) (bool, error) {
 
 func (s *StorageClient) Incr(key string, value int) (int, error) {
 	defer handlePanic("delete")
-	if key[0] == '?' || key[0] == '@' {
-		return 0, fmt.Errorf("invalid key %s", key)
+	if !store.IsValidKeyString(key) {
+		return 0, nil
 	}
 	ki := s.prepare(key, false)
 	newvalue := s.hstore.Incr(ki, value)
@@ -221,7 +223,7 @@ func (s *StorageClient) Incr(key string, value int) (int, error) {
 func (s *StorageClient) Delete(key string) (bool, error) {
 	defer handlePanic("delete")
 	if !store.IsValidKeyString(key) {
-		return false, fmt.Errorf("invalid key %s", key)
+		return false, nil
 	}
 	ki := s.prepare(key, false)
 	payload := &store.Payload{}
@@ -254,21 +256,25 @@ func (s *StorageClient) Process(cmd string, args []string) (status string, msg s
 	case "gc":
 		l := len(args)
 		if !(l == 2 || l == 3) || args[0][0] != '@' {
+			ok = true
 			return
 		}
 		bucket, err := strconv.ParseUint(args[0][1:], 16, 32)
 		if err != nil || bucket < 0 {
+			ok = true
 			return
 		}
 
 		start, err := strconv.Atoi(args[1])
 		if err != nil {
+			ok = true
 			return
 		}
 		end := -1
 		if l == 3 {
 			end, err = strconv.Atoi(args[2])
 			if err != nil {
+				ok = true
 				return
 			}
 		}
@@ -276,10 +282,11 @@ func (s *StorageClient) Process(cmd string, args []string) (status string, msg s
 		if err != nil {
 			status = "ERROR"
 			msg = err.Error()
+		} else {
+			status = "OK"
+			msg = ""
+			ok = true
 		}
-		status = "OK"
-		msg = ""
-		ok = true
 	case "optimize_stat":
 		msg = ""
 		ok = true

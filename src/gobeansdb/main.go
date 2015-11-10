@@ -38,8 +38,8 @@ func handleSignals() {
 	}(sch)
 }
 
-func initHomes(Homes []string) {
-	for _, s := range Homes {
+func initHomes(homes []string) {
+	for _, s := range homes {
 		os.Mkdir(s, os.ModePerm)
 	}
 }

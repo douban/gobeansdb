@@ -533,12 +533,8 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			break
 		}
 
-		if result > 0 {
-			resp.status = "INCR"
-			resp.msg = strconv.Itoa(result)
-		} else {
-			resp.status = "NOT_FOUND"
-		}
+		resp.status = "INCR"
+		resp.msg = strconv.Itoa(result)
 
 	case "delete":
 		key := req.Keys[0]
