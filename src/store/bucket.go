@@ -422,6 +422,10 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 			return 0
 		}
 		value += v
+	} else {
+		payload = &Payload{}
+		payload.Flag = FLAG_INCR
+		payload.Ver = 1
 	}
 	s := strconv.Itoa(value)
 	payload.TS = uint32(time.Now().Unix())

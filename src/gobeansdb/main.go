@@ -38,6 +38,12 @@ func handleSignals() {
 	}(sch)
 }
 
+func initHomes(homes []string) {
+	for _, s := range homes {
+		os.Mkdir(s, os.ModePerm)
+	}
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	var confdir = flag.String("confdir", "", "path of server config dir")
@@ -50,6 +56,7 @@ func main() {
 		dumpConfigs()
 		return
 	}
+	initHomes(store.GetConfig().LocalConfig.Homes)
 
 	log.Printf("gorivendb version %s starting at %d, config: %#v", mc.VERSION, config.Port, config)
 	runtime.GOMAXPROCS(config.Threads)

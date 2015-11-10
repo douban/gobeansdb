@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	mc "memcache"
-	"os"
 	"route"
 	"store"
 
@@ -68,8 +67,6 @@ func loadConfigs(confdir string) {
 
 		config.HStoreConfig.RouteConfig = rt.GetServerConfig(config.Addr)
 		log.Printf("route table: %#v", rt)
-	} else {
-		os.MkdirAll("./test", 0777)
 	}
 	// config store
 	err := config.HStoreConfig.Init()

@@ -112,7 +112,7 @@ var reqTests = []reqTest{
 	},
 	reqTest{
 		"incr nn 7\r\n",
-		"NOT_FOUND\r\n",
+		"7\r\n",
 	},
 
 	reqTest{
@@ -162,7 +162,7 @@ func TestRequest(t *testing.T) {
 		ans := wr.String()
 		if test.anwser != ans {
 			fmt.Print(req, resp)
-			t.Errorf("test %d: expect %s[%d], bug got %s[%d]\n", i,
+			t.Errorf("test %d(%#v): expect %#v[%d], bug got %#v[%d]\n", i, test.cmd,
 				test.anwser, len(test.anwser), ans, len(ans))
 		}
 		req.Clear()

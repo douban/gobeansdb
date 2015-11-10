@@ -99,7 +99,7 @@ func (s *mapStore) Incr(key string, v int) (n int, err error) {
 		n += v
 		r.Body = []byte(strconv.Itoa(n))
 	} else {
-		n = 0
+		n = v
 	}
 	return
 }

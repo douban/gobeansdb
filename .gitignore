@@ -2,6 +2,7 @@
 *.o
 *.a
 *.so
+*.py[co]
 
 # Folders
 _obj
@@ -11,6 +12,7 @@ src/gobeansdb/gobeansdb
 src/gopkg.in/
 bin/
 src/github.com/
+venv/
 
 # Architecture specific extensions/prefixes
 *.[568vq]

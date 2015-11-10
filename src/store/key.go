@@ -1,8 +1,8 @@
 package store
 
 import (
-	"fmt"
 	"strconv"
+	"unicode"
 
 	"github.com/spaolacci/murmur3"
 )
@@ -18,7 +18,24 @@ var (
 type HashFuncType func(key []byte) uint64
 
 func IsValidKeyString(key string) bool {
-	return !(key[0] == '?' || key[0] == '@')
+	length := len(key)
+	if length == 0 || length > MAX_KEY_LEN {
+		logger.Errorf("bad key len=%d", length)
+		return false
+	}
+
+	if key[0] <= ' ' || key[0] == '?' || key[0] == '@' {
+		logger.Errorf("bad key len=%d key[0]=%x", length, key[0])
+		return false
+	}
+
+	for _, r := range key {
+		if unicode.IsControl(r) || unicode.IsSpace(r) {
+			logger.Errorf("bad key len=%d %s", length, key)
+			return false
+		}
+	}
+	return true
 }
 
 func murmur(data []byte) (h uint32) {
@@ -82,13 +99,6 @@ func ParsePathString(pathStr string, buf []int) ([]int, error) {
 		path[i] = int(idx)
 	}
 	return path, nil
-}
-
-func checkKey(key []byte) error {
-	if len(key) > MAX_KEY_LEN {
-		return fmt.Errorf("key too long: %s", string(key))
-	}
-	return nil
 }
 
 func NewKeyInfoFromBytes(key []byte, keyhash uint64, keyIsPath bool) (ki *KeyInfo) {
