@@ -114,7 +114,7 @@ func readRecordAt(f *os.File, offset uint32) (*WriteRecord, error) {
 	wrec.rec.Key = kv[:wrec.ksz]
 	wrec.rec.Payload.Value = kv[wrec.ksz:]
 	if n, err := f.ReadAt(kv, int64(offset)+recHeaderSize); err != nil {
-		logger.Infof(err.Error(), n)
+		logger.Infof("%s, %d", err.Error(), n)
 		cmem.DBRL.GetData.SubSize(int64(kvSize))
 		return nil, err
 	}
