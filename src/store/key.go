@@ -20,18 +20,18 @@ type HashFuncType func(key []byte) uint64
 func IsValidKeyString(key string) bool {
 	length := len(key)
 	if length == 0 || length > MAX_KEY_LEN {
-		logger.Errorf("bad key len=%d", length)
+		logger.Warnf("bad key len=%d", length)
 		return false
 	}
 
 	if key[0] <= ' ' || key[0] == '?' || key[0] == '@' {
-		logger.Errorf("bad key len=%d key[0]=%x", length, key[0])
+		logger.Warnf("bad key len=%d key[0]=%x", length, key[0])
 		return false
 	}
 
 	for _, r := range key {
 		if unicode.IsControl(r) || unicode.IsSpace(r) {
-			logger.Errorf("bad key len=%d %s", length, key)
+			logger.Warnf("bad key len=%d %s", length, key)
 			return false
 		}
 	}

@@ -416,16 +416,16 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
 		s := string(payload.Body)
 		if payload.Flag != FLAG_INCR {
-			logger.Errorf("incr with flag 0x%x", payload.Flag)
+			logger.Warnf("incr with flag 0x%x", payload.Flag)
 			return 0
 		}
 		if len(s) > 22 {
-			logger.Errorf("incr with value %s", s)
+			logger.Warnf("incr with value %s", s)
 			return 0
 		}
 		v, err := strconv.Atoi(s)
 		if err != nil {
-			logger.Errorf("incr with value %s", s)
+			logger.Warnf("incr with value %s", s)
 			return 0
 		}
 		value += v

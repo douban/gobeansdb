@@ -80,7 +80,7 @@ func loadConfigs(confdir string) {
 	cmem.MemConfig = config.Config
 	// config mc
 	mc.MaxKeyLength = config.HStoreConfig.MaxKeySize
-	mc.MaxBodyLength = int(config.HStoreConfig.MaxValueSize)
+	mc.MaxValueSize = int(config.HStoreConfig.MaxValueSize)
 }
 
 func dumpConfigs() {

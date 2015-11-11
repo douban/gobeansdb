@@ -60,6 +60,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			resp.CleanBuffer()
 		}
 	}()
+
 	err = req.Read(c.rbuf)
 
 	t := time.Now()
@@ -77,7 +78,10 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 				return
 			}
 		} else {
-			return
+			resp = new(Response)
+			resp.status = "CLIENT_ERROR"
+			resp.msg = err.Error()
+			err = nil
 		}
 
 	} else {
