@@ -16,5 +16,12 @@ test:dep
 	go test quicklz
 	go test store
 
+# Only for local test now.
+# Need start a gobeansdb server on port 7900
+pytest:
+	virtualenv venv
+	venv/bin/pip install -r tests/integrated_test/pip-req.txt
+	venv/bin/nosetests -v
+
 install:
 	go install gobeansdb
