@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"cmem"
 	"fmt"
 	"quicklz"
 )
@@ -58,14 +59,17 @@ func newHintItem(khash uint64, ver int32, vhash uint16, pos Position, key string
 
 type Payload struct {
 	Meta
-	Value []byte
+	cmem.CArray
 }
 
 func (p *Payload) Copy() *Payload {
 	p2 := new(Payload)
 	p2.Meta = p.Meta
-	p2.Value = make([]byte, len(p.Value))
-	copy(p2.Value, p.Value)
+	var ok bool
+	p2.CArray, ok = p.CArray.Copy()
+	if !ok {
+		return nil
+	}
 	return p2
 }
 
@@ -87,45 +91,51 @@ func Getvhash(value []byte) uint16 {
 }
 
 func (p *Payload) CalcValueHash() {
-	p.ValueHash = Getvhash(p.Value)
+	p.ValueHash = Getvhash(p.Body)
 }
 
 func (p *Payload) RawValueSize() int {
 	if !p.IsCompressed() {
-		return len(p.Value)
+		return len(p.Body)
 	} else {
-		return quicklz.SizeCompressed(p.Value)
+		return quicklz.SizeCompressed(p.Body)
 	}
 }
 
-func (rec *Record) Compress() {
+func (rec *Record) Compress() (ok bool) {
 	if rec.Payload.Ver < 0 {
-		return
+		return true
 	}
 	p := rec.Payload
 	if p.Flag&FLAG_CLIENT_COMPRESS != 0 || p.Flag&FLAG_COMPRESS != 0 {
-		return
+		return true
 	}
 
 	if rec.Size() <= 256 {
-		return
+		return true
 	}
-	v := quicklz.CCompress(rec.Payload.Value)
-	if float32(len(v))/float32(len(p.Value)) < COMPRESS_RATIO_LIMIT {
-		p.Value = v
+	v, ok := quicklz.CCompress(rec.Payload.Body)
+	if !ok {
+		return false
+	}
+	if float32(len(v.Body))/float32(len(p.Body)) < COMPRESS_RATIO_LIMIT {
+		p.CArray.Free()
+		p.CArray = v
 		p.Flag += FLAG_COMPRESS
 	}
+	return true
 }
 
 func (p *Payload) Decompress() (err error) {
 	if p.Flag&FLAG_COMPRESS == 0 {
 		return
 	}
-
-	p.Value, err = quicklz.CDecompressSafe(p.Value)
+	arr, err := quicklz.CDecompressSafe(p.Body)
 	if err != nil {
 		return
 	}
+	p.CArray.Free()
+	p.CArray = arr
 	p.Flag -= FLAG_COMPRESS
 	return
 }
@@ -151,7 +161,7 @@ type Record struct {
 func (rec *Record) LogString() string {
 	return fmt.Sprintf("ksz %d, vsz %d %d, meta %#v [%s] ",
 		len(rec.Key),
-		len(rec.Payload.Value),
+		len(rec.Payload.Body),
 		rec.Payload.Meta,
 		string(rec.Key),
 	)
@@ -163,7 +173,7 @@ func (rec *Record) Copy() *Record {
 
 // must be compressed
 func (rec *Record) Sizes() (uint32, uint32) {
-	recSize := uint32(24 + len(rec.Key) + len(rec.Payload.Value))
+	recSize := uint32(24 + len(rec.Key) + len(rec.Payload.Body))
 	return recSize, ((recSize + 255) >> 8) << 8
 }
 

@@ -23,9 +23,12 @@ func TestQuicklz(t *testing.T) {
 	if ld != l {
 		t.Errorf("wrong decompressed len %s", lc)
 	}
-	compressed2 := CCompress([]byte(orig))
-	decompressed = CDecompress(compressed2, s)
-	if string(decompressed) != orig {
+	compressed2, ok := CCompress([]byte(orig))
+	if !ok {
+		t.Fatalf("CCompress fail")
+	}
+	decompressed2, ok := CDecompress(compressed2.Body, s)
+	if string(decompressed2.Body) != orig {
 		t.Errorf("cc fail %s", lc)
 	}
 }

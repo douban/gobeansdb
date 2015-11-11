@@ -65,7 +65,13 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	// TODO: check err of last flush
 
 	// must  CalcValueHash before compress
-	rec.Compress()
+	if !rec.Compress() {
+		err = fmt.Errorf("fail to alloc when compress %d", len(rec.Payload.Body))
+		logger.Infof("%s", err.Error())
+		rec.Payload.Free()
+		return
+	}
+
 	wrec := wrapRecord(rec)
 	ds.Lock()
 	size := rec.Payload.RecSize

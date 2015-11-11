@@ -59,7 +59,7 @@ func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, erro
 	ki := s.prepare(key, false)
 	payload := &store.Payload{}
 	payload.Flag = uint32(item.Flag)
-	payload.Value = item.Body
+	payload.CArray = item.CArray
 	payload.Ver = int32(item.Exptime)
 	payload.TS = uint32(item.ReceiveTime.Unix())
 
@@ -105,14 +105,14 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 	// TODO: use the one in htree
 	vhash := uint16(0)
 	if payload.Ver > 0 {
-		vhash = store.Getvhash(payload.Value)
+		vhash = store.Getvhash(payload.Body)
 		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
 	}
 
 	var body string
 	if extended {
 		body = fmt.Sprintf("%d %d %d %d %d %d %d",
-			payload.Ver, vhash, payload.Flag, len(payload.Value), payload.TS, pos.ChunkID, pos.Offset)
+			payload.Ver, vhash, payload.Flag, len(payload.Body), payload.TS, pos.ChunkID, pos.Offset)
 
 	} else {
 		body = fmt.Sprintf("%d %d %d %d",
@@ -142,6 +142,7 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 			}
 			item := new(mc.Item) // TODO: avoid alloc?
 			item.Body = rec.Dumps()
+			rec.Payload.Free()
 			item.Flag = 0
 			return item, nil
 		} else if len(key) > 11 && "collision_" == key[1:11] {
@@ -185,7 +186,7 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 		return nil, nil
 	}
 	item := new(mc.Item) // TODO: avoid alloc?
-	item.Body = payload.Value
+	item.CArray = payload.CArray
 	item.Flag = int(payload.Flag)
 	return item, nil
 }
@@ -228,7 +229,7 @@ func (s *StorageClient) Delete(key string) (bool, error) {
 	ki := s.prepare(key, false)
 	payload := &store.Payload{}
 	payload.Flag = 0
-	payload.Value = nil
+	payload.Body = nil
 	payload.Ver = -1
 	payload.TS = uint32(time.Now().Unix()) // TODO:
 

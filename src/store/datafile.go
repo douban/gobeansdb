@@ -38,7 +38,7 @@ func wrapRecord(rec *Record) *WriteRecord {
 	return &WriteRecord{
 		rec: rec,
 		ksz: uint32(len(rec.Key)),
-		vsz: uint32(len(rec.Payload.Value)),
+		vsz: uint32(len(rec.Payload.Body)),
 	}
 }
 
@@ -46,7 +46,7 @@ func (wrec *WriteRecord) decode(data []byte) (err error) {
 	wrec.decode(data)
 	decodeHeader(wrec, data)
 	wrec.rec.Key = data[recHeaderSize : recHeaderSize+wrec.ksz]
-	wrec.rec.Payload.Value = data[recHeaderSize+wrec.ksz : recHeaderSize+wrec.ksz+wrec.vsz]
+	wrec.rec.Payload.Body = data[recHeaderSize+wrec.ksz : recHeaderSize+wrec.ksz+wrec.vsz]
 	if wrec.crc != wrec.getCRC() {
 		err = fmt.Errorf("crc check fail")
 		logger.Infof(err.Error())
@@ -59,8 +59,8 @@ func (wrec *WriteRecord) getCRC() uint32 {
 	hasher := newCrc32()
 	hasher.write(wrec.header[4:])
 	hasher.write(wrec.rec.Key)
-	if len(wrec.rec.Payload.Value) > 0 {
-		hasher.write(wrec.rec.Payload.Value)
+	if len(wrec.rec.Payload.Body) > 0 {
+		hasher.write(wrec.rec.Payload.Body)
 	}
 	return hasher.get()
 }
@@ -80,6 +80,7 @@ func (wrec *WriteRecord) encodeHeader() {
 func (rec *WriteRecord) decodeHeader() (err error) {
 	return decodeHeader(rec, rec.header[:])
 }
+
 func decodeHeader(wrec *WriteRecord, h []byte) (err error) {
 	wrec.crc = binary.LittleEndian.Uint32(h[:4])
 	wrec.rec.Payload.TS = binary.LittleEndian.Uint32(h[4:8])
@@ -100,20 +101,28 @@ func readRecordAtPath(path string, offset uint32) (*WriteRecord, error) {
 	return readRecordAt(f, offset)
 }
 
-func readRecordAt(f *os.File, offset uint32) (*WriteRecord, error) {
-	wrec := newWriteRecord()
+func readRecordAt(f *os.File, offset uint32) (wrec *WriteRecord, err error) {
+	wrec = newWriteRecord()
+	defer func() {
+		if err != nil {
+			wrec.rec.Payload.Free()
+		}
+
+	}()
 	if n, err := f.ReadAt(wrec.header[:], int64(offset)); err != nil {
 		logger.Infof("%s %d", err.Error(), n)
 		return nil, err
 	}
 	wrec.decodeHeader()
 	kvSize := int64(wrec.ksz + wrec.vsz)
-	kv := make([]byte, kvSize)
+	var kv cmem.CArray
+	kv.Alloc(int(kvSize))
 
 	cmem.DBRL.GetData.AddSize(kvSize)
-	wrec.rec.Key = kv[:wrec.ksz]
-	wrec.rec.Payload.Value = kv[wrec.ksz:]
-	if n, err := f.ReadAt(kv, int64(offset)+recHeaderSize); err != nil {
+	wrec.rec.Key = kv.Body[:wrec.ksz]
+	wrec.rec.Payload.CArray = kv
+	wrec.rec.Payload.Body = kv.Body[wrec.ksz:]
+	if n, err := f.ReadAt(kv.Body, int64(offset)+recHeaderSize); err != nil {
 		logger.Infof("%s, %d", err.Error(), n)
 		cmem.DBRL.GetData.SubSize(int64(kvSize))
 		return nil, err
@@ -124,11 +133,12 @@ func readRecordAt(f *os.File, offset uint32) (*WriteRecord, error) {
 		err := fmt.Errorf("crc check fail")
 		logger.Infof(err.Error())
 		cmem.DBRL.GetData.SubSize(int64(kvSize))
+
 		return nil, err
 	}
 	wrec.rec.Payload.AccountingSize = kvSize
 	if wrec.rec.Payload.IsCompressed() {
-		diff := int64(quicklz.SizeDecompressed(wrec.rec.Payload.Value) - int(wrec.vsz))
+		diff := int64(quicklz.SizeDecompressed(wrec.rec.Payload.Body) - int(wrec.vsz))
 		cmem.DBRL.GetData.AddSize(diff)
 		wrec.rec.Payload.AccountingSize += diff
 	}
@@ -209,8 +219,8 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 		logger.Infof(err.Error())
 		return
 	}
-	wrec.rec.Payload.Value = make([]byte, wrec.vsz)
-	if _, err = io.ReadFull(stream.rbuf, wrec.rec.Payload.Value); err != nil {
+	wrec.rec.Payload.Body = make([]byte, wrec.vsz)
+	if _, err = io.ReadFull(stream.rbuf, wrec.rec.Payload.Body); err != nil {
 		logger.Infof(err.Error())
 		return
 	}
@@ -263,6 +273,7 @@ func (stream *DataStreamWriter) append(wrec *WriteRecord) (offset uint32, err er
 }
 
 func (wrec *WriteRecord) append(wbuf io.Writer, dopadding bool) error {
+	defer wrec.rec.Payload.Free()
 	wrec.encodeHeader()
 	size, sizeall := wrec.rec.Sizes()
 	if n, err := wbuf.Write(wrec.header[:]); err != nil {
@@ -273,7 +284,7 @@ func (wrec *WriteRecord) append(wbuf io.Writer, dopadding bool) error {
 		logger.Infof(err.Error(), n)
 		return err
 	}
-	if n, err := wbuf.Write(wrec.rec.Payload.Value); err != nil {
+	if n, err := wbuf.Write(wrec.rec.Payload.Body); err != nil {
 		logger.Infof(err.Error(), n)
 		return err
 	}

@@ -2,10 +2,18 @@ package cmem
 
 /*
 #include <stdlib.h>
+#include <string.h>
 */
 import "C"
-import "unsafe"
+import (
+	"reflect"
+	"unsafe"
+)
 import "sync/atomic"
+
+var (
+	AllocRL ResourceLimiter
+)
 
 type ResourceLimiter struct {
 	Count    int64
@@ -45,10 +53,57 @@ func (rl *ResourceLimiter) AddCount(count int64) {
 	}
 }
 
-func Alloc(size int) *byte {
-	return (*byte)(C.malloc(C.size_t(size)))
+type CArray struct {
+	Body []byte
+	Addr uintptr
+	Cap  int
 }
 
-func Free(ptr *byte, size int) {
-	C.free(unsafe.Pointer(ptr))
+func (arr *CArray) Alloc(size int) bool {
+	if size <= MemConfig.AllocLimit {
+		arr.Body = make([]byte, size)
+		return true
+	}
+
+	arr.Addr = uintptr(C.malloc(C.size_t(size)))
+	if arr.Addr == 0 {
+		return false
+	}
+	AllocRL.AddSize(int64(size))
+	arr.Cap = size
+	sliceheader := (*reflect.SliceHeader)(unsafe.Pointer(&arr.Body))
+	sliceheader.Data = arr.Addr
+	sliceheader.Len = size
+	sliceheader.Cap = size
+	return true
+}
+
+func (arr *CArray) Free() {
+	if arr.Addr != 0 {
+		AllocRL.SubSize(int64(arr.Cap))
+		C.free(unsafe.Pointer(arr.Addr))
+		arr.Body = nil
+		arr.Addr = 0
+		arr.Cap = 0
+	}
+}
+
+func (arr *CArray) Clear() {
+	arr.Addr = 0
+	arr.Body = nil
+}
+
+func (arr *CArray) Copy() (arrNew CArray, ok bool) {
+	size := len(arr.Body)
+	if size <= MemConfig.AllocLimit {
+		arrNew.Body = make([]byte, size)
+		copy(arrNew.Body, arr.Body)
+		ok = true
+		return
+	}
+	if !arrNew.Alloc(size) {
+		return
+	}
+	C.memcpy(unsafe.Pointer(arrNew.Addr), unsafe.Pointer(arr.Addr), C.size_t(size))
+	return
 }

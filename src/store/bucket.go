@@ -75,7 +75,7 @@ func (bkt *Bucket) buildHintFromData(chunkID int, start uint32) (err error) {
 		khash := getKeyHash(rec.Key)
 		p := rec.Payload
 		p.Decompress()
-		vhash := Getvhash(p.Value)
+		vhash := Getvhash(p.Body)
 		item := newHintItem(khash, p.Ver, vhash, Position{0, offset}, string(rec.Key))
 		bkt.hints.setItem(item, chunkID, rec.Payload.RecSize)
 	}
@@ -278,9 +278,14 @@ func (bkt *Bucket) checkAndUpdateVerison(oldv, ver int32) (int32, bool) {
 
 func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	bkt.writeLock.Lock()
-	defer bkt.writeLock.Unlock()
+	ok := false
+	defer func() {
+		bkt.writeLock.Unlock()
+		if !ok {
+			v.Free()
+		}
+	}()
 	oldv := int32(0)
-
 	payload, _, err := bkt.get(ki, true)
 	if err != nil {
 		return err
@@ -288,7 +293,7 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	if payload != nil {
 		oldv = payload.Ver
 		if config.CheckValueHash && oldv > 0 {
-			vhash := Getvhash(v.Value)
+			vhash := Getvhash(v.Body)
 			if vhash == payload.ValueHash {
 				return nil
 			}
@@ -303,6 +308,7 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	if v.Ver < 0 && (payload == nil || oldv < 0) {
 		return fmt.Errorf("NOT_FOUND")
 	}
+	ok = true
 	bkt.set(ki, v)
 	return nil
 }
@@ -349,7 +355,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		return
 	}
 
-	rec, err = bkt.getRecordByPos(pos)
+	rec, err = bkt.datas.GetRecordByPos(pos)
 	if err != nil {
 		logger.Errorf("%s", err.Error())
 		return
@@ -361,6 +367,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		payload = rec.Payload
 		return
 	}
+	defer rec.Payload.Free()
 
 	keyhash := getKeyHash(rec.Key)
 	if keyhash != ki.KeyHash {
@@ -380,7 +387,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 
 	vhash := uint16(0)
 	if rec.Payload.Ver > 0 {
-		vhash = Getvhash(rec.Payload.Value)
+		vhash = Getvhash(rec.Payload.Body)
 	}
 	hintit2 := newHintItem(ki.KeyHash, rec.Payload.Ver, vhash, pos, string(rec.Key))
 	bkt.hints.collisions.compareAndSet(hintit2) // the one in htree
@@ -389,12 +396,12 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	hintit.Pos = pos.encode()
 	bkt.hints.collisions.compareAndSet(hintit) // the one not in htree
 
-	rec, err = bkt.getRecordByPos(pos)
+	rec2, err := bkt.datas.GetRecordByPos(pos)
 	if err != nil {
 		logger.Errorf("%s", err.Error())
 		return
-	} else if rec != nil {
-		payload = rec.Payload
+	} else if rec2 != nil {
+		payload = rec2.Payload
 	}
 	return
 }
@@ -407,7 +414,7 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 
 	if payload != nil {
 		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
-		s := string(payload.Value)
+		s := string(payload.Body)
 		if payload.Flag != FLAG_INCR {
 			logger.Errorf("incr with flag 0x%x", payload.Flag)
 			return 0
@@ -429,13 +436,9 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 	}
 	s := strconv.Itoa(value)
 	payload.TS = uint32(time.Now().Unix())
-	payload.Value = []byte(s)
+	payload.Body = []byte(s)
 	bkt.set(ki, payload)
 	return value
-}
-
-func (bkt *Bucket) getRecordByPos(pos Position) (*Record, error) {
-	return bkt.datas.GetRecordByPos(pos)
 }
 
 func (bkt *Bucket) listDir(ki *KeyInfo) ([]byte, error) {
