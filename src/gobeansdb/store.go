@@ -6,32 +6,21 @@ import (
 	"fmt"
 	"log"
 	mc "memcache"
-	"runtime"
 	"store"
 	"strconv"
 	"sync"
 	"time"
+	"utils"
 )
 
 var (
 	ErrorNotSupport = errors.New("operation not support")
 )
 
-func getStack(bytes int) string {
-	b := make([]byte, bytes)
-	all := false
-	n := runtime.Stack(b, all)
-	return string(b[:n])
-}
-
 func handlePanic(s string) {
-	if e := recover(); e != nil {
-		switch t := e.(type) {
-		case error:
-			log.Printf("%s panic with err(%s), stack: %s", s, t.Error(), getStack(1000))
-		default:
-			log.Printf("%s panic with non-err(%#v), stack: %s", s, t, getStack(1000))
-		}
+	e := utils.PanicToError(s)
+	if e != nil {
+		log.Println(e.Error())
 	}
 }
 
