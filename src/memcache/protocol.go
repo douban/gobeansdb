@@ -365,9 +365,6 @@ func (resp *Response) Write(w io.Writer) error {
 					len(item.Body))
 			}
 			e := WriteFull(w, item.Body)
-			if key[0] != '@' && key[0] != '?' {
-				cmem.DBRL.GetData.SubSize(int64(len(key) + len(item.Body)))
-			}
 			if e != nil {
 				return e
 			}
@@ -394,7 +391,10 @@ func (resp *Response) Write(w io.Writer) error {
 }
 
 func (resp *Response) CleanBuffer() {
-	for _, item := range resp.items {
+	for key, item := range resp.items {
+		if key[0] != '@' && key[0] != '?' {
+			cmem.DBRL.GetData.SubSize(int64(len(key) + len(item.Body)))
+		}
 		item.CArray.Free()
 	}
 	resp.items = nil
