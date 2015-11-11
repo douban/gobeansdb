@@ -7,12 +7,13 @@
 # Folders
 _obj
 _test
-test
+testdb/
 src/gobeansdb/gobeansdb
 src/gopkg.in/
 bin/
 src/github.com/
 venv/
+set-env.sh
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -29,3 +30,5 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+.tag*
