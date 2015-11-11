@@ -9,6 +9,7 @@ import "C"
 import (
 	"cmem"
 	"unsafe"
+	"utils"
 )
 import "fmt"
 
@@ -33,9 +34,9 @@ func CCompress(src []byte) (dst cmem.CArray, ok bool) {
 	return
 }
 
-func CDecompress(src []byte, sizeD int) (dst cmem.CArray, ok bool) {
-	ok = dst.Alloc(sizeD)
-	if !ok {
+func CDecompress(src []byte, sizeD int) (dst cmem.CArray, err error) {
+	if !dst.Alloc(sizeD) {
+		err = fmt.Errorf("fail to alloc for decompress, size %d", sizeD)
 		return
 	}
 	buf := make([]byte, DecompressBufferSize)
@@ -43,6 +44,10 @@ func CDecompress(src []byte, sizeD int) (dst cmem.CArray, ok bool) {
 	c_dst := (unsafe.Pointer(&dst.Body[0]))
 	c_buf := (*C.char)(unsafe.Pointer(&buf[0]))
 	size := int(C.qlz_decompress(c_src, c_dst, c_buf))
+	if size != sizeD {
+		err = fmt.Errorf("fail to alloc for decompress, size %d != %d", sizeD, size)
+		return
+	}
 	dst.Body = dst.Body[:size]
 	return
 }
@@ -71,12 +76,8 @@ func DecompressSafe(src []byte) (dst []byte, err error) {
 
 func CDecompressSafe(src []byte) (dst cmem.CArray, err error) {
 	defer func() {
-		if e := recover(); e != nil {
-			var ok bool
-			err, ok = e.(error)
-			if !ok {
-				err = fmt.Errorf("decompress panic with non-error: %#v", e)
-			}
+		if err == nil {
+			err = utils.PanicToError("decompress")
 		}
 	}()
 	sizeC := SizeCompressed(src)
@@ -85,14 +86,9 @@ func CDecompressSafe(src []byte) (dst cmem.CArray, err error) {
 		return
 	}
 	sizeD := SizeDecompressed(src)
-	dst, ok := CDecompress(src, sizeD)
-	if !ok {
-		err = fmt.Errorf("decompress fail to alloc %d", sizeD)
+	dst, err = CDecompress(src, sizeD)
+	if err != nil {
 		return
 	}
-	if len(dst.Body) != sizeD {
-		err = fmt.Errorf("bad sizeDecompressed, expect %d, got %d", sizeD, len(dst.Body))
-	}
-	err = nil
 	return
 }

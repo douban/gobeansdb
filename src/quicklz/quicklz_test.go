@@ -27,8 +27,8 @@ func TestQuicklz(t *testing.T) {
 	if !ok {
 		t.Fatalf("CCompress fail")
 	}
-	decompressed2, ok := CDecompress(compressed2.Body, s)
-	if string(decompressed2.Body) != orig {
-		t.Errorf("cc fail %s", lc)
+	decompressed2, err := CDecompress(compressed2.Body, s)
+	if err != nil || string(decompressed2.Body) != orig {
+		t.Errorf("decompress fail %d %v", lc, err)
 	}
 }
