@@ -279,7 +279,6 @@ func (stream *DataStreamWriter) append(wrec *WriteRecord) (offset uint32, err er
 }
 
 func (wrec *WriteRecord) append(wbuf io.Writer, dopadding bool) error {
-	defer wrec.rec.Payload.Free()
 	wrec.encodeHeader()
 	size, sizeall := wrec.rec.Sizes()
 	if n, err := wbuf.Write(wrec.header[:]); err != nil {

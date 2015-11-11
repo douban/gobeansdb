@@ -145,10 +145,14 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 			cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
 		}
 	}
+
 	ds.Lock()
+	tofree := ds.wbufs[chunk][:n]
 	ds.wbufs[chunk] = ds.wbufs[chunk][n:]
 	ds.Unlock()
-
+	for _, wrec := range tofree {
+		wrec.rec.Payload.Free()
+	}
 	return w.Close()
 }
 
