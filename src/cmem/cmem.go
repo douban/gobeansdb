@@ -104,6 +104,7 @@ func (arr *CArray) Copy() (arrNew CArray, ok bool) {
 	if !arrNew.Alloc(size) {
 		return
 	}
+	ok = true
 	C.memcpy(unsafe.Pointer(arrNew.Addr), unsafe.Pointer(arr.Addr), C.size_t(size))
 	return
 }
