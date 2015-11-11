@@ -132,6 +132,7 @@ func (p *Payload) Decompress() (err error) {
 	}
 	arr, err := quicklz.CDecompressSafe(p.Body)
 	if err != nil {
+		logger.Errorf("decompress fail %s", err.Error())
 		return
 	}
 	p.CArray.Free()
