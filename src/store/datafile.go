@@ -105,36 +105,42 @@ func readRecordAt(f *os.File, offset uint32) (wrec *WriteRecord, err error) {
 	wrec = newWriteRecord()
 	defer func() {
 		if err != nil {
-			wrec.rec.Payload.Free()
+			wrec.rec.Payload.Free() // must not return (nil, err)
+			wrec = nil
 		}
-
 	}()
-	if n, err := f.ReadAt(wrec.header[:], int64(offset)); err != nil {
-		logger.Infof("%s %d", err.Error(), n)
-		return nil, err
+	var n int
+	if n, err = f.ReadAt(wrec.header[:], int64(offset)); err != nil {
+		logger.Errorf("%s %d", err.Error(), n)
+		return
 	}
 	wrec.decodeHeader()
 	kvSize := int64(wrec.ksz + wrec.vsz)
 	var kv cmem.CArray
-	kv.Alloc(int(kvSize))
+	if !kv.Alloc(int(kvSize)) {
+		err = fmt.Errorf("fail to alloc for read file, size %d", kvSize)
+		logger.Errorf("%s", err.Error())
+		return
+	}
 
 	cmem.DBRL.GetData.AddSize(kvSize)
 	wrec.rec.Key = kv.Body[:wrec.ksz]
-	wrec.rec.Payload.CArray = kv
-	wrec.rec.Payload.Body = kv.Body[wrec.ksz:]
-	if n, err := f.ReadAt(kv.Body, int64(offset)+recHeaderSize); err != nil {
+
+	if n, err = f.ReadAt(kv.Body, int64(offset)+recHeaderSize); err != nil {
 		logger.Infof("%s, %d", err.Error(), n)
 		cmem.DBRL.GetData.SubSize(int64(kvSize))
-		return nil, err
+		return
 	}
-
+	wrec.rec.Key = make([]byte, wrec.ksz)
+	copy(wrec.rec.Key, kv.Body[:wrec.ksz])
+	wrec.rec.Payload.CArray = kv
+	wrec.rec.Payload.Body = kv.Body[wrec.ksz:]
 	crc := wrec.getCRC()
 	if wrec.crc != crc {
-		err := fmt.Errorf("crc check fail")
+		err = fmt.Errorf("crc check fail")
 		logger.Infof(err.Error())
 		cmem.DBRL.GetData.SubSize(int64(kvSize))
-
-		return nil, err
+		return
 	}
 	wrec.rec.Payload.AccountingSize = kvSize
 	if wrec.rec.Payload.IsCompressed() {
