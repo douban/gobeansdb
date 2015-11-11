@@ -141,7 +141,9 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		w.append(wrec)
 		size := wrec.rec.Payload.RecSize
 		ds.wbufSize -= size
-		cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
+		if wrec.rec.Payload.Ver > 0 {
+			cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
+		}
 	}
 	ds.Lock()
 	ds.wbufs[chunk] = ds.wbufs[chunk][n:]
