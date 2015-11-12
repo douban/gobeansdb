@@ -12,6 +12,7 @@ const (
 	FLAG_COMPRESS        = 0x00010000
 	FLAG_CLIENT_COMPRESS = 0x00000010
 	COMPRESS_RATIO_LIMIT = 0.7
+	TRY_COMPRESS_SIZE    = 1024 * 10
 	PADDING              = 256
 )
 
@@ -102,28 +103,44 @@ func (p *Payload) RawValueSize() int {
 	}
 }
 
-func (rec *Record) Compress() (ok bool) {
+func (rec *Record) TryCompress() {
 	if rec.Payload.Ver < 0 {
-		return true
+		return
 	}
 	p := rec.Payload
 	if p.Flag&FLAG_CLIENT_COMPRESS != 0 || p.Flag&FLAG_COMPRESS != 0 {
-		return true
+		return
 	}
 
 	if rec.Size() <= 256 {
-		return true
+		return
 	}
-	v, ok := quicklz.CCompress(rec.Payload.Body)
+	body := rec.Payload.Body
+	try := body
+	if len(body) > TRY_COMPRESS_SIZE {
+		try = try[:TRY_COMPRESS_SIZE]
+	}
+	compressed, ok := quicklz.CCompress(try)
 	if !ok {
-		return false
+		// because oom, just not compress it
+		return
 	}
-	if float32(len(v.Body))/float32(len(p.Body)) < COMPRESS_RATIO_LIMIT {
-		p.CArray.Free()
-		p.CArray = v
-		p.Flag += FLAG_COMPRESS
+	if float32(len(compressed.Body))/float32(len(try)) > COMPRESS_RATIO_LIMIT {
+		compressed.Free()
+		return
 	}
-	return true
+	if len(body) > len(try) {
+		compressed.Free()
+		compressed, ok = quicklz.CCompress(body)
+		if !ok {
+			// because oom, just not compress it
+			return
+		}
+	}
+	p.CArray.Free()
+	p.CArray = compressed
+	p.Flag += FLAG_COMPRESS
+	return
 }
 
 func (p *Payload) Decompress() (err error) {
