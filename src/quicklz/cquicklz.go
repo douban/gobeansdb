@@ -2,6 +2,7 @@ package quicklz
 
 /*
 #cgo CFLAGS: -I .
+#include "stdlib.h"
 #include "quicklz.h"
 size_t qlz_compress(const void *source, char *destination, size_t size, char *scratch_compress);
 */
@@ -23,11 +24,11 @@ func CCompress(src []byte) (dst cmem.CArray, ok bool) {
 	if !ok {
 		return
 	}
-	buf := make([]byte, CompressBufferSize)
+	c_buf := (*C.char)(C.malloc(C.size_t(CompressBufferSize)))
+	defer C.free(unsafe.Pointer(c_buf))
 
 	c_src := (unsafe.Pointer(&src[0]))
 	c_dst := (*C.char)(unsafe.Pointer(&dst.Body[0]))
-	c_buf := (*C.char)(unsafe.Pointer(&buf[0]))
 	c_size := C.qlz_compress(c_src, c_dst, C.size_t(len(src)), c_buf)
 	size := int(c_size)
 	dst.Body = dst.Body[:size]
