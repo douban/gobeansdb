@@ -121,7 +121,6 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		chunk = ds.newHead
 	}
 	ds.lastFlushTime = time.Now()
-	n := len(ds.wbufs[chunk])
 	ds.Unlock()
 	// logger.Infof("flushing %d records to data %d", n, chunk)
 
@@ -129,8 +128,11 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	if err != nil {
 		return err
 	}
+	ds.Lock()
+	n := len(ds.wbufs[chunk])
+	ds.Unlock()
 	for i := 0; i < n; i++ {
-		ds.Lock()
+		ds.Lock() // because append may change the slice
 		wrec := ds.wbufs[chunk][i]
 		ds.Unlock()
 		w.append(wrec)
@@ -138,6 +140,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		ds.wbufSize -= size
 		if wrec.rec.Payload.Ver > 0 {
 			cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
+			// NOTE: not freed yet, make it a little diff with AllocRL, which may provide more insight
 		}
 	}
 	if err = w.Close(); err != nil {
