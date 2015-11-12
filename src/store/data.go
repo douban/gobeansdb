@@ -145,6 +145,10 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 			cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
 		}
 	}
+	if err = w.Close(); err != nil {
+		logger.Fatalf("write data fail, stop! err: %s", err.Error())
+		return err
+	}
 
 	ds.Lock()
 	tofree := ds.wbufs[chunk][:n]
@@ -153,7 +157,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	for _, wrec := range tofree {
 		wrec.rec.Payload.Free()
 	}
-	return w.Close()
+	return nil
 }
 
 func (ds *dataStore) GetRecordByPosInBuffer(pos Position) (res *Record, err error) {
