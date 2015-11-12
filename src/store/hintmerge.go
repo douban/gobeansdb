@@ -3,7 +3,7 @@ package store
 import (
 	"container/heap"
 	"fmt"
-	"os"
+	"utils"
 )
 
 const (
@@ -157,7 +157,7 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 		idx = &hintFileIndex{mw.w.index.toIndex(), dst, w.hintFileMeta}
 	}
 	if err != nil {
-		os.Remove(dst)
+		utils.Remove(dst)
 		return nil, err
 	}
 	return

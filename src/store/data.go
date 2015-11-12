@@ -8,6 +8,7 @@ import (
 	"sort"
 	"sync"
 	"time"
+	"utils"
 )
 
 const (
@@ -208,7 +209,7 @@ func (ds *dataStore) Truncate(chunk int, size uint32) error {
 	}
 	logger.Infof("truncate %s %d to %d", path, st.Size(), size)
 	if size == 0 {
-		return os.Remove(path)
+		return utils.Remove(path)
 	}
 	return os.Truncate(path, int64(size))
 }
@@ -242,8 +243,7 @@ func (ds *dataStore) GetCurrPos() Position {
 
 func (ds *dataStore) DeleteFile(chunkID int) error {
 	path := ds.genPath(chunkID)
-	logger.Infof("remove data %s", path)
-	return os.Remove(path)
+	return utils.Remove(path)
 }
 
 func (ds *dataStore) GetStreamReader(chunk int) (*DataStreamReader, error) {

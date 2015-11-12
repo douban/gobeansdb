@@ -50,26 +50,26 @@ func New(name string, hub LogHub, minLevel int) *Logger {
 }
 
 func (l *Logger) Debugf(format string, v ...interface{}) {
-	l.logf(DEBUG, format, v...)
+	l.Logf(DEBUG, format, v...)
 }
 
 func (l *Logger) Infof(format string, v ...interface{}) {
-	l.logf(INFO, format, v...)
+	l.Logf(INFO, format, v...)
 }
 
 func (l *Logger) Warnf(format string, v ...interface{}) {
-	l.logf(WARN, format, v...)
+	l.Logf(WARN, format, v...)
 }
 
 func (l *Logger) Errorf(format string, v ...interface{}) {
-	l.logf(ERROR, format, v...)
+	l.Logf(ERROR, format, v...)
 }
 
 func (l *Logger) Fatalf(format string, v ...interface{}) {
-	l.logf(FATAL, format, v...)
+	l.Logf(FATAL, format, v...)
 }
 
-func (l *Logger) logf(level int, format string, v ...interface{}) {
+func (l *Logger) Logf(level int, format string, v ...interface{}) {
 	if level < l.minLevel {
 		return
 	}

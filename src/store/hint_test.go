@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"testing"
 	"time"
+	"utils"
 )
 
 func SetHintConfig(conf HintConfig) {
@@ -43,13 +44,13 @@ func TestHintRW(t *testing.T) {
 	setupTest("TestHintRW", 1)
 	defer clearTest()
 	path := fmt.Sprintf("%s/%s", dir, "000.hint.s")
-	os.Remove(path)
+	utils.Remove(path)
 	SetHintConfig(HintConfig{IndexIntervalSize: 1024})
 	w, err := newHintFileWriter(path, 0, 1024)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(path)
+	defer utils.Remove(path)
 	n := 100
 	items := genSortedHintItems(n)
 	for _, it := range items {
@@ -113,12 +114,12 @@ func testMerge(t *testing.T, nsrc int) {
 	for i := 0; i < nsrc; i++ {
 		path := fmt.Sprintf("%s/src.%d.hint.s", dir, i)
 		srcp[i] = newHintFileReader(path, 0, 1024)
-		os.Remove(path)
+		utils.Remove(path)
 		w, err := newHintFileWriter(path, 0, 1024)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer os.Remove(path)
+		defer utils.Remove(path)
 		src[i] = w
 	}
 	for i := 0; i < n; i++ {
@@ -137,11 +138,11 @@ func testMerge(t *testing.T, nsrc int) {
 		src[i].close()
 	}
 	dst := fmt.Sprintf("%s/dst.hint.s", dir)
-	os.Remove(dst)
+	utils.Remove(dst)
 	state := HintStatetWorking
 	ct := newCollisionTable()
 	merge(srcp, dst, ct, &state)
-	defer os.Remove(dst)
+	defer utils.Remove(dst)
 	readHintAndCheck(t, dst, items)
 }
 
