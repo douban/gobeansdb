@@ -24,7 +24,12 @@ func CCompress(src []byte) (dst cmem.CArray, ok bool) {
 	if !ok {
 		return
 	}
-	c_buf := (*C.char)(C.malloc(C.size_t(CompressBufferSize)))
+	buf := C.malloc(C.size_t(CompressBufferSize))
+	if buf == nil {
+		ok = false
+		return
+	}
+	c_buf := (*C.char)(buf)
 	defer C.free(unsafe.Pointer(c_buf))
 
 	c_src := (unsafe.Pointer(&src[0]))
