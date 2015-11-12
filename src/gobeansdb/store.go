@@ -238,36 +238,36 @@ func (s *StorageClient) Close() {
 
 }
 
-func (s *StorageClient) Process(cmd string, args []string) (status string, msg string, ok bool) {
-
+func (s *StorageClient) Process(cmd string, args []string) (status string, msg string) {
 	status = "CLIENT_ERROR"
 	msg = "bad command line format"
+
 	switch cmd {
+
 	case "gc":
 		l := len(args)
 		if !(l == 2 || l == 3) || args[0][0] != '@' {
-			ok = true
 			return
 		}
+
 		bucket, err := strconv.ParseUint(args[0][1:], 16, 32)
 		if err != nil || bucket < 0 {
-			ok = true
 			return
 		}
 
 		start, err := strconv.Atoi(args[1])
 		if err != nil {
-			ok = true
 			return
 		}
+
 		end := -1
 		if l == 3 {
 			end, err = strconv.Atoi(args[2])
 			if err != nil {
-				ok = true
 				return
 			}
 		}
+
 		err = s.hstore.GC(int(bucket), start, end)
 		if err != nil {
 			status = "ERROR"
@@ -275,11 +275,10 @@ func (s *StorageClient) Process(cmd string, args []string) (status string, msg s
 		} else {
 			status = "OK"
 			msg = ""
-			ok = true
 		}
+
 	case "optimize_stat":
 		msg = ""
-		ok = true
 		bucketid, gcstat := s.hstore.GCStat()
 		if gcstat == nil {
 			status = "none"
@@ -293,6 +292,10 @@ func (s *StorageClient) Process(cmd string, args []string) (status string, msg s
 				status = fmt.Sprintf("fail %s", gcstat.Err.Error())
 			}
 		}
+
+	default:
+		status = "ERROR"
+		msg = ""
 	}
 	return
 }

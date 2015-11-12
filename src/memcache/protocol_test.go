@@ -24,7 +24,7 @@ var reqTests = []reqTest{
 	},
 	reqTest{
 		"set abc a 3 2 noreply\r\nok\r\n",
-		"CLIENT_ERROR strconv.ParseInt: parsing \"a\": invalid syntax\r\n",
+		"CLIENT_ERROR invalid cmd\r\n",
 	},
 	reqTest{
 		"set cdf 0 0 2\r\nok\r\n",
@@ -53,11 +53,11 @@ var reqTests = []reqTest{
 	},
 	reqTest{
 		"set abc a 3 2 noreply\r\nok\r\n",
-		"CLIENT_ERROR strconv.ParseInt: parsing \"a\": invalid syntax\r\n",
+		"CLIENT_ERROR invalid cmd\r\n",
 	},
 	reqTest{
 		"set abc 3 3 10\r\nok\r\n",
-		"CLIENT_ERROR unexpected EOF\r\n",
+		"CLIENT_ERROR network error\r\n",
 	},
 	reqTest{
 		"get   \r\n",
@@ -134,7 +134,7 @@ var reqTests = []reqTest{
 	},
 	reqTest{
 		"error\r\n",
-		"CLIENT_ERROR unknown command: error\r\n",
+		"CLIENT_ERROR non memcache command\r\n",
 	},
 }
 

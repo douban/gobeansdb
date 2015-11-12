@@ -3,12 +3,10 @@ package memcache
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"loghub"
 	"net"
-	"strings"
 	"sync"
 	"time"
 )
@@ -60,38 +58,53 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			resp.CleanBuffer()
 		}
 	}()
+
+	// 关于错误处理
+	//
+	// 目前这里能看到的错误主要有以下 3 类:
+	// 1. Client 输入的格式错误(不满足 memcache 协议): 即 req.Read 里面解析命令时遇到的错误，
+	//    这类错误 server 给客户端返回错误信息即可，然后继续尝试读取下一个命令。
+	// 2. 网络连接错误: 即 server 在读取需要数据的时候遇到 Unexpected EOF，或者 server 写数据
+	//    时失败，这类错误直接关闭连接。
+	// 3. storageClient 里面错误: 这些错误应该在相应的 Process 函数里面处理掉，
+	//    并设置好相应的 status 和 msg，在这里只是把处理后的结果返回给客户端即可。
+
 	err = req.Read(c.rbuf)
-
 	t := time.Now()
-	if err != nil {
-		if strings.HasPrefix(err.Error(), "unknown") {
-			// process non memcache commands, e.g. 'gc', 'optimize_stat'.
-			status, msg, ok := storageClient.Process(req.Cmd, req.Keys)
-			if ok {
-				resp = new(Response)
-				resp.status = status
-				resp.msg = msg
-				err = nil
-			} else {
-				logger.Errorf(err.Error())
-				return
-			}
-		} else {
-			return
-		}
 
+	if err != nil {
+		if err == ErrNetworkError {
+			// process client connection related error
+			c.Shutdown()
+			return nil
+		} else if err == ErrNonMemcacheCmd {
+			// process non memcache commands, e.g. 'gc', 'optimize_stat'.
+			status, msg := storageClient.Process(req.Cmd, req.Keys)
+			resp = new(Response)
+			resp.status = status
+			resp.msg = msg
+			err = nil
+		} else {
+			// process client command format related error
+			resp = new(Response)
+			resp.status = "CLIENT_ERROR"
+			resp.msg = err.Error()
+			err = nil
+		}
 	} else {
-		resp, err = req.Process(storageClient, stats)
+		// process memcache commands, e.g. 'set', 'get', 'incr'.
+		resp, _ = req.Process(storageClient, stats)
 		dt := time.Since(t)
 		if dt > SlowCmdTime {
 			stats.UpdateStat("slow_cmd", 1)
 		}
-	}
-	if resp == nil {
-		if err == nil {
-			return fmt.Errorf("nil resp")
+		if resp == nil {
+			// quit\r\n command
+			c.Shutdown()
+			return nil
 		}
 	}
+
 	if !resp.noreply {
 		if err = resp.Write(c.wbuf); err != nil {
 			return

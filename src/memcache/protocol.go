@@ -16,8 +16,29 @@ import (
 const VERSION = "0.1.0"
 
 var (
-	MaxKeyLength  = 200
-	MaxBodyLength = 1024 * 1024 * 50
+	MaxKeyLength = 200
+	MaxValueSize = 1024 * 1024 * 50
+)
+
+// Client command parsing Errors
+
+var (
+	// ErrInvalidCmd means that the number of command parts is invalid,
+	// or the type of a part if invalid.
+	ErrInvalidCmd = errors.New("invalid cmd")
+
+	// ErrNonMemcacheCmd means that the command is not defined in original memcache protocal.
+	// refer: https://github.com/memcached/memcached/blob/master/doc/protocol.txt
+	ErrNonMemcacheCmd = errors.New("non memcache command")
+
+	// ErrValueTooLarge means that the value of a store command (e.g. set) is too large
+	ErrValueTooLarge = errors.New("value too large")
+
+	// ErrBadDataChunk means that data chunk of a value is not match its size flag.
+	ErrBadDataChunk = errors.New("bad data chunk")
+
+	// ErrNetworkError means that a failure happend at reading/writing to a client connection.
+	ErrNetworkError = errors.New("network error")
 )
 
 func isSpace(r rune) bool {
@@ -126,19 +147,20 @@ func (req *Request) Write(w io.Writer) (e error) {
 	return e
 }
 
-func (req *Request) Read(b *bufio.Reader) (e error) {
+func (req *Request) Read(b *bufio.Reader) error {
 	var s string
+	var e error
 	if s, e = b.ReadString('\n'); e != nil {
-		return e
+		return ErrNetworkError
 	}
 
 	if !strings.HasSuffix(s, "\r\n") {
-		return errors.New("not completed command")
+		return ErrInvalidCmd
 	}
 
 	parts := splitKeys(s)
 	if len(parts) < 1 {
-		return errors.New("invalid cmd")
+		return ErrInvalidCmd
 	}
 
 	req.Cmd = parts[0]
@@ -146,46 +168,44 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 
 	case "get", "gets":
 		if len(parts) < 2 {
-			return errors.New("invalid cmd")
+			return ErrInvalidCmd
 		}
 		req.Keys = parts[1:]
 		RL.Get(req)
 
 	case "set", "add", "replace", "cas", "append", "prepend":
 		if len(parts) < 5 || len(parts) > 7 {
-			return errors.New("invalid cmd")
+			return ErrInvalidCmd
 		}
 		req.Keys = parts[1:2]
 		req.Item = &Item{}
 		item := req.Item
 		item.ReceiveTime = time.Now()
-		item.Flag, e = strconv.Atoi(parts[2])
-		if e != nil {
-			return e
+		if item.Flag, e = strconv.Atoi(parts[2]); e != nil {
+			return ErrInvalidCmd
 		}
-		item.Exptime, e = strconv.Atoi(parts[3])
-		if e != nil {
-			return e
+		if item.Exptime, e = strconv.Atoi(parts[3]); e != nil {
+			return ErrInvalidCmd
 		}
 		length, e := strconv.Atoi(parts[4])
 		if e != nil {
-			return e
+			return ErrInvalidCmd
 		}
-		if length > MaxBodyLength {
-			return errors.New("body too large")
+		if length > MaxValueSize {
+			return ErrValueTooLarge
 		}
 		if req.Cmd == "cas" {
 			if len(parts) < 6 {
-				return errors.New("invalid cmd")
+				return ErrInvalidCmd
 			}
 			item.Cas, e = strconv.Atoi(parts[5])
 			if len(parts) > 6 && parts[6] != "noreply" {
-				return errors.New("invalid cmd")
+				return ErrInvalidCmd
 			}
 			req.NoReply = len(parts) > 6 && parts[6] == "noreply"
 		} else {
 			if len(parts) > 5 && parts[5] != "noreply" {
-				return errors.New("invalid cmd")
+				return ErrInvalidCmd
 			}
 			req.NoReply = len(parts) > 5 && parts[5] == "noreply"
 		}
@@ -200,25 +220,29 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 
 		cmem.DBRL.SetData.AddSize(int64(length + len(req.Keys[0])))
 		if _, e = io.ReadFull(b, item.Body); e != nil {
-			return e
+			return ErrNetworkError
 		}
-		if c, e := b.ReadByte(); e != nil || c != '\r' {
-			return fmt.Errorf("bad data end in set cmd")
+
+		// check ending \r\n
+		c1, e1 := b.ReadByte()
+		c2, e2 := b.ReadByte()
+		if e1 != nil || e2 != nil {
+			return ErrNetworkError
 		}
-		if c, e := b.ReadByte(); e != nil || c != '\n' {
-			return fmt.Errorf("bad data end in set cmd")
+		if c1 != '\r' || c2 != '\n' {
+			return ErrBadDataChunk
 		}
 
 	case "delete":
 		if len(parts) < 2 || len(parts) > 4 {
-			return errors.New("invalid cmd")
+			return ErrInvalidCmd
 		}
 		req.Keys = parts[1:2]
 		req.NoReply = len(parts) > 2 && parts[len(parts)-1] == "noreply"
 
 	case "incr", "decr":
 		if len(parts) < 3 || len(parts) > 4 {
-			return errors.New("invalid cmd")
+			return ErrInvalidCmd
 		}
 		req.Keys = parts[1:2]
 		req.Item = &Item{}
@@ -237,10 +261,9 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 
 	default:
 		req.Keys = parts[1:]
-		return errors.New("unknown command: " + req.Cmd)
+		return ErrNonMemcacheCmd
 	}
-
-	return
+	return nil
 }
 
 type Response struct {
@@ -287,7 +310,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			if e2 != nil {
 				return errors.New("invalid response")
 			}
-			if length > MaxBodyLength {
+			if length > MaxValueSize {
 				return errors.New("body too large")
 			}
 
@@ -566,15 +589,12 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 
 	case "quit":
 		resp = nil
-		return
 
 	default:
-		// client error
 		resp = nil
-		return
-		resp.status = "CLIENT_ERROR"
-		resp.msg = "invalid cmd"
+		logger.Errorf("Should not reach here, req.Cmd: %s", req.Cmd)
 	}
+
 	return
 }
 

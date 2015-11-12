@@ -47,10 +47,8 @@ class AbnormalCmdTest(unittest.TestCase):
         cmd = 'set %s 0 0 3\r\naaa' % self.invalid_key
         self.run_cmd_by_telnet(cmd, 'NOT_STORED')
 
-        # invalid data
-        # 还没有想好这里怎么修改
-        # cmd = 'set /test/set 0 0 3\r\naaaa'
-        # self.run_cmd_by_telnet(cmd, 'CLIENT_ERROR bad data chunk')
+        cmd = 'set /test/set 0 0 3\r\naaaa'
+        self.run_cmd_by_telnet(cmd, 'CLIENT_ERROR bad data chunk')
 
     def test_incr(self):
         key = '/test/incr'
