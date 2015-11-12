@@ -65,7 +65,8 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	// TODO: check err of last flush
 
 	// must  CalcValueHash before compress
-	rec.Compress()
+	rec.TryCompress()
+
 	wrec := wrapRecord(rec)
 	ds.Lock()
 	size := rec.Payload.RecSize
@@ -120,7 +121,6 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		chunk = ds.newHead
 	}
 	ds.lastFlushTime = time.Now()
-	n := len(ds.wbufs[chunk])
 	ds.Unlock()
 	// logger.Infof("flushing %d records to data %d", n, chunk)
 
@@ -128,20 +128,34 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	if err != nil {
 		return err
 	}
+	ds.Lock()
+	n := len(ds.wbufs[chunk])
+	ds.Unlock()
 	for i := 0; i < n; i++ {
-		ds.Lock()
+		ds.Lock() // because append may change the slice
 		wrec := ds.wbufs[chunk][i]
 		ds.Unlock()
 		w.append(wrec)
 		size := wrec.rec.Payload.RecSize
 		ds.wbufSize -= size
-		cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
+		if wrec.rec.Payload.Ver > 0 {
+			cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
+			// NOTE: not freed yet, make it a little diff with AllocRL, which may provide more insight
+		}
 	}
+	if err = w.Close(); err != nil {
+		logger.Fatalf("write data fail, stop! err: %s", err.Error())
+		return err
+	}
+
 	ds.Lock()
+	tofree := ds.wbufs[chunk][:n]
 	ds.wbufs[chunk] = ds.wbufs[chunk][n:]
 	ds.Unlock()
-
-	return w.Close()
+	for _, wrec := range tofree {
+		wrec.rec.Payload.Free()
+	}
+	return nil
 }
 
 func (ds *dataStore) GetRecordByPosInBuffer(pos Position) (res *Record, err error) {
@@ -150,18 +164,21 @@ func (ds *dataStore) GetRecordByPosInBuffer(pos Position) (res *Record, err erro
 
 	wbuf := ds.wbufs[pos.ChunkID]
 	n := len(wbuf)
-	if n > 0 && pos.Offset >= wbuf[0].pos.Offset {
-		idx := sort.Search(n, func(i int) bool { return wbuf[i].pos.Offset >= pos.Offset })
-		wrec := wbuf[idx]
-		if wrec.pos.Offset == pos.Offset {
-			cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
-			res = wrec.rec.Copy()
-			return
-		} else {
-			err = fmt.Errorf("rec should in buffer, but not, pos = %#v", pos)
-			return
-		}
+	if n == 0 || wbuf[0].pos.Offset > pos.Offset {
+		return
 	}
+
+	idx := sort.Search(n, func(i int) bool { return wbuf[i].pos.Offset >= pos.Offset })
+	wrec := wbuf[idx]
+	if wrec.pos.Offset == pos.Offset {
+		cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
+		res = wrec.rec.Copy()
+		return
+	} else {
+		err = fmt.Errorf("rec should in buffer, but not, pos = %#v", pos)
+		return
+	}
+
 	return
 }
 

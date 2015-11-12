@@ -70,7 +70,7 @@ func TestDataCompatibility(t *testing.T) {
 		if err := r.Payload.Decompress(); err != nil {
 			t.Fatalf("broken datafile")
 		}
-		if r.Payload.Value == nil {
+		if r.Payload.Body == nil {
 			t.Fatal("nil value")
 		}
 
@@ -95,10 +95,11 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 	dataConfig.MaxFileSizeStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
 	config.Init()
 
-	p := &Payload{Value: value}
 	ds := NewdataStore(0, config.Homes[0])
 
 	for i := 0; i < recordPerFile+1; i++ {
+		p := &Payload{}
+		p.Body = value
 		p.Ver = int32(i)
 		r := &Record{key, p}
 		pos, err := ds.AppendRecord(r)

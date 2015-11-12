@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"cmem"
 	"fmt"
 	"quicklz"
 )
@@ -11,6 +12,7 @@ const (
 	FLAG_COMPRESS        = 0x00010000
 	FLAG_CLIENT_COMPRESS = 0x00000010
 	COMPRESS_RATIO_LIMIT = 0.7
+	TRY_COMPRESS_SIZE    = 1024 * 10
 	PADDING              = 256
 )
 
@@ -58,14 +60,17 @@ func newHintItem(khash uint64, ver int32, vhash uint16, pos Position, key string
 
 type Payload struct {
 	Meta
-	Value []byte
+	cmem.CArray
 }
 
 func (p *Payload) Copy() *Payload {
 	p2 := new(Payload)
 	p2.Meta = p.Meta
-	p2.Value = make([]byte, len(p.Value))
-	copy(p2.Value, p.Value)
+	var ok bool
+	p2.CArray, ok = p.CArray.Copy()
+	if !ok {
+		return nil
+	}
 	return p2
 }
 
@@ -87,18 +92,18 @@ func Getvhash(value []byte) uint16 {
 }
 
 func (p *Payload) CalcValueHash() {
-	p.ValueHash = Getvhash(p.Value)
+	p.ValueHash = Getvhash(p.Body)
 }
 
 func (p *Payload) RawValueSize() int {
 	if !p.IsCompressed() {
-		return len(p.Value)
+		return len(p.Body)
 	} else {
-		return quicklz.SizeCompressed(p.Value)
+		return quicklz.SizeCompressed(p.Body)
 	}
 }
 
-func (rec *Record) Compress() {
+func (rec *Record) TryCompress() {
 	if rec.Payload.Ver < 0 {
 		return
 	}
@@ -110,22 +115,45 @@ func (rec *Record) Compress() {
 	if rec.Size() <= 256 {
 		return
 	}
-	v := quicklz.CCompress(rec.Payload.Value)
-	if float32(len(v))/float32(len(p.Value)) < COMPRESS_RATIO_LIMIT {
-		p.Value = v
-		p.Flag += FLAG_COMPRESS
+	body := rec.Payload.Body
+	try := body
+	if len(body) > TRY_COMPRESS_SIZE {
+		try = try[:TRY_COMPRESS_SIZE]
 	}
+	compressed, ok := quicklz.CCompress(try)
+	if !ok {
+		// because oom, just not compress it
+		return
+	}
+	if float32(len(compressed.Body))/float32(len(try)) > COMPRESS_RATIO_LIMIT {
+		compressed.Free()
+		return
+	}
+	if len(body) > len(try) {
+		compressed.Free()
+		compressed, ok = quicklz.CCompress(body)
+		if !ok {
+			// because oom, just not compress it
+			return
+		}
+	}
+	p.CArray.Free()
+	p.CArray = compressed
+	p.Flag += FLAG_COMPRESS
+	return
 }
 
 func (p *Payload) Decompress() (err error) {
 	if p.Flag&FLAG_COMPRESS == 0 {
 		return
 	}
-
-	p.Value, err = quicklz.CDecompressSafe(p.Value)
+	arr, err := quicklz.CDecompressSafe(p.Body)
 	if err != nil {
+		logger.Errorf("decompress fail %s", err.Error())
 		return
 	}
+	p.CArray.Free()
+	p.CArray = arr
 	p.Flag -= FLAG_COMPRESS
 	return
 }
@@ -151,7 +179,7 @@ type Record struct {
 func (rec *Record) LogString() string {
 	return fmt.Sprintf("ksz %d, vsz %d %d, meta %#v [%s] ",
 		len(rec.Key),
-		len(rec.Payload.Value),
+		len(rec.Payload.Body),
 		rec.Payload.Meta,
 		string(rec.Key),
 	)
@@ -163,7 +191,7 @@ func (rec *Record) Copy() *Record {
 
 // must be compressed
 func (rec *Record) Sizes() (uint32, uint32) {
-	recSize := uint32(24 + len(rec.Key) + len(rec.Payload.Value))
+	recSize := uint32(24 + len(rec.Key) + len(rec.Payload.Body))
 	return recSize, ((recSize + 255) >> 8) << 8
 }
 

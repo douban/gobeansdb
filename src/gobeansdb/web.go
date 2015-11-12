@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+	"utils"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -74,7 +75,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 func handleWebPanic(w http.ResponseWriter) {
 	r := recover()
 	if r != nil {
-		fmt.Fprintf(w, "\npanic:%#v, stack:%s", r, getStack(1000))
+		fmt.Fprintf(w, "\npanic:%#v, stack:%s", r, utils.GetStack(1000))
 	}
 }
 

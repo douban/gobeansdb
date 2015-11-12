@@ -105,8 +105,8 @@ func (g *KVGen) gen(ki *KeyInfo, i int) (payload *Payload) {
 		Meta: Meta{
 			TS:  uint32(i),
 			Ver: 1},
-		Value: []byte(value),
 	}
+	payload.Body = []byte(value)
 
 	return
 }
@@ -179,7 +179,7 @@ func testHStore(t *testing.T, op, numbucket int) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if payload2 == nil || (string(payload.Value) != string(payload2.Value)) || (pos != Position{0, uint32(PADDING * i)}) {
+		if payload2 == nil || (string(payload.Body) != string(payload2.Body)) || (pos != Position{0, uint32(PADDING * i)}) {
 			t.Fatalf("%d: %#v %#v", i, payload2, pos)
 		}
 	}

@@ -296,7 +296,7 @@ func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Posit
 }
 
 func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
-	p.AccountingSize = int64(len(p.Value) + len(ki.Key))
+	p.AccountingSize = int64(len(p.Body) + len(ki.Key))
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
 	return store.buckets[ki.BucketID].checkAndSet(ki, p)

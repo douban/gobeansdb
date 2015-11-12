@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmem"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -32,6 +33,7 @@ type GoBeansdbConfig struct {
 	LogDir  string `yaml:",omitempty"`
 
 	store.HStoreConfig `yaml:"hstore,omitempty"`
+	cmem.Config        `yaml:"cmem,omitempty"`
 }
 
 func loadServerConfig(path string) {
@@ -55,6 +57,7 @@ func checkEmptyConfig(path string) {
 func loadConfigs(confdir string) {
 	store.InitDefaultConfig()
 	config.HStoreConfig = store.GetConfig()
+	config.Config = cmem.MemConfig
 	if confdir != "" {
 		loadServerConfig(fmt.Sprintf("%s/%s", confdir, "server_global.yaml"))
 		loadServerConfig(fmt.Sprintf("%s/%s", confdir, "server_local.yaml"))
@@ -74,6 +77,7 @@ func loadConfigs(confdir string) {
 		log.Fatalf("bad config: %s", err.Error())
 	}
 	store.SetConfig(config.HStoreConfig)
+	cmem.MemConfig = config.Config
 	// config mc
 	mc.MaxKeyLength = config.HStoreConfig.MaxKeySize
 	mc.MaxBodyLength = int(config.HStoreConfig.MaxValueSize)

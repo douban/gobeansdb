@@ -70,7 +70,7 @@ func (rl *ReqLimiter) Put(req *Request) {
 }
 
 func InitTokens() {
-	n := cmem.GConfig.NumReqToken
+	n := cmem.MemConfig.NumReqToken
 	if n < 16 {
 		n = 16
 	}

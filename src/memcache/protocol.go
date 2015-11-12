@@ -7,13 +7,10 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
-	"unsafe"
 )
 
 const VERSION = "0.1.0"
@@ -37,31 +34,12 @@ type Item struct {
 	Flag        int
 	Exptime     int
 	Cas         int
-	Body        []byte `json:"-"`
-	alloc       *byte
+	cmem.CArray `json:"-"`
 }
 
 func (it *Item) String() (s string) {
 	return fmt.Sprintf("Item(Flag:%d, Exptime:%d, Length:%d, Cas:%d, Body:%v",
 		it.Flag, it.Exptime, len(it.Body), it.Cas, it.Body)
-}
-
-func (item *Item) AllocBody(length int) {
-	if length > cmem.GConfig.AllocLimit {
-		item.alloc = cmem.Alloc(length)
-		item.Body = (*[1 << 30]byte)(unsafe.Pointer(item.alloc))[:length]
-		(*reflect.SliceHeader)(unsafe.Pointer(&item.Body)).Cap = length
-		runtime.SetFinalizer(item, func(item *Item) {
-			if item.alloc != nil {
-				//log.Print("free by finalizer: ", cap(item.Body))
-				cmem.Free(item.alloc, cap(item.Body))
-				item.Body = nil
-				item.alloc = nil
-			}
-		})
-	} else {
-		item.Body = make([]byte, length)
-	}
 }
 
 type Request struct {
@@ -81,10 +59,8 @@ func (req *Request) String() (s string) {
 
 func (req *Request) Clear() {
 	req.NoReply = false
-	if req.Item != nil && req.Item.alloc != nil {
-		cmem.Free(req.Item.alloc, cap(req.Item.Body))
-		req.Item.Body = nil
-		req.Item.alloc = nil
+	if req.Item != nil {
+		req.Item.CArray.Clear()
 		req.Item = nil
 	}
 
@@ -216,7 +192,12 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 
 		RL.Get(req)
 		// FIXME
-		item.AllocBody(length)
+		if !item.Alloc(length) {
+			e = fmt.Errorf("fail to alloc %d", length)
+			// TODO: disconnect?
+			return e
+		}
+
 		cmem.DBRL.SetData.AddSize(int64(length + len(req.Keys[0])))
 		if _, e = io.ReadFull(b, item.Body); e != nil {
 			return e
@@ -240,7 +221,8 @@ func (req *Request) Read(b *bufio.Reader) (e error) {
 			return errors.New("invalid cmd")
 		}
 		req.Keys = parts[1:2]
-		req.Item = &Item{Body: []byte(parts[2])}
+		req.Item = &Item{}
+		req.Item.Body = []byte(parts[2])
 		req.NoReply = len(parts) > 3 && parts[3] == "noreply"
 		RL.Get(req)
 
@@ -318,8 +300,11 @@ func (resp *Response) Read(b *bufio.Reader) error {
 				item.Cas = cas
 			}
 
-			// FIXME
-			item.AllocBody(length)
+			if !item.Alloc(length) {
+				e = fmt.Errorf("fail to alloc %d", length)
+				// TODO: disconnect?
+				return e
+			}
 			if _, e = io.ReadFull(b, item.Body); e != nil {
 				return e
 			}
@@ -380,9 +365,6 @@ func (resp *Response) Write(w io.Writer) error {
 					len(item.Body))
 			}
 			e := WriteFull(w, item.Body)
-			if key[0] != '@' && key[0] != '?' {
-				cmem.DBRL.GetData.SubSize(int64(len(key) + len(item.Body)))
-			}
 			if e != nil {
 				return e
 			}
@@ -409,12 +391,11 @@ func (resp *Response) Write(w io.Writer) error {
 }
 
 func (resp *Response) CleanBuffer() {
-	for _, item := range resp.items {
-		if item.alloc != nil {
-			cmem.Free(item.alloc, cap(item.Body))
-			item.alloc = nil
+	for key, item := range resp.items {
+		if key[0] != '@' && key[0] != '?' {
+			cmem.DBRL.GetData.SubSize(int64(len(key) + len(item.Body)))
 		}
-		runtime.SetFinalizer(item, nil)
+		item.CArray.Free()
 	}
 	resp.items = nil
 }

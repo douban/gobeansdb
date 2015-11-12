@@ -69,7 +69,7 @@ func (s *mapStore) Set(key string, item *Item, noreply bool) (bool, error) {
 
 	item.Cas = rand.Int()
 	it := *item
-	item.alloc = nil
+	it.CArray, _ = item.CArray.Copy()
 	s.data[key] = &it
 	return true, nil
 }
