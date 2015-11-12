@@ -166,7 +166,10 @@ func (ds *dataStore) GetRecordByPosInBuffer(pos Position) (res *Record, err erro
 
 	wbuf := ds.wbufs[pos.ChunkID]
 	n := len(wbuf)
-	if n > 0 && pos.Offset >= wbuf[0].pos.Offset {
+	if n == 0 || wbuf[0].pos.Offset > pos.Offset {
+		return
+	}
+	if pos.Offset >= wbuf[0].pos.Offset {
 		idx := sort.Search(n, func(i int) bool { return wbuf[i].pos.Offset >= pos.Offset })
 		wrec := wbuf[idx]
 		if wrec.pos.Offset == pos.Offset {
