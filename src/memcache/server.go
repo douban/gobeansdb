@@ -57,6 +57,9 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 		if resp != nil {
 			resp.CleanBuffer()
 		}
+		if req.Working {
+			RL.Put(req)
+		}
 	}()
 
 	// 关于错误处理

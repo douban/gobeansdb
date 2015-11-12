@@ -85,9 +85,6 @@ func (req *Request) Clear() {
 		req.Item = nil
 	}
 
-	if req.Working {
-		RL.Put(req)
-	}
 }
 
 func WriteFull(w io.Writer, buf []byte) error {
