@@ -35,6 +35,9 @@ var (
 
 	// ErrBadDataChunk means that data chunk of a value is not match its size flag.
 	ErrBadDataChunk = errors.New("bad data chunk")
+
+	// ErrClientClose means that a failure happend at reading string from a reader
+	ErrClientClose = errors.New("client socket error (e.g. client close connection)")
 )
 
 func isSpace(r rune) bool {
@@ -147,7 +150,7 @@ func (req *Request) Read(b *bufio.Reader) error {
 	var s string
 	var e error
 	if s, e = b.ReadString('\n'); e != nil {
-		return ErrInvalidCmd
+		return ErrClientClose
 	}
 
 	if !strings.HasSuffix(s, "\r\n") {
@@ -216,12 +219,16 @@ func (req *Request) Read(b *bufio.Reader) error {
 
 		cmem.DBRL.SetData.AddSize(int64(length + len(req.Keys[0])))
 		if _, e = io.ReadFull(b, item.Body); e != nil {
-			return e
+			return ErrClientClose
 		}
-		if c, e := b.ReadByte(); e != nil || c != '\r' {
-			return ErrBadDataChunk
+
+		// check ending \r\n
+		c1, e1 := b.ReadByte()
+		c2, e2 := b.ReadByte()
+		if e1 != nil || e2 != nil {
+			return ErrClientClose
 		}
-		if c, e := b.ReadByte(); e != nil || c != '\n' {
+		if c1 != '\r' || c2 != '\n' {
 			return ErrBadDataChunk
 		}
 
@@ -252,6 +259,7 @@ func (req *Request) Read(b *bufio.Reader) error {
 		}
 
 	default:
+		req.Keys = parts[1:]
 		return ErrUnknownCmd
 	}
 	return nil
@@ -580,15 +588,12 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 
 	case "quit":
 		resp = nil
-		return
 
 	default:
-		// client error
 		resp = nil
-		return
-		resp.status = "CLIENT_ERROR"
-		resp.msg = "invalid cmd"
+		logger.Errorf("Should not reach here, req.Cmd: %s", req.Cmd)
 	}
+
 	return
 }
 

@@ -241,7 +241,7 @@ func (s *StorageClient) Close() {
 func (s *StorageClient) Process(cmd string, args []string) (status string, msg string, ok bool) {
 	status = "CLIENT_ERROR"
 	msg = "bad command line format"
-	ok = true // means we can hanlde it (client format error)
+	ok = true
 
 	switch cmd {
 
@@ -272,12 +272,10 @@ func (s *StorageClient) Process(cmd string, args []string) (status string, msg s
 		err = s.hstore.GC(int(bucket), start, end)
 		if err != nil {
 			status = "ERROR"
-			ok = false
 			msg = err.Error()
 		} else {
 			status = "OK"
 			msg = ""
-			ok = true
 		}
 
 	case "optimize_stat":

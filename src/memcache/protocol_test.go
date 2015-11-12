@@ -57,7 +57,7 @@ var reqTests = []reqTest{
 	},
 	reqTest{
 		"set abc 3 3 10\r\nok\r\n",
-		"CLIENT_ERROR unexpected EOF\r\n",
+		"CLIENT_ERROR client socket error (e.g. client close connection)\r\n",
 	},
 	reqTest{
 		"get   \r\n",
