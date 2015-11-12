@@ -169,18 +169,18 @@ func (ds *dataStore) GetRecordByPosInBuffer(pos Position) (res *Record, err erro
 	if n == 0 || wbuf[0].pos.Offset > pos.Offset {
 		return
 	}
-	if pos.Offset >= wbuf[0].pos.Offset {
-		idx := sort.Search(n, func(i int) bool { return wbuf[i].pos.Offset >= pos.Offset })
-		wrec := wbuf[idx]
-		if wrec.pos.Offset == pos.Offset {
-			cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
-			res = wrec.rec.Copy()
-			return
-		} else {
-			err = fmt.Errorf("rec should in buffer, but not, pos = %#v", pos)
-			return
-		}
+
+	idx := sort.Search(n, func(i int) bool { return wbuf[i].pos.Offset >= pos.Offset })
+	wrec := wbuf[idx]
+	if wrec.pos.Offset == pos.Offset {
+		cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
+		res = wrec.rec.Copy()
+		return
+	} else {
+		err = fmt.Errorf("rec should in buffer, but not, pos = %#v", pos)
+		return
 	}
+
 	return
 }
 
