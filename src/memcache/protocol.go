@@ -39,6 +39,8 @@ var (
 
 	// ErrNetworkError means that a failure happend at reading/writing to a client connection.
 	ErrNetworkError = errors.New("network error")
+
+	ErrOOM = errors.New("memory shortage")
 )
 
 func isSpace(r rune) bool {
@@ -190,6 +192,12 @@ func (req *Request) Read(b *bufio.Reader) error {
 		}
 		if length > MaxValueSize {
 			return ErrValueTooLarge
+		}
+		if length > cmem.MemConfig.VictimSize {
+			if cmem.DBRL.FlushData.Size > cmem.MemConfig.FlushBufferHWM {
+				logger.Warnf("ErrOOM key %s, size %d", req.Keys[0], length)
+				return ErrOOM
+			}
 		}
 		if req.Cmd == "cas" {
 			if len(parts) < 6 {

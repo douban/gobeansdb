@@ -87,6 +87,10 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			resp.status = status
 			resp.msg = msg
 			err = nil
+		} else if err == ErrOOM {
+			resp = new(Response)
+			resp.status = "NOT_STORED"
+			err = nil
 		} else {
 			// process client command format related error
 			resp = new(Response)
