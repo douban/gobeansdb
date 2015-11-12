@@ -7,7 +7,6 @@ import (
 	"log"
 	"loghub"
 	"net"
-	"strings"
 	"sync"
 	"time"
 )
@@ -74,13 +73,13 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	t := time.Now()
 
 	if err != nil {
-		if err == ErrClientClose {
+		if err == ErrNetworkError {
 			// process client connection related error
 			c.Shutdown()
 			return nil
-		} else if strings.HasPrefix(err.Error(), "unknown") {
+		} else if err == ErrNonMemcacheCmd {
 			// process non memcache commands, e.g. 'gc', 'optimize_stat'.
-			status, msg, _ := storageClient.Process(req.Cmd, req.Keys)
+			status, msg := storageClient.Process(req.Cmd, req.Keys)
 			resp = new(Response)
 			resp.status = status
 			resp.msg = msg

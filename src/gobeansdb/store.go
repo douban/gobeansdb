@@ -238,10 +238,9 @@ func (s *StorageClient) Close() {
 
 }
 
-func (s *StorageClient) Process(cmd string, args []string) (status string, msg string, ok bool) {
+func (s *StorageClient) Process(cmd string, args []string) (status string, msg string) {
 	status = "CLIENT_ERROR"
 	msg = "bad command line format"
-	ok = true
 
 	switch cmd {
 

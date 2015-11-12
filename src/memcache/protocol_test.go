@@ -57,7 +57,7 @@ var reqTests = []reqTest{
 	},
 	reqTest{
 		"set abc 3 3 10\r\nok\r\n",
-		"CLIENT_ERROR client socket error (e.g. client close connection)\r\n",
+		"CLIENT_ERROR network error\r\n",
 	},
 	reqTest{
 		"get   \r\n",
@@ -134,7 +134,7 @@ var reqTests = []reqTest{
 	},
 	reqTest{
 		"error\r\n",
-		"CLIENT_ERROR unknown command\r\n",
+		"CLIENT_ERROR non memcache command\r\n",
 	},
 }
 

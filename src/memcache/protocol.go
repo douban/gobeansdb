@@ -27,8 +27,9 @@ var (
 	// or the type of a part if invalid.
 	ErrInvalidCmd = errors.New("invalid cmd")
 
-	// ErrUnknownCmd means that server don't known this command.
-	ErrUnknownCmd = errors.New("unknown command")
+	// ErrNonMemcacheCmd means that the command is not defined in original memcache protocal.
+	// refer: https://github.com/memcached/memcached/blob/master/doc/protocol.txt
+	ErrNonMemcacheCmd = errors.New("non memcache command")
 
 	// ErrValueTooLarge means that the value of a store command (e.g. set) is too large
 	ErrValueTooLarge = errors.New("value too large")
@@ -36,8 +37,8 @@ var (
 	// ErrBadDataChunk means that data chunk of a value is not match its size flag.
 	ErrBadDataChunk = errors.New("bad data chunk")
 
-	// ErrClientClose means that a failure happend at reading string from a reader
-	ErrClientClose = errors.New("client socket error (e.g. client close connection)")
+	// ErrNetworkError means that a failure happend at reading/writing to a client connection.
+	ErrNetworkError = errors.New("network error")
 )
 
 func isSpace(r rune) bool {
@@ -150,7 +151,7 @@ func (req *Request) Read(b *bufio.Reader) error {
 	var s string
 	var e error
 	if s, e = b.ReadString('\n'); e != nil {
-		return ErrClientClose
+		return ErrNetworkError
 	}
 
 	if !strings.HasSuffix(s, "\r\n") {
@@ -219,14 +220,14 @@ func (req *Request) Read(b *bufio.Reader) error {
 
 		cmem.DBRL.SetData.AddSize(int64(length + len(req.Keys[0])))
 		if _, e = io.ReadFull(b, item.Body); e != nil {
-			return ErrClientClose
+			return ErrNetworkError
 		}
 
 		// check ending \r\n
 		c1, e1 := b.ReadByte()
 		c2, e2 := b.ReadByte()
 		if e1 != nil || e2 != nil {
-			return ErrClientClose
+			return ErrNetworkError
 		}
 		if c1 != '\r' || c2 != '\n' {
 			return ErrBadDataChunk
@@ -260,7 +261,7 @@ func (req *Request) Read(b *bufio.Reader) error {
 
 	default:
 		req.Keys = parts[1:]
-		return ErrUnknownCmd
+		return ErrNonMemcacheCmd
 	}
 	return nil
 }
