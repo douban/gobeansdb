@@ -146,6 +146,7 @@ func readRecordAt(f *os.File, offset uint32) (wrec *WriteRecord, err error) {
 	if wrec.rec.Payload.IsCompressed() {
 		diff := int64(quicklz.SizeDecompressed(wrec.rec.Payload.Body) - int(wrec.vsz))
 		cmem.DBRL.GetData.AddSize(diff)
+		cmem.DBRL.GetData.SubCount(1)
 		wrec.rec.Payload.AccountingSize += diff
 	}
 	return wrec, nil

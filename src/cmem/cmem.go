@@ -53,6 +53,10 @@ func (rl *ResourceLimiter) AddCount(count int64) {
 	}
 }
 
+func (rl *ResourceLimiter) SubCount(count int64) {
+	atomic.AddInt64(&rl.Count, -count)
+}
+
 type CArray struct {
 	Body []byte
 	Addr uintptr
