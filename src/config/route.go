@@ -1,4 +1,4 @@
-package route
+package config
 
 import (
 	"io/ioutil"
@@ -7,20 +7,14 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-// for backend
-type RouteConfig struct {
-	NumBucket int
-	Buckets   []int
-}
-
 type RouteTable struct {
 	NumBucket int                     `yaml:num",omitempty"`
 	Buckets   map[int][]string        `yaml:",omitempty"`
 	Nodes     map[string]map[int]bool `yaml:"-"`
 }
 
-func (rt *RouteTable) GetServerConfig(addr string) RouteConfig {
-	r := RouteConfig{NumBucket: rt.NumBucket}
+func (rt *RouteTable) GetDBRouteConfig(addr string) DBRouteConfig {
+	r := DBRouteConfig{NumBucket: rt.NumBucket}
 	r.Buckets = make([]int, rt.NumBucket)
 	buckets := rt.Nodes[addr]
 	for b, _ := range buckets {

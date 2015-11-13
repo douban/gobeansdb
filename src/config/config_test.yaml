@@ -1,0 +1,7 @@
+mc:
+  body_max_str: 50M
+hstore:
+  local:
+    homes:
+    - /data1/beansdb
+    - /data2/beasdb1
