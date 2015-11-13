@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"cmem"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
 	"time"
+	"utils"
 )
 
 const (
@@ -150,8 +150,8 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 		treepath := htrees[i]
 		id := ids[i]
 		if id.Chunk > maxdata {
-			logger.Errorf("remove htree beyond data %d:%s", maxdata, treepath)
-			os.Remove(treepath)
+			logger.Errorf("htree beyond data: htree=%s, maxdata=%d", treepath, maxdata)
+			utils.Remove(treepath)
 		} else {
 			if bkt.htreeID.isLarger(id.Chunk, id.Split) {
 				err := bkt.htree.load(treepath)
@@ -162,8 +162,8 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 				}
 				bkt.htreeID = id
 			} else {
-				logger.Errorf("remove old htree %d:%s", maxdata, treepath)
-				os.Remove(treepath)
+				logger.Errorf("found old htree: htree=%s, currenct_htree_id=%s", treepath, bkt.htreeID)
+				utils.Remove(treepath)
 			}
 		}
 	}
@@ -253,8 +253,7 @@ func (bkt *Bucket) getAllIndex(suffix string) (paths []string, ids []HintID) {
 func (bkt *Bucket) removeHtree() {
 	paths, _ := bkt.getAllIndex(HTREE_SUFFIX)
 	for _, p := range paths {
-		logger.Infof("rm htree: %s", p)
-		os.Remove(p)
+		utils.Remove(p)
 	}
 	bkt.htreeID = HintID{0, 0}
 }

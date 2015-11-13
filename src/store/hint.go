@@ -3,12 +3,12 @@ package store
 import (
 	"fmt"
 	"loghub"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
 	"time"
+	"utils"
 )
 
 func idToStr(id int) string {
@@ -393,7 +393,7 @@ func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
 func (h *hintMgr) RemoveMerged() {
 	paths, _ := filepath.Glob(h.getPath(-1, -1, true))
 	for _, path := range paths {
-		os.Remove(path)
+		utils.Remove(path)
 	}
 	h.merged = nil
 }
@@ -564,7 +564,7 @@ func (h *hintMgr) RemoveHintfilesByChunk(chunkID int) {
 	pattern := h.getPath(chunkID, -1, false)
 	paths, _ := filepath.Glob(pattern)
 	for _, p := range paths {
-		os.Remove(p)
+		utils.Remove(p)
 	}
 }
 
@@ -581,11 +581,11 @@ func (hm *hintMgr) findValidPaths(chunkID int) (hints []string) {
 		name := filepath.Base(path)
 		sid, err := strconv.Atoi(name[4:7])
 		if err != nil {
-			logger.Errorf("remove bad hint path %s", path)
-			os.Remove(path)
+			logger.Errorf("find bad hint: hint_path=%s", path)
+			utils.Remove(path)
 		} else if sid != n {
-			logger.Errorf("remove bad hint %s, expect split %d", paths, n)
-			os.Remove(path)
+			logger.Errorf("find bad hint: hint_path=%s, expect_split_id=%d, got_split_id=%d", paths, n, sid)
+			utils.Remove(path)
 		} else {
 			hints = append(hints, path)
 			n++
@@ -604,15 +604,15 @@ func (hm *hintMgr) loadHintsByChunk(chunkID int) (datasize uint32) {
 	var err error
 	for _, p := range paths0 {
 		if err != nil {
-			logger.Errorf("remove remaining hint: %s", p)
-			os.Remove(p)
+			logger.Errorf("a failure of loading hint happend before: curr_hint_path=%s", p)
+			utils.Remove(p)
 			continue
 		}
 		sp := &hintSplit{}
 		sp.file, err = loadHintIndex(p)
 		if err != nil {
-			logger.Errorf("fail to load hint, remove it: %s", p)
-			os.Remove(p)
+			logger.Errorf("fail to load hint: hintpath=%s", p)
+			utils.Remove(p)
 		} else {
 			l := len(ck.splits)
 			bufsp := ck.splits[l-1]
