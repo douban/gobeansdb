@@ -1,6 +1,7 @@
 package main
 
 import (
+	"config"
 	"flag"
 	"fmt"
 	"log"
@@ -16,11 +17,12 @@ import (
 var (
 	server  *mc.Server
 	storage *Storage
+	conf    = &config.DB
 )
 
 func initLog() {
 	// TODO
-	logpath := filepath.Join(config.LogDir, "gobeansdb.log")
+	logpath := filepath.Join(conf.LogDir, "gobeansdb.log")
 	_ = logpath
 }
 
@@ -38,12 +40,6 @@ func handleSignals() {
 	}(sch)
 }
 
-func initHomes(homes []string) {
-	for _, s := range homes {
-		os.Mkdir(s, os.ModePerm)
-	}
-}
-
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	var confdir = flag.String("confdir", "", "path of server config dir")
@@ -51,15 +47,14 @@ func main() {
 
 	flag.Parse()
 
-	loadConfigs(*confdir)
+	conf.Load(*confdir)
 	if *dumpconf {
-		dumpConfigs()
+		config.DumpConfig(conf)
 		return
 	}
-	initHomes(store.GetConfig().LocalConfig.Homes)
 
-	log.Printf("gorivendb version %s starting at %d, config: %#v", mc.VERSION, config.Port, config)
-	runtime.GOMAXPROCS(config.Threads)
+	log.Printf("gorivendb version %s starting at %d, config: %#v", mc.VERSION, conf.Port, conf)
+	runtime.GOMAXPROCS(conf.Threads)
 	initWeb()
 
 	var err error
@@ -70,10 +65,11 @@ func main() {
 	}
 
 	server = mc.NewServer(storage)
-	addr := fmt.Sprintf("%s:%d", config.Listen, config.Port)
+	addr := fmt.Sprintf("%s:%d", conf.Listen, conf.Port)
 	if err := server.Listen(addr); err != nil {
 		log.Fatal("listen failed", err.Error())
 	}
+	log.Printf("mc server listen at %s", addr)
 	handleSignals()
 	go storage.hstore.Flusher()
 	err = server.Serve()

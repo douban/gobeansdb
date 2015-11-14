@@ -120,7 +120,7 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 		}
 	}
 	var w *hintFileWriter
-	if !config.NotDumpMerged {
+	if !conf.NoMerged {
 		w, err = newHintFileWriter(dst, datasize, 1<<20)
 		if err != nil {
 			logger.Errorf("%s", err.Error())

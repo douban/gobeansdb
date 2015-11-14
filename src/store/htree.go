@@ -13,10 +13,13 @@ import (
 const (
 	BUCKET_SIZE = 16
 	MAX_DEPTH   = 8
+
+	ThresholdListKeyDefault = uint32(64 * 4)
+	ThresholdBigHash        = 64 * 4
 )
 
 var (
-	KHASH_LENS = [8]int{8, 8, 7, 7, 6, 6, 5, 5}
+	thresholdListKey = ThresholdListKeyDefault // may change in tests
 )
 
 type HTree struct {
@@ -105,7 +108,7 @@ func (tree *HTree) load(path string) (err error) {
 	logger.Infof("loading htree %s", path)
 	reader := bufio.NewReader(f)
 	buf := make([]byte, 6)
-	leafnodes := tree.levels[htreeConfig.TreeHeight-1]
+	leafnodes := tree.levels[conf.TreeHeight-1]
 	size := len(leafnodes)
 	for i := 0; i < size; i++ {
 		if _, err = io.ReadFull(reader, buf); err != nil {
@@ -144,7 +147,7 @@ func (tree *HTree) dump(path string) {
 
 	writer := bufio.NewWriter(f)
 	buf := make([]byte, 6)
-	leafnodes := tree.levels[htreeConfig.TreeHeight-1]
+	leafnodes := tree.levels[conf.TreeHeight-1]
 	size := len(leafnodes)
 	for i := 0; i < size; i++ {
 		binary.LittleEndian.PutUint32(buf[0:4], leafnodes[i].count)
@@ -330,7 +333,7 @@ func (tree *HTree) updateNodes(level, offset int) (node *Node) {
 	}
 	node.hash = 0
 	for i := 0; i < 16; i++ {
-		if node.count > htreeConfig.ThresholdBigHash {
+		if node.count > ThresholdBigHash {
 			node.hash *= 97
 		}
 		node.hash += hashs[i]
@@ -374,7 +377,7 @@ func (tree *HTree) listDir(ki *KeyInfo) (items []HTreeItem, nodes []*Node) {
 	}
 	node := ni.node
 	tree.updateNodes(ni.level, ni.offset)
-	if ni.level >= len(tree.levels)-1 || node.count < htreeConfig.ThresholdListKey {
+	if ni.level >= len(tree.levels)-1 || node.count < thresholdListKey {
 		items = make([]HTreeItem, 0, node.count+64) // item deleted not counted
 		var filtermask uint64 = 0xffffffffffffffff
 		shift := uint(64 - len(ki.StringKey)*4)

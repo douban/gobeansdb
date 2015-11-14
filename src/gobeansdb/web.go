@@ -43,8 +43,8 @@ func init() {
 }
 
 func initWeb() {
-	webaddr := fmt.Sprintf("%s:%d", config.Listen, config.WebPort)
-	http.Handle("/log", http.FileServer(http.Dir(config.LogDir))) // TODO: tail
+	webaddr := fmt.Sprintf("%s:%d", conf.Listen, conf.WebPort)
+	http.Handle("/log", http.FileServer(http.Dir(conf.LogDir))) // TODO: tail
 
 	go func() {
 		log.Printf("http listen at %s", webaddr)
@@ -101,7 +101,7 @@ func handleYaml(w http.ResponseWriter, v ...interface{}) {
 }
 
 func handleConfig(w http.ResponseWriter, r *http.Request) {
-	handleJson(w, config)
+	handleJson(w, conf)
 }
 
 func handleRequests(w http.ResponseWriter, r *http.Request) {
@@ -132,7 +132,7 @@ func handleCollision(w http.ResponseWriter, r *http.Request) {
 		w.Write(e)
 		return
 	}
-	if bucketID > int64(config.NumBucket) || bucketID < 0 {
+	if bucketID > int64(conf.NumBucket) || bucketID < 0 {
 		w.Write(e)
 		return
 	}

@@ -126,7 +126,7 @@ func (ki *KeyInfo) Prepare() (err error) {
 	if ki.KeyIsPath {
 		ki.KeyPath, err = ParsePathString(ki.StringKey, ki.KeyPathBuf[:16])
 		ki.setKeyHashByPath()
-		if len(ki.KeyPath) < config.TreeDepth {
+		if len(ki.KeyPath) < conf.TreeDepth {
 			ki.BucketID = -1
 			return
 		}
@@ -134,7 +134,7 @@ func (ki *KeyInfo) Prepare() (err error) {
 		ki.KeyPath = ParsePathUint64(ki.KeyHash, ki.KeyPathBuf[:16])
 	}
 	ki.BucketID = 0
-	for _, v := range ki.KeyPath[:config.TreeDepth] {
+	for _, v := range ki.KeyPath[:conf.TreeDepth] {
 		ki.BucketID <<= 4
 		ki.BucketID += v
 	}

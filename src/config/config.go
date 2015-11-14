@@ -91,11 +91,17 @@ func (c *DBConfig) Load(confdir string) {
 		c.DBRouteConfig = rt.GetDBRouteConfig(c.Addr())
 		log.Printf("route table: %#v", rt)
 	}
-	utils.InitSizesPointer(&c)
+	utils.InitSizesPointer(c)
 	err := c.HStoreConfig.init()
 	if err != nil {
 		log.Fatalf("bad config: %s", err.Error())
 	}
+}
+
+func (c *DBConfig) InitDefault() {
+	c.ServerConfig = DefaultServerConfig
+	c.MCConfig = DefaultMCConfig
+	c.HStoreConfig.InitDefault()
 }
 
 func (c *ProxyConfig) Load(confdir string) {

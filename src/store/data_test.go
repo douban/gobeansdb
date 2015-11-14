@@ -19,7 +19,7 @@ func randomValue(size int) []byte {
 }
 
 func checkFileSize(t *testing.T, chunkID int, size uint32) {
-	path := genPath(config.Homes[0], chunkID)
+	path := genPath(conf.Homes[0], chunkID)
 	stat, err := os.Stat(path)
 	if size == 0 {
 		if err == nil {
@@ -88,14 +88,14 @@ func TestDataCompatibility(t *testing.T) {
 }
 
 func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint32) {
-	InitDefaultGlobalConfig()
+	conf.InitDefault()
 	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq), 1)
 	defer clearTest()
 
-	dataConfig.MaxFileSizeStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
-	config.Init()
+	conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
+	conf.Init()
 
-	ds := NewdataStore(0, config.Homes[0])
+	ds := NewdataStore(0, conf.Homes[0])
 
 	for i := 0; i < recordPerFile+1; i++ {
 		p := &Payload{}
@@ -114,6 +114,6 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 			t.Fatalf("%d %#v", i, r.Payload)
 		}
 	}
-	checkFileSize(t, 0, uint32(dataConfig.MaxFileSize))
+	checkFileSize(t, 0, uint32(conf.DataFileMax))
 	checkFileSize(t, 1, 256*recsize)
 }

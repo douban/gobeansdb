@@ -11,7 +11,7 @@ test:dep
 	go version
 	go test memcache
 	go test loghub
-	go test gobeansdb
+	go test config
 	go test cmem
 	go test quicklz
 	go test store

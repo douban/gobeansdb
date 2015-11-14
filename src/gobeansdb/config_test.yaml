@@ -1,9 +1,0 @@
-port: 122
-hstore:
-  local:
-    homes:
-    - /data1/beansdb
-    - /data2/beasdb1
-  global:
-    data:
-      maxkeysize: 200
