@@ -1,3 +1,5 @@
+mc:
+  body_c_str: 1K
 hstore:
   local:
     hostname: 127.0.0.1
