@@ -47,7 +47,6 @@ func LoadRouteTable(path, zkaddr string) (*RouteTable, error) {
 	rt := &RouteTable{}
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Printf("read config failed", path, err.Error())
 		return nil, err
 	}
 	err = rt.LoadFromYaml(data)

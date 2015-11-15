@@ -29,7 +29,6 @@ func (rl *ResourceLimiter) reset() {
 }
 
 func (rl *ResourceLimiter) AddSize(size int64) {
-	//log.Printf("add %d %d", tag, size)
 	atomic.AddInt64(&rl.Size, int64(size))
 	atomic.AddInt64(&rl.Count, 1)
 	if rl.Size > rl.MaxSize {
@@ -41,7 +40,6 @@ func (rl *ResourceLimiter) AddSize(size int64) {
 }
 
 func (rl *ResourceLimiter) SubSize(size int64) {
-	//log.Printf("add %d %d", tag, size)
 	atomic.AddInt64(&rl.Size, -int64(size))
 	atomic.AddInt64(&rl.Count, -1)
 }

@@ -63,7 +63,6 @@ func InitSizesForValue(m reflect.Value) (err error) {
 	n := m.NumField()
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
-		//log.Printf("%#v", f.Name)
 
 		if strings.HasSuffix(f.Name, "Config") { // nested config
 			InitSizesForValue(m.Field(i))

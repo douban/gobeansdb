@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -289,7 +288,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 	for {
 		s, e := b.ReadString('\n')
 		if e != nil {
-			log.Print("read response line failed", e)
+			logger.Errorf("read response line failed", e)
 			return e
 		}
 		parts := splitKeys(s)
@@ -358,7 +357,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			if len(parts) > 1 {
 				resp.msg = parts[1]
 			}
-			log.Print("error:", resp)
+			logger.Errorf("error:", resp)
 
 		default:
 			// try to convert to int
@@ -368,7 +367,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 				resp.msg = resp.status
 				resp.status = "INCR"
 			} else {
-				log.Print("unknown status:", s, resp.status)
+				logger.Errorf("unknown status:", s, resp.status)
 				return errors.New("unknown response:" + resp.status)
 			}
 		}
@@ -618,7 +617,7 @@ func (req *Request) Check(resp *Response) error {
 		if resp.items != nil {
 			for key, _ := range resp.items {
 				if !contain(req.Keys, key) {
-					log.Print("unexpected key in response: ", key)
+					logger.Errorf("unexpected key in response: ", key)
 					return errors.New("unexpected key in response: " + key)
 				}
 			}

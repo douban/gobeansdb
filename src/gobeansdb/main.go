@@ -4,7 +4,6 @@ import (
 	"config"
 	"flag"
 	"fmt"
-	"log"
 	"loghub"
 	mc "memcache"
 	"os"
@@ -19,11 +18,13 @@ var (
 	server  *mc.Server
 	storage *Storage
 	conf    = &config.DB
+	logger  = loghub.Default
 )
 
 func initLog() {
 	if conf.LogDir != "" {
 		logpath := filepath.Join(conf.LogDir, "gobeansdb.log")
+		logger.Infof("loggging to %s", logpath)
 		loghub.SetDefault(logpath, loghub.INFO, 200)
 	}
 }
@@ -35,7 +36,7 @@ func handleSignals() {
 	go func(ch <-chan os.Signal) {
 		for {
 			sig := <-ch
-			log.Print("signal recieved " + sig.String())
+			logger.Infof("signal recieved " + sig.String())
 			server.Shutdown()
 
 		}
@@ -43,7 +44,6 @@ func handleSignals() {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	var confdir = flag.String("confdir", "", "path of server config dir")
 	var dumpconf = flag.Bool("dumpconf", false, "")
 
@@ -57,7 +57,8 @@ func main() {
 
 	initLog()
 
-	log.Printf("gorivendb version %s starting at %d, config: %#v", mc.VERSION, conf.Port, conf)
+	logger.Infof("gorivendb version %s starting at %d, config: %#v", mc.VERSION, conf.Port, conf)
+	logger.Infof("route table: %#v", config.Route)
 	runtime.GOMAXPROCS(conf.Threads)
 	initWeb()
 
@@ -65,15 +66,15 @@ func main() {
 	storage = new(Storage)
 	storage.hstore, err = store.NewHStore()
 	if err != nil {
-		log.Fatal(err.Error())
+		logger.Fatalf("fail to init NewHStore %s", err.Error())
 	}
 
 	server = mc.NewServer(storage)
 	addr := fmt.Sprintf("%s:%d", conf.Listen, conf.Port)
 	if err := server.Listen(addr); err != nil {
-		log.Fatal("listen failed", err.Error())
+		logger.Fatalf("listen failed", err.Error())
 	}
-	log.Printf("mc server listen at %s", addr)
+	logger.Infof("mc server listen at %s", addr)
 	handleSignals()
 	go storage.hstore.Flusher()
 	err = server.Serve()
@@ -81,5 +82,5 @@ func main() {
 	storage = nil
 	tmp.hstore.Close()
 
-	log.Println("shut down gracefully")
+	logger.Infof("shut down gracefully")
 }

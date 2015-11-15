@@ -53,14 +53,12 @@ type MCConfig struct {
 	BodyInCStr string `yaml:"body_c_str,omitempty"`
 }
 
-func loadYamlConfig(config interface{}, path string) {
+func loadYamlConfig(config interface{}, path string) error {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Fatal("read config failed", path, err.Error())
+		return err
 	}
-	if err := yaml.Unmarshal(content, &config); err != nil {
-		log.Fatal("unmarshal yaml format config failed")
-	}
+	return yaml.Unmarshal(content, config)
 }
 
 func (c *DBConfig) checkEmptyConfig(path string) {
@@ -75,12 +73,18 @@ func (c *DBConfig) Load(confdir string) {
 	if confdir != "" {
 		// global
 		path := fmt.Sprintf("%s/%s", confdir, "beansdb_global.yaml")
-		loadYamlConfig(c, path)
+		err := loadYamlConfig(c, path)
+		if err != nil {
+			log.Fatalf("bad config %s: %s", path, err.Error())
+		}
 		c.checkEmptyConfig(path)
 
 		//local
 		path = fmt.Sprintf("%s/%s", confdir, "beansdb_local.yaml")
-		loadYamlConfig(c, path)
+		err = loadYamlConfig(c, path)
+		if err != nil {
+			log.Fatalf("bad config %s: %s", path, err.Error())
+		}
 		c.checkEmptyConfig(path)
 
 		// route

@@ -4,7 +4,6 @@ import (
 	"cmem"
 	"errors"
 	"fmt"
-	"log"
 	mc "memcache"
 	"store"
 	"strconv"
@@ -20,7 +19,7 @@ var (
 func handlePanic(s string) {
 	e := utils.PanicToError(s)
 	if e != nil {
-		log.Println(e.Error())
+		logger.Errorf(e.Error())
 	}
 }
 
@@ -54,7 +53,7 @@ func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, erro
 
 	err := s.hstore.Set(ki, payload)
 	if err != nil {
-		log.Printf("err to get %s: %s", key, err.Error())
+		logger.Errorf("err to get %s: %s", key, err.Error())
 		return false, err
 	}
 	return true, nil
@@ -168,7 +167,7 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 	ki := s.prepare(key, false)
 	payload, _, err := s.hstore.Get(ki, false)
 	if err != nil {
-		log.Printf("err to get %s: %s", key, err.Error())
+		logger.Errorf("err to get %s: %s", key, err.Error())
 		return nil, err
 	}
 	if payload == nil {
@@ -226,7 +225,7 @@ func (s *StorageClient) Delete(key string) (bool, error) {
 		if err.Error() == "NOT_FOUND" {
 			return false, nil
 		} else {
-			log.Printf("err to delete %s: %s", key, err.Error())
+			logger.Errorf("err to delete %s: %s", key, err.Error())
 			return false, err
 		}
 	}

@@ -4,7 +4,6 @@ import (
 	"cmem"
 	"encoding/json"
 	"fmt"
-	"log"
 	"loghub"
 	mc "memcache"
 	"net/http"
@@ -53,10 +52,10 @@ func initWeb() {
 	http.Handle("/log", http.FileServer(http.Dir(conf.LogDir))) // TODO: tail
 
 	go func() {
-		log.Printf("http listen at %s", webaddr)
+		logger.Infof("http listen at %s", webaddr)
 		err := http.ListenAndServe(webaddr, nil) //start web before load
 		if err != nil {
-			log.Fatal(err.Error())
+			logger.Fatalf(err.Error())
 		}
 
 	}()

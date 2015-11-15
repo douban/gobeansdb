@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"io"
-	"log"
 	"loghub"
 	"net"
 	"sync"
@@ -167,7 +166,7 @@ func (s *Server) Serve() (e error) {
 	for {
 		rw, e := s.l.Accept()
 		if e != nil {
-			log.Print("Accept failed: ", e)
+			logger.Infof("Accept failed: ", e)
 			return e
 		}
 		if s.stop {
@@ -199,7 +198,7 @@ func (s *Server) Serve() (e error) {
 		s.Unlock()
 		time.Sleep(1e8)
 	}
-	log.Print("shutdown ", s.addr, "\n")
+	logger.Infof("mc server shutdown ", s.addr, "\n")
 	return nil
 }
 
@@ -213,9 +212,7 @@ func (s *Server) Shutdown() {
 	s.Lock()
 	defer s.Unlock()
 	if len(s.conns) > 0 {
-		// log.Print("have ", len(s.conns), " active connections")
 		for _, conn := range s.conns {
-			// log.Print(s)
 			conn.Shutdown()
 		}
 	}
