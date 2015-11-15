@@ -10,6 +10,7 @@ import (
 	_ "net/http/pprof"
 	"path/filepath"
 	"runtime"
+	"store"
 	"strconv"
 	"syscall"
 	"utils"
@@ -40,6 +41,8 @@ func init() {
 
 	// dir
 	http.HandleFunc("/collision/", handleCollision)
+	http.HandleFunc("/hash/", handleKeyhash)
+
 }
 
 func initWeb() {
@@ -60,6 +63,9 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w,
 		`
     <a href='/debug/pprof'> /debug/pprof </a> <p/>
+
+     <hr/>
+
     <a href='/config'> /config </a> <p/>
     <a href='/requests'> /requests </a> <p/>
     <a href='/buffers'> /buffers </a> <p/>
@@ -67,7 +73,11 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
     <a href='/rusage'> /rusage </a> <p/>
     <a href='/log'> /log </a> <p/>
     <a href='/buckets'> /buckets </a> <p/>
-    <a href='/collision'> /collision </a> <p/>
+
+    <hr/>
+
+    <a href='/collision'> /collision/{16-byte-len hex keyhash} </a> <p/>
+    <a href='/hash'> /hash/{hex bucket id} </a> <p/>
 
     `)
 }
@@ -149,4 +159,27 @@ func handleReload(w http.ResponseWriter, r *http.Request) {
 
 func handleBuckets(w http.ResponseWriter, r *http.Request) {
 	// TODO: show infos by buckets
+}
+
+func handleKeyhash(w http.ResponseWriter, r *http.Request) {
+	if storage == nil {
+		return
+	}
+	path := filepath.Base(r.URL.Path)
+	if len(path) != 16 {
+		return
+	}
+	ki := &store.KeyInfo{StringKey: path, Key: []byte(path), KeyIsPath: true}
+	rec, err := storage.hstore.GetRecordByKeyHash(ki)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	} else if rec == nil {
+		return
+	}
+	arr := rec.Payload.CArray
+	defer arr.Free()
+	rec.Payload.Body = nil
+	w.Write([]byte(fmt.Sprintf("%s \n", rec.Key)))
+	w.Write([]byte(fmt.Sprintf("%#v", rec.Payload.Meta)))
 }
