@@ -20,7 +20,7 @@ test:dep
 # Need start a gobeansdb server on port 7900
 pytest:
 	virtualenv venv
-	venv/bin/pip install -r tests/integrated_test/pip-req.txt
+	venv/bin/pip install -r tests/pip-req.txt
 	venv/bin/nosetests -v
 
 install:

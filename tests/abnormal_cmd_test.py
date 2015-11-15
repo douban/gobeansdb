@@ -1,31 +1,24 @@
 # coding: utf-8
 import telnetlib
 import unittest
-import libmc
-
-def connect(server, **kwargs):
-    comp_threshold = kwargs.pop('comp_threshold', 0)
-    prefix = kwargs.pop('prefix', None)
-
-    c = libmc.Client([server],
-                     do_split=0,
-                     comp_threshold=comp_threshold,
-                     prefix=prefix)
-    c.config(libmc.MC_CONNECT_TIMEOUT, 300)  # 0.3s
-    c.config(libmc.MC_POLL_TIMEOUT, 3000)  # 3s
-    c.config(libmc.MC_RETRY_TIMEOUT, 5)  # 5s
-    return c
+from tests.dbclient import MCStore
+from tests.base import BeansdbInstance
 
 
 class AbnormalCmdTest(unittest.TestCase):
     def setUp(self):
-        self.server = '127.0.0.1:7900'
-        self.db = connect(self.server)
+        self.addr = '127.0.0.1:7900'
+        self.db = BeansdbInstance()
+        self.db.start()
+        self.store = MCStore(self.addr)
         self.invalid_key = '/this/is/a/bad/key/%s' % chr(15)
 
+    def tearDown(self):
+        self.db.clean()
+
     def run_cmd_by_telnet(self, cmd, expected, timeout=2):
-        server, port = self.server.split(':')
-        t = telnetlib.Telnet(server, port)
+        addr, port = self.addr.split(':')
+        t = telnetlib.Telnet(addr, port)
         t.write('%s\r\n' % cmd)
         out = t.read_until('\n', timeout=timeout)
         t.write('quit\n')
@@ -52,18 +45,17 @@ class AbnormalCmdTest(unittest.TestCase):
 
     def test_incr(self):
         key = '/test/incr'
-        self.assertEqual(self.db.delete(key), True)
+        self.assertEqual(self.store.delete(key), True)
         cmd = 'incr %s 10' % key
         self.run_cmd_by_telnet(cmd, '10')
-        self.assertEqual(self.db.get(key), 10)
+        self.assertEqual(self.store.get(key), 10)
 
         # incr 一个 value 为字符串的 key
         key = '/test/incr2'
-        self.assertEqual(self.db.set(key, 'aaa'), True)
+        self.assertEqual(self.store.set(key, 'aaa'), True)
         cmd = 'incr %s 10' % key
         self.run_cmd_by_telnet(cmd, '0')
-        self.assertEqual(self.db.get(key), 'aaa')
-
+        self.assertEqual(self.store.get(key), 'aaa')
 
     def test_delete(self):
         key = '/delete/not/exist/key'
