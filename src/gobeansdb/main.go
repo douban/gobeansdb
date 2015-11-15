@@ -73,7 +73,9 @@ func main() {
 	handleSignals()
 	go storage.hstore.Flusher()
 	err = server.Serve()
-	storage.hstore.Close()
+	tmp := storage
+	storage = nil
+	tmp.hstore.Close()
 
 	log.Println("shut down gracefully")
 }

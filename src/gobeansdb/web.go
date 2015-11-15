@@ -87,7 +87,6 @@ func handleJson(w http.ResponseWriter, v ...interface{}) {
 	} else {
 		w.Write(b)
 	}
-
 }
 
 func handleYaml(w http.ResponseWriter, v ...interface{}) {
@@ -125,6 +124,9 @@ func handleBuffers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleCollision(w http.ResponseWriter, r *http.Request) {
+	if storage == nil {
+		return
+	}
 	e := []byte("need bucket id, e.g. /collision/c")
 	s := filepath.Base(r.URL.Path)
 	bucketID, err := strconv.ParseInt(s, 16, 16)
