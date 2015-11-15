@@ -12,6 +12,7 @@ type ReqHistoy struct {
 	WaitTime   time.Duration
 	ServeStart time.Time
 	ServeTime  time.Duration
+	Working    bool
 }
 
 type ReqLimiter struct {
@@ -52,6 +53,7 @@ func (rl *ReqLimiter) Get(req *Request) {
 		Cmd:        req.Cmd,
 		Keys:       req.Keys,
 		ServeStart: time.Now(),
+		Working:    true,
 	}
 	if d > rl.MaxWait {
 		rl.MaxWait = d
@@ -65,6 +67,7 @@ func (rl *ReqLimiter) Put(req *Request) {
 	t := req.Token
 	//logger.Debugf("put %d", t)
 	rl.Histories[t].ServeTime = time.Since(rl.Histories[t].ServeStart)
+	rl.Histories[t].Working = false
 	rl.Owners[t].Working = false
 	rl.Chan <- t
 }
