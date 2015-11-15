@@ -86,10 +86,12 @@ func (c *DBConfig) Load(confdir string) {
 		// route
 		rt, err := LoadRouteTable(fmt.Sprintf("%s/%s", confdir, "route.yaml"), c.ZK)
 		if err != nil {
-			log.Fatalf("fail to load route table")
+			log.Fatalf("fail to load route table: %s", err.Error())
 		}
-		c.DBRouteConfig = rt.GetDBRouteConfig(c.Addr())
-		log.Printf("route table: %#v", rt)
+		c.DBRouteConfig, err = rt.GetDBRouteConfig(c.Addr())
+		if err != nil {
+			log.Fatalf("bad config in %s", confdir, err.Error())
+		}
 	}
 	utils.InitSizesPointer(c)
 	err := c.HStoreConfig.init()
@@ -111,7 +113,7 @@ func (c *ProxyConfig) Load(confdir string) {
 func DumpConfig(config interface{}) {
 	b, err := yaml.Marshal(config)
 	if err != nil {
-		log.Panicln(err)
+		log.Fatalf("%s", err)
 	} else {
 		fmt.Println(string(b))
 	}
