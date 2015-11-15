@@ -82,6 +82,9 @@ func (l *DefaultHub) Log(name string, level int, file string, line int, msg stri
 	bufline := &BufferLine{time.Now(), level, file, line, msg}
 	if level >= WARN {
 		l.Add(bufline)
+		if level == FATAL {
+			os.Exit(1)
+		}
 	}
 	l.Last[level] = bufline
 }
