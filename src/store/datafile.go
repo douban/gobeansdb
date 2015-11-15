@@ -283,21 +283,21 @@ func (wrec *WriteRecord) append(wbuf io.Writer, dopadding bool) error {
 	wrec.encodeHeader()
 	size, sizeall := wrec.rec.Sizes()
 	if n, err := wbuf.Write(wrec.header[:]); err != nil {
-		logger.Infof(err.Error(), n)
+		logger.Fatalf(err.Error(), n)
 		return err
 	}
 	if n, err := wbuf.Write(wrec.rec.Key); err != nil {
-		logger.Infof(err.Error(), n)
+		logger.Fatalf(err.Error(), n)
 		return err
 	}
 	if n, err := wbuf.Write(wrec.rec.Payload.Body); err != nil {
-		logger.Infof(err.Error(), n)
+		logger.Fatalf(err.Error(), n)
 		return err
 	}
 	npad := sizeall - size
 	if dopadding && npad != 0 {
 		if n, err := wbuf.Write(padding[:npad]); err != nil {
-			logger.Infof(err.Error(), n)
+			logger.Fatalf(err.Error(), n)
 			return err
 		}
 	}

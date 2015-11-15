@@ -98,6 +98,13 @@ func (ds *dataStore) flusher() {
 	}
 }
 
+func (ds *dataStore) getDiskFileSize(chunkID int) uint32 {
+	if len(ds.wbufs[chunkID]) > 0 {
+		return ds.wbufs[chunkID][0].pos.Offset
+	}
+	return ds.filesizes[chunkID]
+}
+
 func (ds *dataStore) flush(chunk int, force bool) error {
 	if ds.wbufSize == 0 {
 		return nil
@@ -120,6 +127,10 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	w, err := ds.getStreamWriter(chunk, true)
 	if err != nil {
 		return err
+	}
+	filessize := ds.getDiskFileSize(chunk)
+	if w.offset != filessize {
+		logger.Fatalf("wrong data file size, exp %d, got %d, %s", filessize, w.offset, ds.genPath(chunk))
 	}
 	ds.Lock()
 	n := len(ds.wbufs[chunk])
@@ -266,7 +277,7 @@ func (ds *dataStore) getStreamWriter(chunk int, isappend bool) (*DataStreamWrite
 				logger.Infof(err.Error())
 				return nil, err
 			} else if offset%PADDING != 0 {
-				logger.Infof("%s not 256 aligned : %d", path, offset)
+				logger.Fatalf("%s not 256 aligned : %d", path, offset)
 			}
 		}
 	} else {
