@@ -192,8 +192,7 @@ func (s *StorageClient) GetMulti(keys []string) (map[string]*mc.Item, error) {
 }
 
 func (s *StorageClient) Len() int {
-	// TODO:
-	return 0
+	return s.hstore.NumKey()
 }
 
 func (s *StorageClient) Append(key string, value []byte) (bool, error) {

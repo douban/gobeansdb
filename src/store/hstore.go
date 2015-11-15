@@ -229,6 +229,15 @@ func (store *HStore) Close() {
 	}
 }
 
+func (store *HStore) NumKey() (n int) {
+	for _, b := range store.buckets {
+		if b.state > 0 {
+			n += int(b.htree.levels[0][0].count)
+		}
+	}
+	return
+}
+
 func (store *HStore) updateNodesUpper(level, offset int) (node *Node) {
 	tree := store.htree
 	node = &tree.levels[level][offset]
@@ -320,6 +329,7 @@ func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, error) {
 	ki.Prepare()
 	return store.buckets[ki.BucketID].GetRecordByKeyHash(ki)
 }
+
 func (store *HStore) Incr(ki *KeyInfo, value int) int {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
