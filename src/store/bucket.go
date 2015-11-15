@@ -176,7 +176,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 		e := bkt.checkHintWithData(i)
 		if e != nil {
 			err = e
-			logger.Fatalf("fail to start for bad data")
+			logger.Fatalf("fail to start for bad data: %s", e.Error())
 		}
 		splits := bkt.hints.chunks[i].splits
 		numhintfile := len(splits) - 1
@@ -356,7 +356,8 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 
 	rec, err = bkt.datas.GetRecordByPos(pos)
 	if err != nil {
-		logger.Errorf("%s", err.Error())
+		// not remove for now: it may cause many sync
+		// bkt.htree.remove(ki, pos)
 		return
 	} else if rec == nil {
 		err = fmt.Errorf("bad htree item, get nothing,  pos %v", pos)
@@ -370,7 +371,8 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 
 	keyhash := getKeyHash(rec.Key)
 	if keyhash != ki.KeyHash {
-		bkt.htree.remove(ki, pos)
+		// not remove for now: it may cause many sync
+		// bkt.htree.remove(ki, pos)
 		err = fmt.Errorf("bad htree item %016x != %016x, pos %v", keyhash, ki.KeyHash, pos)
 		logger.Errorf("%s", err.Error())
 		cmem.DBRL.GetData.SubSize(rec.Payload.AccountingSize)

@@ -206,3 +206,7 @@ func (rec *Record) Dumps() []byte {
 	wrec.append(&buf, false)
 	return buf.Bytes()
 }
+
+func isValidKVSzie(ksz, vsz uint32) bool {
+	return ksz <= uint32(conf.MaxKeyLen) && vsz <= uint32(conf.BodyMax)
+}

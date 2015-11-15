@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"quicklz"
+	"time"
 )
 
 const (
@@ -40,6 +41,12 @@ func wrapRecord(rec *Record) *WriteRecord {
 		ksz: uint32(len(rec.Key)),
 		vsz: uint32(len(rec.Payload.Body)),
 	}
+}
+
+func (wrec *WriteRecord) String() string {
+	return fmt.Sprintf("{ts: %v,flag 0x%x, ver %d, ksz: %d, vsz: %d}",
+		time.Unix(int64(wrec.rec.Payload.TS), 0),
+		wrec.rec.Payload.Flag, wrec.rec.Payload.Ver, wrec.ksz, wrec.vsz)
 }
 
 func (wrec *WriteRecord) decode(data []byte) (err error) {
@@ -98,10 +105,10 @@ func readRecordAtPath(path string, offset uint32) (*WriteRecord, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return readRecordAt(f, offset)
+	return readRecordAt(path, f, offset)
 }
 
-func readRecordAt(f *os.File, offset uint32) (wrec *WriteRecord, err error) {
+func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, err error) {
 	wrec = newWriteRecord()
 	defer func() {
 		if err != nil {
@@ -111,15 +118,22 @@ func readRecordAt(f *os.File, offset uint32) (wrec *WriteRecord, err error) {
 	}()
 	var n int
 	if n, err = f.ReadAt(wrec.header[:], int64(offset)); err != nil {
-		logger.Errorf("%s %d", err.Error(), n)
+		err = fmt.Errorf("fail to read head %s:%d, err = %s, n = %d", path, offset, err.Error(), n)
+		logger.Errorf(err.Error())
 		return
 	}
+	if !isValidKVSzie(wrec.ksz, wrec.vsz) {
+		err = fmt.Errorf("bad kv size %s:%d, wrec %v", path, offset, wrec)
+		logger.Errorf(err.Error())
+		return
+	}
+
 	wrec.decodeHeader()
 	kvSize := int64(wrec.ksz + wrec.vsz)
 	var kv cmem.CArray
 	if !kv.Alloc(int(kvSize)) {
-		err = fmt.Errorf("fail to alloc for read file, size %d", kvSize)
-		logger.Errorf("%s", err.Error())
+		err = fmt.Errorf("fail to alloc for read %s:%d, wrec %v ", path, offset, wrec)
+		logger.Errorf(err.Error())
 		return
 	}
 
@@ -127,7 +141,9 @@ func readRecordAt(f *os.File, offset uint32) (wrec *WriteRecord, err error) {
 	wrec.rec.Key = kv.Body[:wrec.ksz]
 
 	if n, err = f.ReadAt(kv.Body, int64(offset)+recHeaderSize); err != nil {
-		logger.Infof("%s, %d", err.Error(), n)
+		err = fmt.Errorf("fail to  read %s:%d, rec %v; return err = %s, n = %d",
+			path, offset, wrec, err.Error(), n)
+		logger.Errorf(err.Error())
 		cmem.DBRL.GetData.SubSize(int64(kvSize))
 		return
 	}
@@ -137,8 +153,9 @@ func readRecordAt(f *os.File, offset uint32) (wrec *WriteRecord, err error) {
 	wrec.rec.Payload.Body = kv.Body[wrec.ksz:]
 	crc := wrec.getCRC()
 	if wrec.crc != crc {
-		err = fmt.Errorf("crc check fail")
-		logger.Infof(err.Error())
+		err = fmt.Errorf("crc check fail %s:%d, rec %v; %d != %d",
+			path, offset, wrec, wrec.crc, crc)
+		logger.Errorf(err.Error())
 		cmem.DBRL.GetData.SubSize(int64(kvSize))
 		return
 	}
@@ -153,7 +170,8 @@ func readRecordAt(f *os.File, offset uint32) (wrec *WriteRecord, err error) {
 }
 
 type DataStreamReader struct {
-	ds *dataStore
+	path string
+	ds   *dataStore
 
 	fd   *os.File
 	rbuf *bufio.Reader
@@ -169,7 +187,7 @@ func newDataStreamReader(path string, bufsz int) (*DataStreamReader, error) {
 		return nil, err
 	}
 	rbuf := bufio.NewReaderSize(fd, bufsz)
-	return &DataStreamReader{fd: fd, rbuf: rbuf, offset: 0}, nil
+	return &DataStreamReader{path: path, fd: fd, rbuf: rbuf, offset: 0}, nil
 }
 
 func (stream *DataStreamReader) seek(offset uint32) {
@@ -185,7 +203,7 @@ func (stream *DataStreamReader) nextValid() (rec *Record, offset uint32, sizeBro
 	defer fd.Close()
 	st, _ := fd.Stat()
 	for int64(offset) < st.Size() {
-		wrec, err2 := readRecordAt(fd, offset2)
+		wrec, err2 := readRecordAt(stream.path, fd, offset2)
 		if err2 == nil {
 			logger.Infof("crc fail end %x, sizeBroken %d", offset2, sizeBroken)
 			_, rsize := wrec.rec.Sizes()
@@ -209,7 +227,7 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 	wrec := newWriteRecord()
 	if _, err = io.ReadFull(stream.rbuf, wrec.header[:]); err != nil {
 		if err != io.EOF {
-			logger.Infof(err.Error(), err)
+			logger.Errorf("%s:0x%x %s", stream.path, stream.offset, err.Error())
 		} else {
 			err = nil
 		}
@@ -223,12 +241,12 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 
 	wrec.rec.Key = make([]byte, wrec.ksz)
 	if _, err = io.ReadFull(stream.rbuf, wrec.rec.Key); err != nil {
-		logger.Infof(err.Error())
+		logger.Errorf(err.Error())
 		return
 	}
 	wrec.rec.Payload.Body = make([]byte, wrec.vsz)
 	if _, err = io.ReadFull(stream.rbuf, wrec.rec.Payload.Body); err != nil {
-		logger.Infof(err.Error())
+		logger.Errorf(err.Error())
 		return
 	}
 	recsizereal, recsize := wrec.rec.Sizes()
@@ -240,7 +258,7 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 	crc := wrec.getCRC()
 	if wrec.crc != crc {
 		err := fmt.Errorf("crc fail begin offset %x", stream.offset)
-		logger.Infof(err.Error())
+		logger.Errorf(err.Error())
 		sizeBroken += 1
 		return stream.nextValid()
 	}
