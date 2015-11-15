@@ -88,11 +88,11 @@ func (c *DBConfig) Load(confdir string) {
 		c.checkEmptyConfig(path)
 
 		// route
-		rt, err := LoadRouteTable(fmt.Sprintf("%s/%s", confdir, "route.yaml"), c.ZK)
+		Route, err := LoadRouteTable(fmt.Sprintf("%s/%s", confdir, "route.yaml"), c.ZK)
 		if err != nil {
 			log.Fatalf("fail to load route table: %s", err.Error())
 		}
-		c.DBRouteConfig, err = rt.GetDBRouteConfig(c.Addr())
+		c.DBRouteConfig, err = Route.GetDBRouteConfig(c.Addr())
 		if err != nil {
 			log.Fatalf("bad config in %s", confdir, err.Error())
 		}
