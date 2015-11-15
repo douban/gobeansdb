@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"loghub"
 	mc "memcache"
 	"net/http"
 	_ "net/http/pprof"
@@ -38,6 +39,8 @@ func init() {
 	http.HandleFunc("/buckets", handleBuckets)
 
 	http.HandleFunc("/reload", handleReload)
+	http.HandleFunc("/logbuf", handleLogBuffer)
+	http.HandleFunc("/loglast", handleLogLast)
 
 	// dir
 	http.HandleFunc("/collision/", handleCollision)
@@ -72,6 +75,8 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
     <a href='/memstats'> /memstats </a> <p/>
     <a href='/rusage'> /rusage </a> <p/>
     <a href='/log'> /log </a> <p/>
+    <a href='/logbuf'> /logbuf </a> <p/>
+    <a href='/loglast'> /loglast </a> <p/>
     <a href='/buckets'> /buckets </a> <p/>
 
     <hr/>
@@ -182,4 +187,12 @@ func handleKeyhash(w http.ResponseWriter, r *http.Request) {
 	rec.Payload.Body = nil
 	w.Write([]byte(fmt.Sprintf("%s \n", rec.Key)))
 	w.Write([]byte(fmt.Sprintf("%#v", rec.Payload.Meta)))
+}
+
+func handleLogBuffer(w http.ResponseWriter, r *http.Request) {
+	loghub.Default.DumpBuffer(w)
+}
+
+func handleLogLast(w http.ResponseWriter, r *http.Request) {
+	w.Write(loghub.Default.GetLast())
 }

@@ -2,6 +2,7 @@ package loghub
 
 import (
 	"fmt"
+	"io"
 	"runtime"
 	"sync"
 )
@@ -32,6 +33,8 @@ var (
 
 type LogHub interface {
 	Log(name string, level int, file string, line int, msg string)
+	DumpBuffer(out io.Writer)
+	GetLast() []byte
 }
 
 type Logger struct {
@@ -88,4 +91,12 @@ func (l *Logger) Logf(level int, format string, v ...interface{}) {
 		file = short
 	}
 	l.hub.Log(l.name, level, file, line, fmt.Sprintf(format, v...))
+}
+
+func (l *Logger) DumpBuffer(out io.Writer) {
+	l.hub.DumpBuffer(out)
+}
+
+func (l *Logger) GetLast() []byte {
+	return l.hub.GetLast()
 }

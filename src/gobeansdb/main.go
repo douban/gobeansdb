@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"loghub"
 	mc "memcache"
 	"os"
 	"os/signal"
@@ -21,9 +22,10 @@ var (
 )
 
 func initLog() {
-	// TODO
-	logpath := filepath.Join(conf.LogDir, "gobeansdb.log")
-	_ = logpath
+	if conf.LogDir != "" {
+		logpath := filepath.Join(conf.LogDir, "gobeansdb.log")
+		loghub.SetDefault(logpath, loghub.INFO, 200)
+	}
 }
 
 func handleSignals() {
@@ -52,6 +54,8 @@ func main() {
 		config.DumpConfig(conf)
 		return
 	}
+
+	initLog()
 
 	log.Printf("gorivendb version %s starting at %d, config: %#v", mc.VERSION, conf.Port, conf)
 	runtime.GOMAXPROCS(conf.Threads)
