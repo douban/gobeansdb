@@ -288,7 +288,11 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 		return nil, nil
 	}
 	if len(ki.Key) >= conf.TreeDepth {
-		return store.buckets[ki.BucketID].listDir(ki)
+		bkt := store.buckets[ki.BucketID]
+		if bkt.state <= 0 {
+			return nil, nil
+		}
+		return bkt.listDir(ki)
 	}
 	return store.ListUpper(ki)
 }
@@ -296,6 +300,10 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 func (store *HStore) GC(bucketID, beginChunkID, endChunkID int) error {
 	if bucketID >= conf.NumBucket {
 		return fmt.Errorf("bad bucket id")
+	}
+	bkt := store.buckets[bucketID]
+	if bkt.state <= 0 {
+		return nil
 	}
 	if store.gcMgr.stat != nil && store.gcMgr.stat.Running {
 		return fmt.Errorf("already running")
@@ -309,31 +317,51 @@ func (store *HStore) GCStat() (int, *GCState) {
 }
 
 func (store *HStore) GetBucketInfo(bucketID int, keys []string) ([]byte, error) {
-	return store.buckets[bucketID].getInfo(keys)
+	bkt := store.buckets[bucketID]
+	if bkt.state <= 0 {
+		return nil, nil
+	}
+	return bkt.getInfo(keys)
 }
 
 func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Position, err error) {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
-	return store.buckets[ki.BucketID].get(ki, memOnly)
+	bkt := store.buckets[ki.BucketID]
+	if bkt.state <= 0 {
+		return
+	}
+	return bkt.get(ki, memOnly)
 }
 
 func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 	p.AccountingSize = int64(len(p.Body) + len(ki.Key))
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
-	return store.buckets[ki.BucketID].checkAndSet(ki, p)
+	bkt := store.buckets[ki.BucketID]
+	if bkt.state <= 0 {
+		return nil
+	}
+	return bkt.checkAndSet(ki, p)
 }
 
 func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, error) {
 	ki.Prepare()
-	return store.buckets[ki.BucketID].GetRecordByKeyHash(ki)
+	bkt := store.buckets[ki.BucketID]
+	if bkt.state <= 0 {
+		return nil, nil
+	}
+	return bkt.GetRecordByKeyHash(ki)
 }
 
 func (store *HStore) Incr(ki *KeyInfo, value int) int {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
-	return store.buckets[ki.BucketID].incr(ki, value)
+	bkt := store.buckets[ki.BucketID]
+	if bkt.state <= 0 {
+		return 0
+	}
+	return bkt.incr(ki, value)
 }
 
 func (store *HStore) merger(interval time.Duration) {
