@@ -198,14 +198,14 @@ func (stream *DataStreamReader) seek(offset uint32) {
 // TODO: slow
 func (stream *DataStreamReader) nextValid() (rec *Record, offset uint32, sizeBroken uint32, err error) {
 	offset2 := stream.offset
-	offset2 = offset2 & (^uint32(255))
+	offset2 = offset2 & (^uint32(0xff))
 	fd, _ := os.Open(stream.fd.Name())
 	defer fd.Close()
 	st, _ := fd.Stat()
-	for int64(offset) < st.Size() {
+	for int64(offset2) < st.Size() {
 		wrec, err2 := readRecordAt(stream.path, fd, offset2)
 		if err2 == nil {
-			logger.Infof("crc fail end %x, sizeBroken %d", offset2, sizeBroken)
+			logger.Infof("crc fail end offset 0x%x, sizeBroken 0x%x", offset2, sizeBroken)
 			_, rsize := wrec.rec.Sizes()
 			offset3 := offset2 + rsize
 			stream.fd.Seek(int64(offset3), 0)
@@ -214,12 +214,12 @@ func (stream *DataStreamReader) nextValid() (rec *Record, offset uint32, sizeBro
 			cmem.DBRL.GetData.SubSize(wrec.rec.Payload.AccountingSize)
 			return wrec.rec, offset2, sizeBroken, nil
 		}
-		sizeBroken += 1
+		sizeBroken += 256
 		offset2 += 256
 		stream.offset = offset2
 	}
 
-	logger.Infof("crc fail until file end, sizeBroken %d", sizeBroken)
+	logger.Infof("crc fail until file end, sizeBroken 0x%x", sizeBroken)
 	return nil, offset2, sizeBroken, nil
 }
 
