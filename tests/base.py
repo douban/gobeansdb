@@ -1,9 +1,11 @@
 # coding: utf-8
 
 import os
+import yaml
 import time
 import shlex
 import shutil
+import socket
 import subprocess
 
 from tests.dbclient import MCStore
@@ -33,6 +35,34 @@ def stop_cmd(popen):
     popen.wait()
 
 
+### parse config
+
+SERVER_LOCAL = 'beansdb_local.yaml'
+SERVER_GLOBAL = 'beansdb_global.yaml'
+CONF_DIR = './conf'
+
+
+def get_server_addr(server_global=SERVER_GLOBAL, server_local=SERVER_LOCAL):
+    global_conf = load_yaml(server_global)
+    local_conf = load_yaml(server_local)
+    port = global_conf['server']['port']
+    if local_conf.get('server') and local_conf.get('server').get('port'):
+        port = local_conf['server']['port']
+    hostname = local_conf['hstore']['local'].get('hostname') or socket.gethostname()
+    return '%s:%s' % (hostname, port)
+
+
+def get_db_homes(server_local=SERVER_LOCAL):
+    local_conf = load_yaml(server_local)
+    return local_conf['hstore']['local']['homes']
+
+
+def load_yaml(filename, conf_dir=CONF_DIR):
+    filepath = os.path.join(conf_dir, filename)
+    with open(filepath) as f:
+        return yaml.load(f)
+
+
 ### BeansdbInstance
 
 class BeansdbInstance(object):
@@ -40,9 +70,9 @@ class BeansdbInstance(object):
     '''
     def __init__(self):
         self.popen = None
-        self.cmd = "./bin/gobeansdb"
-        self.addr = '127.0.0.1:7900'
-        self.db_home = './testdb'
+        self.cmd = "./bin/gobeansdb -confdir conf"
+        self.addr = get_server_addr()
+        self.db_homes = get_db_homes()
 
     def __del__(self):
         self.stop()
@@ -50,12 +80,16 @@ class BeansdbInstance(object):
     def start(self):
         assert self.popen is None
         self.popen = start_cmd(self.cmd)
+        try_times = 0
         while True:
             try:
                 store = MCStore(self.addr)
                 store.get("@")
                 return
             except IOError:
+                try_times += 1
+                if try_times > 10:
+                    raise Exception('connect error for addr: %s', self.addr)
                 time.sleep(0.5)
 
     def stop(self):
@@ -67,8 +101,9 @@ class BeansdbInstance(object):
     def clean(self):
         if self.popen:
             self.stop()
-        if os.path.exists(self.db_home):
-            shutil.rmtree(self.db_home)
+        for db_home in self.db_homes:
+            if os.path.exists(db_home):
+                shutil.rmtree(db_home)
 
 
 if __name__ == '__main__':

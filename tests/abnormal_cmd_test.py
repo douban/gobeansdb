@@ -2,12 +2,12 @@
 import telnetlib
 import unittest
 from tests.dbclient import MCStore
-from tests.base import BeansdbInstance
+from tests.base import BeansdbInstance, get_server_addr
 
 
 class AbnormalCmdTest(unittest.TestCase):
     def setUp(self):
-        self.addr = '127.0.0.1:7900'
+        self.addr = get_server_addr()
         self.db = BeansdbInstance()
         self.db.start()
         self.store = MCStore(self.addr)

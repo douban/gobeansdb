@@ -46,7 +46,6 @@ class KeyVersionTest(unittest.TestCase):
         self.assertEqual(self.get_meta(store, key), (3, 0, self.last_pos))
 
         store.set_raw(key, 'bbb', rev=4)
-        self.update_pos(256)
         self.assertEqual(self.get_meta(store, key), (4, 0, self.last_pos))
 
         store.set_raw(key, 'ccc', rev=2)
@@ -99,7 +98,7 @@ class KeyVersionTest(unittest.TestCase):
 
     def test_special_key(self):
         store = MCStore(self.db.addr)
-        kvs = [('a' * 250, 1), ('a', range(1000))]
+        kvs = [('a' * 200, 1), ('a', range(1000))]
         for k, v in kvs:
             self.assertTrue(store.set(k, v))
             self.assertEqual(store.get(k), v)
@@ -116,7 +115,7 @@ class KeyVersionTest(unittest.TestCase):
         key = 'largekey'
         size = 10 * 1024 * 1024
         rsize = (((size + len(key) + 24) >> 8) + 1) << 8
-        string_large = random_string(size)
+        string_large = random_string(size / 10) * 10
 
         self.assertTrue(store.set(key, string_large))
         self.assertEqual(store.get(key), string_large)

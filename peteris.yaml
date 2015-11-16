@@ -11,7 +11,11 @@
     triggers:
       - pollscm: '* * * * *'
     builders:
-      - shell: make test
+      - shell: |
+          make test
+          make pytest
     publishers:
+      - junit:
+          results: unittest.xml
       - email:
           recipients: yangxiufeng@douban.com,zhuzhaolong@douban.com
