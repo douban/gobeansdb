@@ -85,5 +85,8 @@ func (s *Stats) Stats() map[string]int64 {
 	st["rusage_user"] = int64(rusage.Utime.Sec)
 	st["rusage_system"] = int64(rusage.Stime.Sec)
 	st["rusage_maxrss"] = int64(rusage.Maxrss / 1024)
+	st["avail_space"] = 0
+	st["total_space"] = 0
+	st["curr_items"] = 0
 	return st
 }
