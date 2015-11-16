@@ -94,7 +94,7 @@ func (c *DBConfig) Load(confdir string) {
 		}
 		c.DBRouteConfig, err = Route.GetDBRouteConfig(c.Addr())
 		if err != nil {
-			log.Fatalf("bad config in %s", confdir, err.Error())
+			log.Fatalf("bad config in %s %s", confdir, err.Error())
 		}
 	}
 	utils.InitSizesPointer(c)
