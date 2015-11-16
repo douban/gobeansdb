@@ -5,21 +5,23 @@ server:
   webport: 7908
   threads: 4
   logdir: ./
+mc:
+  max_key_len: 250
+  max_req: 16
+  body_max_str: 50M
+  body_big_str: 5M
+  body_c_str: 4K
 hstore:
   data:
-    maxkeysize: 250
-    dataflushsec: 10
-    flushsizemin: 256
-    maxvaluesizestr: 50M
-    maxfilesizestr: 4000M
-    flushsizestr: 16M
+    flush_interval: 60
+    flush_max_str: 100M
+    flush_wake_str: 4M
+    datafile_max_str: 4000M
+    check_vhash: true
   hint:
-    secondsbeforedump: 60
-    splitcountstr: 1k
-    indexintervalsizestr: 4K
-    notdumpmerged: true
-    mergechunkinterval: 1
+    hint_split_cap_str: 1k
+    hint_index_interval_str: 4K
+    hint_no_merge: true
+    hint_merge_interval: 1
   htree:
-    thresholdlistkey: 256
-    thresholdbighash: 256
-    treeheight: 3
+    tree_height: 3
