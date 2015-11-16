@@ -212,7 +212,7 @@ func (tree *HTree) remvoeFromLeaf(ni *NodeInfo, ki *KeyInfo, oldPos Position) {
 	node := ni.node
 	oldm, removed := tree.leafs[ni.offset].Remove(ki, oldPos)
 	if removed && oldm.ver > 0 {
-		node.hash += oldm.vhash * uint16(ki.KeyHash>>32)
+		node.hash -= oldm.vhash * uint16(ki.KeyHash>>32)
 		node.count -= 1
 	}
 }

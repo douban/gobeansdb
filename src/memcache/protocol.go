@@ -576,12 +576,13 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			}
 			resp.msg = strings.Join(ss, "")
 		} else {
-			ss = make([]string, len(st))
+			ss = make([]string, len(st) + 1)
 			cnt := 0
 			for k, v := range st {
 				ss[cnt] = fmt.Sprintf("STAT %s %d\r\n", k, v)
 				cnt += 1
 			}
+			ss[cnt] = fmt.Sprintf("STAT version %s\r\n", config.Version)
 		}
 		resp.msg = strings.Join(ss, "")
 
