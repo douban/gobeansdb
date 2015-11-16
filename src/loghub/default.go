@@ -1,13 +1,7 @@
 package loghub
 
-import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"log"
-	"sync"
-	"time"
-)
+import "log"
+
 import "os"
 
 var (
@@ -18,75 +12,15 @@ var (
 func init() {
 	logger := log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
 	defauthub := &DefaultHub{logger: logger}
-	defauthub.InitBuffer(200)
-	Default = New("", defauthub, DEBUG)
-}
-
-type BufferLine struct {
-	TS    time.Time
-	Level int
-	File  string
-	Line  int
-	Msg   string
-}
-
-type BufferLog struct {
-	sync.Mutex
-	head   int
-	Buffer []*BufferLine
-	Last   [FATAL]*BufferLine
-}
-
-func (l *BufferLog) InitBuffer(size int) {
-	l.Buffer = make([]*BufferLine, size)
-}
-
-func (l *BufferLog) DumpBuffer(out io.Writer) {
-	l.Lock()
-	defer l.Unlock()
-	i := l.head
-	for j := 0; j < len(l.Buffer); j++ {
-		line := l.Buffer[i]
-		if line != nil {
-			out.Write([]byte(fmt.Sprintf("%v\n", line)))
-		}
-		i += 1
-		if i >= len(l.Buffer) {
-			i = 0
-		}
-	}
-}
-
-func (l *BufferLog) Add(line *BufferLine) {
-	l.Lock()
-	defer l.Unlock()
-	l.Buffer[l.head] = line
-	l.head += 1
-	if l.head >= len(l.Buffer) {
-		l.head = 0
-	}
-}
-
-func (l *BufferLog) GetLast() []byte {
-	b, _ := json.Marshal(l.Last[:])
-	return b
+	Default = New("", defauthub, DEBUG, 200)
 }
 
 type DefaultHub struct {
 	logger *log.Logger
-	BufferLog
 }
 
 func (l *DefaultHub) Log(name string, level int, file string, line int, msg string) {
 	l.logger.Printf(DefaultFormat, levelString[level], file[:len(file)-3], line, msg)
-	bufline := &BufferLine{time.Now(), level, file, line, msg}
-	if level >= WARN {
-		l.Add(bufline)
-		if level == FATAL {
-			os.Exit(1)
-		}
-	}
-	l.Last[level] = bufline
 }
 
 func SetDefault(path string, level int, bufferSize int) {
@@ -96,7 +30,7 @@ func SetDefault(path string, level int, bufferSize int) {
 		log.Fatalf("fai to to open log %s", path)
 	}
 	hub.logger = log.New(f, "", log.LstdFlags|log.Lmicroseconds)
-	hub.InitBuffer(bufferSize)
 	Default.hub = hub
 	Default.SetLevel(level)
+	Default.InitBuffer(bufferSize)
 }
