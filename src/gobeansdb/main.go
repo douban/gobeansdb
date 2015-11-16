@@ -46,12 +46,16 @@ func handleSignals() {
 func main() {
 	var confdir = flag.String("confdir", "", "path of server config dir")
 	var dumpconf = flag.Bool("dumpconf", false, "")
+	var buildhint = flag.String("buildhint", "", "a data file OR a bucket dir")
 
 	flag.Parse()
 
 	conf.Load(*confdir)
 	if *dumpconf {
 		config.DumpConfig(conf)
+		return
+	} else if *buildhint != "" {
+		store.DataToHint(*buildhint)
 		return
 	}
 
