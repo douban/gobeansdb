@@ -1,0 +1,27 @@
+server:
+  zk: "NO"
+  listen: 0.0.0.0
+  port: 7900
+  webport: 7908
+  threads: 4
+  logdir: ./
+mc:
+  max_key_len: 250
+  max_req: 16
+  body_max_str: 50M
+  body_big_str: 5M
+  body_c_str: 4K
+hstore:
+  data:
+    flush_interval: 60
+    flush_max_str: 100M
+    flush_wake_str: 4M
+    datafile_max_str: 4000M
+    check_vhash: true
+  hint:
+    hint_split_cap_str: 1k
+    hint_index_interval_str: 4K
+    hint_no_merge: true
+    hint_merge_interval: 1
+  htree:
+    tree_height: 3

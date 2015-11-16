@@ -46,16 +46,17 @@ func init() {
 }
 
 func setupTest(casename string, numhome int) {
-	InitDefaultGlobalConfig()
+	conf.InitDefault()
 	// dir = time.Now().Format("20060102T030405")
 	dir = fmt.Sprintf("%s/%s", *tBase, casename)
 	logger.Infof("test in %s", dir)
 	os.RemoveAll(dir)
 	os.Mkdir(dir, 0777)
+	conf.Homes = nil
 	for i := 0; i < numhome; i++ {
 		home := fmt.Sprintf("%s/home_%d", dir, i)
 		os.Mkdir(home, 0777)
-		config.Homes = append(config.Homes, home)
+		conf.Homes = append(conf.Homes, home)
 	}
 }
 func clearTest() {
@@ -131,19 +132,19 @@ func TestHStoreRestart1(t *testing.T) {
 }
 
 func testHStore(t *testing.T, op, numbucket int) {
-	InitDefaultGlobalConfig()
+	conf.InitDefault()
 	gen := newKVGen(numbucket)
 
 	setupTest(fmt.Sprintf("testHStore_%d_%d", op, numbucket), 1)
 	defer clearTest()
-	config.NumBucket = numbucket
-	config.Buckets = make([]int, numbucket)
-	config.Buckets[numbucket-1] = 1
-	config.TreeHeight = 3
-	config.Init()
+	conf.NumBucket = numbucket
+	conf.Buckets = make([]int, numbucket)
+	conf.Buckets[numbucket-1] = 1
+	conf.TreeHeight = 3
+	conf.Init()
 	defer gen.close()
 
-	bucketDir := filepath.Join(config.Homes[0], "0") // will be removed
+	bucketDir := filepath.Join(conf.Homes[0], "0") // will be removed
 	os.Mkdir(bucketDir, 0777)
 
 	store, err := NewHStore()

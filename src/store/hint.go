@@ -11,6 +11,14 @@ import (
 	"utils"
 )
 
+const (
+	SecsBeforeDumpDefault = int64(10)
+)
+
+var (
+	SecsBeforeDump = SecsBeforeDumpDefault // may change in test
+)
+
 func idToStr(id int) string {
 	if id < 0 {
 		return "*"
@@ -101,7 +109,7 @@ func newHintSplit() *hintSplit {
 
 func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
 	if len(h.keys) == 0 {
-		h.array = make([]*HintItem, hintConfig.SplitCount)
+		h.array = make([]*HintItem, conf.SplitCap)
 	}
 
 	idx, found := h.keys[it.Key]
@@ -252,7 +260,7 @@ func (chunk *hintChunk) get(keyhash uint64, key string, memOnly bool) (it *HintI
 
 // only check it for the last split of each chunk
 func (chunk *hintChunk) silenceTime() int64 {
-	return chunk.lastTS + hintConfig.SecondsBeforeDump - time.Now().Unix()
+	return chunk.lastTS + SecsBeforeDump - time.Now().Unix()
 }
 
 type hintMgr struct {
@@ -384,7 +392,7 @@ func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
 	if h.maxDumpableChunkID < MAX_CHUNK_ID { // gcing
 		return
 	}
-	if !h.mergeing && (h.maxChunkID-h.collisions.Chunk > config.MergeChunkInterval) {
+	if !h.mergeing && (h.maxChunkID-h.collisions.Chunk > conf.MergeInterval) {
 		go h.Merge()
 	}
 	return
@@ -399,6 +407,7 @@ func (h *hintMgr) RemoveMerged() {
 }
 
 func (h *hintMgr) Merge() (err error) {
+	oldchunk := h.collisions.Chunk
 	h.mergeLock.Lock()
 	h.mergeing = true
 	st := time.Now()
@@ -407,6 +416,9 @@ func (h *hintMgr) Merge() (err error) {
 		h.mergeing = false
 		h.mergeLock.Unlock()
 	}()
+	if oldchunk != h.collisions.Chunk {
+		return
+	}
 	h.RemoveMerged()
 
 	// TODO: check hint with datas!

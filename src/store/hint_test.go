@@ -12,8 +12,8 @@ import (
 	"utils"
 )
 
-func SetHintConfig(conf HintConfig) {
-	*hintConfig = conf
+func init() {
+	SecsBeforeDump = 1 // dump quick for test
 }
 
 func readHintAndCheck(t *testing.T, path string, items []*HintItem) {
@@ -45,7 +45,9 @@ func TestHintRW(t *testing.T) {
 	defer clearTest()
 	path := fmt.Sprintf("%s/%s", dir, "000.hint.s")
 	utils.Remove(path)
-	SetHintConfig(HintConfig{IndexIntervalSize: 1024})
+
+	conf.IndexIntervalSize = 1024
+
 	w, err := newHintFileWriter(path, 0, 1024)
 	if err != nil {
 		t.Fatal(err)
@@ -170,7 +172,13 @@ func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *HintItem) {
 
 func TestHintBuffer(t *testing.T) {
 	n := 10
-	SetHintConfig(HintConfig{SplitCount: int64(n), IndexIntervalSize: 128, SecondsBeforeDump: 3})
+	conf.SplitCap = int64(n)
+	conf.IndexIntervalSize = 128
+
+	defer func() {
+
+	}()
+
 	buf := newHintBuffer()
 	items := genSortedHintItems(n + 1)
 	for i := 0; i < n; i++ {
@@ -199,7 +207,9 @@ func setAndCheckChunk(t *testing.T, ck *hintChunk, it *HintItem, rotate bool) {
 
 func TestHintChunk(t *testing.T) {
 	n := 10
-	SetHintConfig(HintConfig{SplitCount: int64(n), IndexIntervalSize: 128, SecondsBeforeDump: 1})
+	conf.SplitCap = int64(n)
+	conf.IndexIntervalSize = 128
+
 	ck := newHintChunk(0)
 	items := genSortedHintItems(n + 2)
 	i := 0
@@ -278,7 +288,9 @@ func TestHintMgr(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
 	persp := 10
-	SetHintConfig(HintConfig{SplitCount: int64(persp), IndexIntervalSize: 128, SecondsBeforeDump: 1})
+	conf.SplitCap = int64(persp)
+	conf.IndexIntervalSize = 128
+	conf.MergeInterval = 250 // disable async merge
 	nsp := 2
 	n := persp * nsp
 	items := genSortedHintItems(n)

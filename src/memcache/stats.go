@@ -76,7 +76,7 @@ func (s *Stats) Stats() map[string]int64 {
 	}
 
 	t := time.Now()
-	st["time"] = int64(t.Second())
+	st["time"] = int64(t.Unix())
 	st["uptime"] = int64(t.Sub(s.start).Seconds())
 	st["pid"] = int64(os.Getpid())
 	st["threads"] = int64(runtime.NumGoroutine())

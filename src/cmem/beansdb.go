@@ -5,6 +5,8 @@ var (
 	MemConfig = Config{
 		16,
 		1024 * 4,
+		100000000, // about 100M
+		400000,    // about 4M
 	}
 )
 
@@ -33,4 +35,8 @@ type BeansdbRL struct {
 type Config struct {
 	NumReqToken int
 	AllocLimit  int
+
+	// set with body larger then VictimSize will fail if (flush buffer > FlushBufferHWM)
+	FlushBufferHWM int64
+	VictimSize     int
 }

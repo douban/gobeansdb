@@ -4,12 +4,13 @@ import (
 	"cmem"
 	"encoding/json"
 	"fmt"
-	"log"
+	"loghub"
 	mc "memcache"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
 	"runtime"
+	"store"
 	"strconv"
 	"syscall"
 	"utils"
@@ -37,20 +38,24 @@ func init() {
 	http.HandleFunc("/buckets", handleBuckets)
 
 	http.HandleFunc("/reload", handleReload)
+	http.HandleFunc("/logbuf", handleLogBuffer)
+	http.HandleFunc("/loglast", handleLogLast)
 
 	// dir
 	http.HandleFunc("/collision/", handleCollision)
+	http.HandleFunc("/hash/", handleKeyhash)
+
 }
 
 func initWeb() {
-	webaddr := fmt.Sprintf("%s:%d", config.Listen, config.WebPort)
-	http.Handle("/log", http.FileServer(http.Dir(config.LogDir))) // TODO: tail
+	webaddr := fmt.Sprintf("%s:%d", conf.Listen, conf.WebPort)
+	http.Handle("/log", http.FileServer(http.Dir(conf.LogDir))) // TODO: tail
 
 	go func() {
-		log.Printf("http listen at %s", webaddr)
+		logger.Infof("http listen at %s", webaddr)
 		err := http.ListenAndServe(webaddr, nil) //start web before load
 		if err != nil {
-			log.Fatal(err.Error())
+			logger.Fatalf(err.Error())
 		}
 
 	}()
@@ -60,14 +65,23 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w,
 		`
     <a href='/debug/pprof'> /debug/pprof </a> <p/>
+
+     <hr/>
+
     <a href='/config'> /config </a> <p/>
     <a href='/requests'> /requests </a> <p/>
     <a href='/buffers'> /buffers </a> <p/>
     <a href='/memstats'> /memstats </a> <p/>
     <a href='/rusage'> /rusage </a> <p/>
     <a href='/log'> /log </a> <p/>
+    <a href='/logbuf'> /logbuf </a> <p/>
+    <a href='/loglast'> /loglast </a> <p/>
     <a href='/buckets'> /buckets </a> <p/>
-    <a href='/collision'> /collision </a> <p/>
+
+    <hr/>
+
+    <a href='/collision'> /collision/{16-byte-len hex keyhash} </a> <p/>
+    <a href='/hash'> /hash/{hex bucket id} </a> <p/>
 
     `)
 }
@@ -87,7 +101,6 @@ func handleJson(w http.ResponseWriter, v ...interface{}) {
 	} else {
 		w.Write(b)
 	}
-
 }
 
 func handleYaml(w http.ResponseWriter, v ...interface{}) {
@@ -101,7 +114,7 @@ func handleYaml(w http.ResponseWriter, v ...interface{}) {
 }
 
 func handleConfig(w http.ResponseWriter, r *http.Request) {
-	handleJson(w, config)
+	handleJson(w, conf)
 }
 
 func handleRequests(w http.ResponseWriter, r *http.Request) {
@@ -125,6 +138,9 @@ func handleBuffers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleCollision(w http.ResponseWriter, r *http.Request) {
+	if storage == nil {
+		return
+	}
 	e := []byte("need bucket id, e.g. /collision/c")
 	s := filepath.Base(r.URL.Path)
 	bucketID, err := strconv.ParseInt(s, 16, 16)
@@ -132,7 +148,7 @@ func handleCollision(w http.ResponseWriter, r *http.Request) {
 		w.Write(e)
 		return
 	}
-	if bucketID > int64(config.NumBucket) || bucketID < 0 {
+	if bucketID > int64(conf.NumBucket) || bucketID < 0 {
 		w.Write(e)
 		return
 	}
@@ -147,4 +163,35 @@ func handleReload(w http.ResponseWriter, r *http.Request) {
 
 func handleBuckets(w http.ResponseWriter, r *http.Request) {
 	// TODO: show infos by buckets
+}
+
+func handleKeyhash(w http.ResponseWriter, r *http.Request) {
+	if storage == nil {
+		return
+	}
+	path := filepath.Base(r.URL.Path)
+	if len(path) != 16 {
+		return
+	}
+	ki := &store.KeyInfo{StringKey: path, Key: []byte(path), KeyIsPath: true}
+	rec, err := storage.hstore.GetRecordByKeyHash(ki)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+		return
+	} else if rec == nil {
+		return
+	}
+	arr := rec.Payload.CArray
+	defer arr.Free()
+	rec.Payload.Body = nil
+	w.Write([]byte(fmt.Sprintf("%s \n", rec.Key)))
+	w.Write([]byte(fmt.Sprintf("%#v", rec.Payload.Meta)))
+}
+
+func handleLogBuffer(w http.ResponseWriter, r *http.Request) {
+	loghub.Default.DumpBuffer(w)
+}
+
+func handleLogLast(w http.ResponseWriter, r *http.Request) {
+	w.Write(loghub.Default.GetLast())
 }

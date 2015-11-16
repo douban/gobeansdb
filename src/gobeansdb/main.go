@@ -1,9 +1,10 @@
 package main
 
 import (
+	"config"
 	"flag"
 	"fmt"
-	"log"
+	"loghub"
 	mc "memcache"
 	"os"
 	"os/signal"
@@ -16,12 +17,16 @@ import (
 var (
 	server  *mc.Server
 	storage *Storage
+	conf    = &config.DB
+	logger  = loghub.Default
 )
 
 func initLog() {
-	// TODO
-	logpath := filepath.Join(config.LogDir, "gobeansdb.log")
-	_ = logpath
+	if conf.LogDir != "" {
+		logpath := filepath.Join(conf.LogDir, "gobeansdb.log")
+		logger.Infof("loggging to %s", logpath)
+		loghub.SetDefault(logpath, loghub.INFO, 200)
+	}
 }
 
 func handleSignals() {
@@ -31,53 +36,56 @@ func handleSignals() {
 	go func(ch <-chan os.Signal) {
 		for {
 			sig := <-ch
-			log.Print("signal recieved " + sig.String())
+			logger.Infof("signal recieved " + sig.String())
 			server.Shutdown()
 
 		}
 	}(sch)
 }
 
-func initHomes(homes []string) {
-	for _, s := range homes {
-		os.Mkdir(s, os.ModePerm)
-	}
-}
-
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	var confdir = flag.String("confdir", "", "path of server config dir")
 	var dumpconf = flag.Bool("dumpconf", false, "")
+	var buildhint = flag.String("buildhint", "", "a data file OR a bucket dir")
 
 	flag.Parse()
 
-	loadConfigs(*confdir)
+	conf.Load(*confdir)
 	if *dumpconf {
-		dumpConfigs()
+		config.DumpConfig(conf)
+		return
+	} else if *buildhint != "" {
+		store.DataToHint(*buildhint)
 		return
 	}
-	initHomes(store.GetConfig().LocalConfig.Homes)
 
-	log.Printf("gorivendb version %s starting at %d, config: %#v", mc.VERSION, config.Port, config)
-	runtime.GOMAXPROCS(config.Threads)
+	initLog()
+
+	logger.Infof("gorivendb version %s starting at %d, config: %#v", config.Version, conf.Port, conf)
+	logger.Infof("route table: %#v", config.Route)
+	runtime.GOMAXPROCS(conf.Threads)
 	initWeb()
 
 	var err error
-	storage = new(Storage)
-	storage.hstore, err = store.NewHStore()
+
+	hstore, err := store.NewHStore()
 	if err != nil {
-		log.Fatal(err.Error())
+		logger.Fatalf("fail to init NewHStore %s", err.Error())
 	}
+	storage = &Storage{hstore: hstore}
 
 	server = mc.NewServer(storage)
-	addr := fmt.Sprintf("%s:%d", config.Listen, config.Port)
+	addr := fmt.Sprintf("%s:%d", conf.Listen, conf.Port)
 	if err := server.Listen(addr); err != nil {
-		log.Fatal("listen failed", err.Error())
+		logger.Fatalf("listen failed", err.Error())
 	}
+	logger.Infof("mc server listen at %s", addr)
 	handleSignals()
 	go storage.hstore.Flusher()
 	err = server.Serve()
-	storage.hstore.Close()
+	tmp := storage
+	storage = nil
+	tmp.hstore.Close()
 
-	log.Println("shut down gracefully")
+	logger.Infof("shut down gracefully")
 }

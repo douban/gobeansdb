@@ -1,17 +1,11 @@
-package route
+package config
 
 import (
+	"fmt"
 	"io/ioutil"
-	"log"
 
 	yaml "gopkg.in/yaml.v2"
 )
-
-// for backend
-type RouteConfig struct {
-	NumBucket int
-	Buckets   []int
-}
 
 type RouteTable struct {
 	NumBucket int                     `yaml:num",omitempty"`
@@ -19,19 +13,22 @@ type RouteTable struct {
 	Nodes     map[string]map[int]bool `yaml:"-"`
 }
 
-func (rt *RouteTable) GetServerConfig(addr string) RouteConfig {
-	r := RouteConfig{NumBucket: rt.NumBucket}
+func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig, err error) {
+	r = DBRouteConfig{NumBucket: rt.NumBucket}
 	r.Buckets = make([]int, rt.NumBucket)
-	buckets := rt.Nodes[addr]
+	buckets, found := rt.Nodes[addr]
+	if !found {
+		err = fmt.Errorf("can not find self in route table")
+		return
+	}
 	for b, _ := range buckets {
 		r.Buckets[b] = 1
 	}
-	return r
+	return r, nil
 }
 
 func (rt *RouteTable) LoadFromYaml(data []byte) error {
 	if err := yaml.Unmarshal(data, &rt); err != nil {
-		log.Printf("unmarshal yaml format config failed")
 		return err
 	}
 	rt.Nodes = make(map[string]map[int]bool)
@@ -50,7 +47,6 @@ func LoadRouteTable(path, zkaddr string) (*RouteTable, error) {
 	rt := &RouteTable{}
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Printf("read config failed", path, err.Error())
 		return nil, err
 	}
 	err = rt.LoadFromYaml(data)

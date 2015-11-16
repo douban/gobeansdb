@@ -3,10 +3,10 @@ package memcache
 import (
 	"bufio"
 	"cmem"
+	"config"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -39,6 +39,8 @@ var (
 
 	// ErrNetworkError means that a failure happend at reading/writing to a client connection.
 	ErrNetworkError = errors.New("network error")
+
+	ErrOOM = errors.New("memory shortage")
 )
 
 func isSpace(r rune) bool {
@@ -85,9 +87,6 @@ func (req *Request) Clear() {
 		req.Item = nil
 	}
 
-	if req.Working {
-		RL.Put(req)
-	}
 }
 
 func WriteFull(w io.Writer, buf []byte) error {
@@ -194,6 +193,12 @@ func (req *Request) Read(b *bufio.Reader) error {
 		if length > MaxValueSize {
 			return ErrValueTooLarge
 		}
+		if length > cmem.MemConfig.VictimSize {
+			if cmem.DBRL.FlushData.Size > cmem.MemConfig.FlushBufferHWM {
+				logger.Warnf("ErrOOM key %s, size %d", req.Keys[0], length)
+				return ErrOOM
+			}
+		}
 		if req.Cmd == "cas" {
 			if len(parts) < 6 {
 				return ErrInvalidCmd
@@ -284,7 +289,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 	for {
 		s, e := b.ReadString('\n')
 		if e != nil {
-			log.Print("read response line failed", e)
+			logger.Errorf("read response line failed", e)
 			return e
 		}
 		parts := splitKeys(s)
@@ -353,7 +358,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			if len(parts) > 1 {
 				resp.msg = parts[1]
 			}
-			log.Print("error:", resp)
+			logger.Errorf("error:", resp)
 
 		default:
 			// try to convert to int
@@ -363,7 +368,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 				resp.msg = resp.status
 				resp.status = "INCR"
 			} else {
-				log.Print("unknown status:", s, resp.status)
+				logger.Errorf("unknown status:", s, resp.status)
 				return errors.New("unknown response:" + resp.status)
 			}
 		}
@@ -571,18 +576,19 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			}
 			resp.msg = strings.Join(ss, "")
 		} else {
-			ss = make([]string, len(st))
+			ss = make([]string, len(st) + 1)
 			cnt := 0
 			for k, v := range st {
 				ss[cnt] = fmt.Sprintf("STAT %s %d\r\n", k, v)
 				cnt += 1
 			}
+			ss[cnt] = fmt.Sprintf("STAT version %s\r\n", config.Version)
 		}
 		resp.msg = strings.Join(ss, "")
 
 	case "version":
 		resp.status = "VERSION"
-		resp.msg = VERSION
+		resp.msg = config.Version
 
 	case "verbosity", "flush_all":
 		resp.status = "OK"
@@ -613,7 +619,7 @@ func (req *Request) Check(resp *Response) error {
 		if resp.items != nil {
 			for key, _ := range resp.items {
 				if !contain(req.Keys, key) {
-					log.Print("unexpected key in response: ", key)
+					logger.Errorf("unexpected key in response: ", key)
 					return errors.New("unexpected key in response: " + key)
 				}
 			}

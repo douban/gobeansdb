@@ -3,6 +3,7 @@ package memcache
 import (
 	"bufio"
 	"bytes"
+	"config"
 	"fmt"
 	"strings"
 	"testing"
@@ -125,7 +126,7 @@ var reqTests = []reqTest{
 	},
 	reqTest{
 		"version\r\n",
-		"VERSION " + VERSION + "\r\n",
+		"VERSION " + config.Version + "\r\n",
 	},
 
 	reqTest{

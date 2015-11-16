@@ -1,9 +1,10 @@
-package main
+package config
 
 import (
 	"bytes"
 	"io/ioutil"
 	"testing"
+	"utils"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -14,18 +15,17 @@ func TestConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal("read config failed", path, err.Error())
 	}
-	var c1 GoBeansdbConfig
-	c1.Port = 1
-	c1.WebPort = 1
+	var c1 DBConfig
+	c1.MaxKeyLen = 1
 	err = yaml.Unmarshal([]byte(data1), &c1)
 	if err != nil {
 		t.Fatalf("unmarshal err:%v", err)
 	}
-	if c1.HStoreConfig.MaxKeySize != 200 || c1.WebPort != 1 {
+	utils.InitSizesPointer(&c1)
+	if c1.MaxKeyLen != 1 || c1.BodyMax != (50<<20) {
 		t.Fatalf("\nc1:\n%#v\n", c1)
 	}
-	c1.WebPort = 0
-
+	c1.MaxKeyLen = 0
 	data2, e := yaml.Marshal(c1)
 	if e != nil {
 		t.Fatalf("err:%s", e.Error())

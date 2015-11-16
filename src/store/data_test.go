@@ -19,7 +19,7 @@ func randomValue(size int) []byte {
 }
 
 func checkFileSize(t *testing.T, chunkID int, size uint32) {
-	path := genPath(config.Homes[0], chunkID)
+	path := genPath(conf.Homes[0], chunkID)
 	stat, err := os.Stat(path)
 	if size == 0 {
 		if err == nil {
@@ -88,14 +88,14 @@ func TestDataCompatibility(t *testing.T) {
 }
 
 func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint32) {
-	InitDefaultGlobalConfig()
+	conf.InitDefault()
 	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq), 1)
 	defer clearTest()
 
-	dataConfig.MaxFileSizeStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
-	config.Init()
+	conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
+	conf.Init()
 
-	ds := NewdataStore(0, config.Homes[0])
+	ds := NewdataStore(0, conf.Homes[0])
 
 	for i := 0; i < recordPerFile+1; i++ {
 		p := &Payload{}
@@ -114,6 +114,71 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 			t.Fatalf("%d %#v", i, r.Payload)
 		}
 	}
-	checkFileSize(t, 0, uint32(dataConfig.MaxFileSize))
+	checkFileSize(t, 0, uint32(conf.DataFileMax))
 	checkFileSize(t, 1, 256*recsize)
+}
+
+func breakdata(f *os.File, start, offset int) {
+	f.Seek(int64(start*256+offset), os.SEEK_SET)
+	b := []byte("0")
+	f.Write(b)
+}
+
+func TestDataBroken(t *testing.T) {
+	conf.InitDefault()
+	setupTest("TestDataBroken", 1)
+	defer clearTest()
+
+	//conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
+	conf.Init()
+
+	ds := NewdataStore(0, conf.Homes[0])
+	key := []byte("key")
+	for i := 0; i < 7; i++ {
+		p := &Payload{}
+		if i == 4 {
+			p.Flag = FLAG_CLIENT_COMPRESS
+			p.Body = []byte(strings.Repeat("x", 256*3))
+		} else {
+			p.Body = []byte(fmt.Sprintf("value_%d", i))
+		}
+
+		p.Ver = int32(i)
+		r := &Record{key, p}
+		ds.AppendRecord(r)
+	}
+	ds.flush(-1, true)
+
+	path := genPath(conf.Homes[0], 0)
+	fd, err := os.OpenFile(path, os.O_WRONLY, 0664)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	breakdata(fd, 0, 16)   // ksz
+	breakdata(fd, 1, 20)   // vsz
+	breakdata(fd, 2, 24)   // key
+	breakdata(fd, 3, 24+3) // value
+	breakdata(fd, 4, 256)  // value
+	fd.Close()
+
+	reader, _ := ds.GetStreamReader(0)
+	rec, offset, sizeBroken, err := reader.Next()
+	if err != nil || offset != 8*256 || sizeBroken != 8*256 ||
+		rec == nil || string(rec.Payload.Body) != fmt.Sprintf("value_%d", 5) {
+		if rec != nil {
+			t.Errorf("%s %s", rec.Key, string(rec.Payload.Body))
+		}
+		t.Fatalf("%d %d %d, %v", reader.offset, offset, sizeBroken, err)
+	}
+	rec, offset, sizeBroken, err = reader.Next()
+	if err != nil || offset != 9*256 || sizeBroken != 0 ||
+		rec == nil || string(rec.Payload.Body) != fmt.Sprintf("value_%d", 6) {
+		if rec != nil {
+			t.Errorf("%s %s", rec.Key, string(rec.Payload.Body))
+		}
+		t.Fatalf("%d %d %d, %v", reader.offset, offset, sizeBroken, err)
+	}
+	reader.Close()
+
 }

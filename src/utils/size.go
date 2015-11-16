@@ -1,6 +1,10 @@
 package utils
 
-import "strconv"
+import (
+	"reflect"
+	"strconv"
+	"strings"
+)
 
 const (
 	K = 1024
@@ -43,4 +47,31 @@ func SizeToStr(n int64) (s string) {
 		i++
 	}
 	return strconv.FormatInt(n, 10) + units[i]
+}
+
+func InitSizesPointer(c interface{}) (err error) {
+	LastSizeErr = nil
+	m := reflect.ValueOf(c).Elem()
+	InitSizesForValue(m)
+	err = LastSizeErr
+	LastSizeErr = nil
+	return
+}
+
+func InitSizesForValue(m reflect.Value) (err error) {
+	t := m.Type()
+	n := m.NumField()
+	for i := 0; i < n; i++ {
+		f := t.Field(i)
+
+		if strings.HasSuffix(f.Name, "Config") { // nested config
+			InitSizesForValue(m.Field(i))
+		} else if strings.HasSuffix(f.Name, "Str") {
+			str := m.Field(i).String()
+			value := StrToSize(str)
+			f2 := m.FieldByName(f.Name[:len(f.Name)-3])
+			f2.SetInt(value)
+		}
+	}
+	return
 }

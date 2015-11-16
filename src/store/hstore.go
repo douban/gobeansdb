@@ -3,12 +3,14 @@ package store
 import (
 	"bytes"
 	"cmem"
+	"config"
 	"fmt"
 	"loghub"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
+
 	"time"
 )
 
@@ -16,6 +18,9 @@ var (
 	logger                 = loghub.Default
 	bucketPattern []string = []string{"0", "%x", "%02x", "%03x"}
 	mergeChan     chan int
+
+	conf       = &config.DB
+	hintConfig = &conf.HintConfig
 )
 
 type HStore struct {
@@ -31,17 +36,17 @@ func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
 		return
 	}
 	name := fi.Name()
-	if config.TreeDepth == 0 {
+	if conf.TreeDepth == 0 {
 		if name == "0" {
 			return true, 0
 		} else {
 			return
 		}
-	} else if len(name) != config.TreeDepth {
+	} else if len(name) != conf.TreeDepth {
 		return
 	}
 	s := "09af"
-	for i := 0; i < config.TreeDepth; i++ {
+	for i := 0; i < conf.TreeDepth; i++ {
 		b := name[i]
 		if !((b >= s[0] && b <= s[1]) || (b >= s[2] && b <= s[3])) {
 			return
@@ -49,7 +54,7 @@ func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
 	}
 	bucketID64, _ := strconv.ParseInt(name, 16, 32)
 	bucketID = int(bucketID64)
-	if bucketID >= config.NumBucket {
+	if bucketID >= conf.NumBucket {
 		logger.Fatalf("Bug: wrong bucketid %s->%d", name, bucketID)
 		return
 	}
@@ -60,7 +65,7 @@ func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
 // TODO: allow rescan
 func (store *HStore) scanBuckets() (err error) {
 
-	for homeid, home := range config.Homes {
+	for homeid, home := range conf.Homes {
 		homefile, err := os.Open(home)
 		if err != nil {
 			return err
@@ -90,7 +95,7 @@ func (store *HStore) scanBuckets() (err error) {
 					if store.buckets[bucketID].state > 0 {
 						return fmt.Errorf("found dup bucket %d", bucketID)
 					}
-					logger.Infof("found bucket %x in %s", bucketID, config.Homes[homeid])
+					logger.Infof("found bucket %x in %s", bucketID, conf.Homes[homeid])
 					store.buckets[bucketID].state = 1
 					store.buckets[bucketID].homeID = homeid
 					store.homeToBuckets[homeid][bucketID] = true
@@ -105,8 +110,8 @@ func (store *HStore) scanBuckets() (err error) {
 
 func (store *HStore) allocBucket(bucketID int) (err error) {
 	homeid := 0
-	min := config.NumBucket
-	for i := 0; i < len(config.Homes); i++ {
+	min := conf.NumBucket
+	for i := 0; i < len(conf.Homes); i++ {
 		l := len(store.homeToBuckets[i])
 		if l < min {
 			homeid = i
@@ -125,21 +130,30 @@ func (store *HStore) allocBucket(bucketID int) (err error) {
 }
 
 func (store *HStore) getBucketPath(homeID, bucketID int) string {
-	dirname := fmt.Sprintf(bucketPattern[len(config.Homes)], bucketID)
-	return filepath.Join(config.Homes[homeID], dirname)
+	dirname := fmt.Sprintf(bucketPattern[len(conf.Homes)], bucketID)
+	return filepath.Join(conf.Homes[homeID], dirname)
+}
+
+func initHomes() {
+	for _, s := range conf.Homes {
+		if err := os.MkdirAll(s, os.ModePerm); err != nil {
+			logger.Fatalf("fail to init home %s", s)
+		}
+	}
 }
 
 func NewHStore() (store *HStore, err error) {
+	initHomes()
 	mergeChan = nil
 	cmem.DBRL.ResetAll()
 	st := time.Now()
 	store = new(HStore)
 	store.gcMgr = new(GCMgr)
-	store.buckets = make([]*Bucket, config.NumBucket)
-	for i := 0; i < config.NumBucket; i++ {
+	store.buckets = make([]*Bucket, conf.NumBucket)
+	for i := 0; i < conf.NumBucket; i++ {
 		store.buckets[i] = &Bucket{id: i}
 	}
-	nhome := len(config.Homes)
+	nhome := len(conf.Homes)
 	store.homeToBuckets = make([]map[int]bool, nhome)
 	for i := 0; i < nhome; i++ {
 		store.homeToBuckets[i] = make(map[int]bool)
@@ -150,8 +164,8 @@ func NewHStore() (store *HStore, err error) {
 		return
 	}
 
-	for i := 0; i < config.NumBucket; i++ {
-		need := config.Buckets[i] > 0
+	for i := 0; i < conf.NumBucket; i++ {
+		need := conf.Buckets[i] > 0
 		found := store.buckets[i].state > 0
 		if need {
 			if !found {
@@ -168,9 +182,9 @@ func NewHStore() (store *HStore, err error) {
 	}
 
 	n := 0
-	for i := 0; i < config.NumBucket; i++ {
+	for i := 0; i < conf.NumBucket; i++ {
 		bkt := store.buckets[i]
-		if config.Buckets[i] > 0 {
+		if conf.Buckets[i] > 0 {
 			err = bkt.open(i, store.getBucketPath(bkt.homeID, i))
 			if err != nil {
 				return
@@ -178,8 +192,8 @@ func NewHStore() (store *HStore, err error) {
 			n += 1
 		}
 	}
-	if config.TreeDepth > 0 {
-		store.htree = newHTree(0, 0, config.TreeDepth+1)
+	if conf.TreeDepth > 0 {
+		store.htree = newHTree(0, 0, conf.TreeDepth+1)
 	}
 	logger.Infof("all %d bucket loaded, ready to serve, maxrss = %d, use time %s", n, GetMaxRSS(), time.Since(st))
 
@@ -192,7 +206,7 @@ func (store *HStore) Flusher() {
 	for {
 		select {
 		case <-cmem.DBRL.FlushData.Chan:
-		case <-time.After(time.Duration(dataConfig.DataFlushSec) * time.Second):
+		case <-time.After(time.Duration(conf.FlushInterval) * time.Second):
 		}
 		store.flushdatas(false)
 	}
@@ -213,6 +227,15 @@ func (store *HStore) Close() {
 			b.close()
 		}
 	}
+}
+
+func (store *HStore) NumKey() (n int) {
+	for _, b := range store.buckets {
+		if b.state > 0 {
+			n += int(b.htree.levels[0][0].count)
+		}
+	}
+	return
 }
 
 func (store *HStore) updateNodesUpper(level, offset int) (node *Node) {
@@ -264,15 +287,23 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 	if err != nil {
 		return nil, nil
 	}
-	if len(ki.Key) >= config.TreeDepth {
-		return store.buckets[ki.BucketID].listDir(ki)
+	if len(ki.Key) >= conf.TreeDepth {
+		bkt := store.buckets[ki.BucketID]
+		if bkt.state <= 0 {
+			return nil, nil
+		}
+		return bkt.listDir(ki)
 	}
 	return store.ListUpper(ki)
 }
 
 func (store *HStore) GC(bucketID, beginChunkID, endChunkID int) error {
-	if bucketID >= config.NumBucket {
+	if bucketID >= conf.NumBucket {
 		return fmt.Errorf("bad bucket id")
+	}
+	bkt := store.buckets[bucketID]
+	if bkt.state <= 0 {
+		return nil
 	}
 	if store.gcMgr.stat != nil && store.gcMgr.stat.Running {
 		return fmt.Errorf("already running")
@@ -286,30 +317,51 @@ func (store *HStore) GCStat() (int, *GCState) {
 }
 
 func (store *HStore) GetBucketInfo(bucketID int, keys []string) ([]byte, error) {
-	return store.buckets[bucketID].getInfo(keys)
+	bkt := store.buckets[bucketID]
+	if bkt.state <= 0 {
+		return nil, nil
+	}
+	return bkt.getInfo(keys)
 }
 
 func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Position, err error) {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
-	return store.buckets[ki.BucketID].get(ki, memOnly)
+	bkt := store.buckets[ki.BucketID]
+	if bkt.state <= 0 {
+		return
+	}
+	return bkt.get(ki, memOnly)
 }
 
 func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 	p.AccountingSize = int64(len(p.Body) + len(ki.Key))
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
-	return store.buckets[ki.BucketID].checkAndSet(ki, p)
+	bkt := store.buckets[ki.BucketID]
+	if bkt.state <= 0 {
+		return nil
+	}
+	return bkt.checkAndSet(ki, p)
 }
 
 func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, error) {
 	ki.Prepare()
-	return store.buckets[ki.BucketID].GetRecordByKeyHash(ki)
+	bkt := store.buckets[ki.BucketID]
+	if bkt.state <= 0 {
+		return nil, nil
+	}
+	return bkt.GetRecordByKeyHash(ki)
 }
+
 func (store *HStore) Incr(ki *KeyInfo, value int) int {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
-	return store.buckets[ki.BucketID].incr(ki, value)
+	bkt := store.buckets[ki.BucketID]
+	if bkt.state <= 0 {
+		return 0
+	}
+	return bkt.incr(ki, value)
 }
 
 func (store *HStore) merger(interval time.Duration) {

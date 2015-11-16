@@ -70,7 +70,7 @@ func bytesToKhash(b []byte) (khash uint64) {
 }
 
 func findInBytes(leaf []byte, keyhash uint64) int {
-	lenKHash := config.TreeKeyHashLen
+	lenKHash := conf.TreeKeyHashLen
 	lenItem := lenKHash + 10
 	size := len(leaf)
 	var khashBytes [8]byte
@@ -104,7 +104,7 @@ func (sh *SliceHeader) enlarge(size int) {
 
 func (sh *SliceHeader) Set(req *HTreeReq) (oldm HTreeItem, exist bool) {
 	leaf := sh.ToBytes()
-	lenKHash := config.TreeKeyHashLen
+	lenKHash := conf.TreeKeyHashLen
 	idx := findInBytes(leaf, req.ki.KeyHash)
 	exist = (idx >= 0)
 	var dst []byte
@@ -123,7 +123,7 @@ func (sh *SliceHeader) Set(req *HTreeReq) (oldm HTreeItem, exist bool) {
 
 func (sh *SliceHeader) Remove(ki *KeyInfo, oldPos Position) (oldm HTreeItem, removed bool) {
 	leaf := sh.ToBytes()
-	lenKHash := config.TreeKeyHashLen
+	lenKHash := conf.TreeKeyHashLen
 	itemLen := lenKHash + 10
 	idx := findInBytes(leaf, ki.KeyHash)
 	if idx >= 0 {
@@ -143,18 +143,18 @@ func (sh *SliceHeader) Get(req *HTreeReq) (exist bool) {
 	exist = (idx >= 0)
 	if exist {
 		//TODO
-		bytesToItem(leaf[idx+config.TreeKeyHashLen:], &req.item)
+		bytesToItem(leaf[idx+conf.TreeKeyHashLen:], &req.item)
 	}
 	return
 }
 
 func (sh *SliceHeader) Iter(f ItemFunc, ni *NodeInfo) {
 	leaf := sh.ToBytes()
-	lenKHash := config.TreeKeyHashLen
+	lenKHash := conf.TreeKeyHashLen
 	lenItem := lenKHash + 10
-	mask := config.TreeKeyHashMask
+	mask := conf.TreeKeyHashMask
 
-	nodeKHash := uint64(getNodeKhash(ni.path)) << 32 & (^config.TreeKeyHashMask)
+	nodeKHash := uint64(getNodeKhash(ni.path)) << 32 & (^conf.TreeKeyHashMask)
 	var m HTreeItem
 	var khash uint64
 	size := len(leaf)

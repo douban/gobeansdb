@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"errors"
 	"io"
-	"log"
 	"loghub"
 	"net"
 	"sync"
@@ -57,6 +56,9 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 		if resp != nil {
 			resp.CleanBuffer()
 		}
+		if req.Working {
+			RL.Put(req)
+		}
 	}()
 
 	// 关于错误处理
@@ -83,6 +85,10 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			resp = new(Response)
 			resp.status = status
 			resp.msg = msg
+			err = nil
+		} else if err == ErrOOM {
+			resp = new(Response)
+			resp.status = "NOT_STORED"
 			err = nil
 		} else {
 			// process client command format related error
@@ -160,7 +166,7 @@ func (s *Server) Serve() (e error) {
 	for {
 		rw, e := s.l.Accept()
 		if e != nil {
-			log.Print("Accept failed: ", e)
+			logger.Infof("Accept failed: ", e)
 			return e
 		}
 		if s.stop {
@@ -192,7 +198,7 @@ func (s *Server) Serve() (e error) {
 		s.Unlock()
 		time.Sleep(1e8)
 	}
-	log.Print("shutdown ", s.addr, "\n")
+	logger.Infof("mc server shutdown ", s.addr, "\n")
 	return nil
 }
 
@@ -206,9 +212,7 @@ func (s *Server) Shutdown() {
 	s.Lock()
 	defer s.Unlock()
 	if len(s.conns) > 0 {
-		// log.Print("have ", len(s.conns), " active connections")
 		for _, conn := range s.conns {
-			// log.Print(s)
 			conn.Shutdown()
 		}
 	}

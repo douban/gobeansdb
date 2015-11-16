@@ -42,10 +42,6 @@ func NewdataStore(bucketID int, home string) *dataStore {
 }
 
 func genPath(home string, chunkID int) string {
-	if chunkID > config.maxOldChunk {
-		return fmt.Sprintf("%s/%03d.data", home, chunkID)
-	}
-	// chunkID -= dataConfig.maxOldChunk
 	return fmt.Sprintf("%s/%03d.data", home, chunkID)
 }
 
@@ -55,11 +51,7 @@ func (ds *dataStore) genPath(chunkID int) string {
 }
 
 func (ds *dataStore) nextChunkID(chunkID int) int {
-	if chunkID < 255 {
-		return chunkID + 1
-	} else {
-		return config.maxOldChunk
-	}
+	return chunkID + 1
 }
 
 func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
@@ -72,7 +64,7 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	ds.Lock()
 	size := rec.Payload.RecSize
 	currOffset := ds.filesizes[ds.newHead]
-	if currOffset+size > uint32(dataConfig.MaxFileSize) {
+	if currOffset+size > uint32(conf.DataFileMax) {
 		ds.newHead++
 		logger.Infof("rotate to %d, size %d, new rec size %d", ds.newHead, currOffset, size)
 		currOffset = 0
@@ -88,7 +80,7 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 		cmem.DBRL.SetData.SubSize(rec.Payload.AccountingSize)
 		cmem.DBRL.FlushData.AddSize(rec.Payload.AccountingSize)
 	}
-	if cmem.DBRL.FlushData.Size > int64(dataConfig.FlushSize) {
+	if cmem.DBRL.FlushData.Size > int64(conf.FlushWake) {
 		select {
 		case cmem.DBRL.FlushData.Chan <- 1:
 		default:
@@ -106,6 +98,13 @@ func (ds *dataStore) flusher() {
 	}
 }
 
+func (ds *dataStore) getDiskFileSize(chunkID int) uint32 {
+	if len(ds.wbufs[chunkID]) > 0 {
+		return ds.wbufs[chunkID][0].pos.Offset
+	}
+	return ds.filesizes[chunkID]
+}
+
 func (ds *dataStore) flush(chunk int, force bool) error {
 	if ds.wbufSize == 0 {
 		return nil
@@ -113,7 +112,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	ds.flushLock.Lock()
 	defer ds.flushLock.Unlock()
 	ds.Lock()
-	if !force && (time.Since(ds.lastFlushTime) < time.Duration(dataConfig.DataFlushSec)*time.Second) && (ds.wbufSize < (1 << 20)) {
+	if !force && (time.Since(ds.lastFlushTime) < time.Duration(conf.FlushInterval)*time.Second) && (ds.wbufSize < (1 << 20)) {
 		ds.Unlock()
 		return nil
 	}
@@ -128,6 +127,10 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	w, err := ds.getStreamWriter(chunk, true)
 	if err != nil {
 		return err
+	}
+	filessize := ds.getDiskFileSize(chunk)
+	if w.offset != filessize {
+		logger.Fatalf("wrong data file size, exp %d, got %d, %s", filessize, w.offset, ds.genPath(chunk))
 	}
 	ds.Lock()
 	n := len(ds.wbufs[chunk])
@@ -229,7 +232,12 @@ func (ds *dataStore) ListFiles() (max int, err error) {
 				return
 			}
 		} else {
-			ds.filesizes[i] = uint32(st.Size())
+			sz := uint32(st.Size())
+			if (sz & 0xff) != 0 {
+				err = fmt.Errorf("file not 256 aligned, size 0x%x: %s ", sz, path)
+				return
+			}
+			ds.filesizes[i] = sz
 			max = i
 		}
 	}
@@ -274,7 +282,7 @@ func (ds *dataStore) getStreamWriter(chunk int, isappend bool) (*DataStreamWrite
 				logger.Infof(err.Error())
 				return nil, err
 			} else if offset%PADDING != 0 {
-				logger.Infof("%s not 256 aligned : %d", path, offset)
+				logger.Fatalf("%s not 256 aligned : %d", path, offset)
 			}
 		}
 	} else {

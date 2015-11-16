@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"config"
 	"testing"
 )
 
@@ -20,7 +21,7 @@ func TestBytes(t *testing.T) {
 
 	khashToBytes(b, k)
 
-	lenKHash := KHASH_LENS[len(path)]
+	lenKHash := config.KHASH_LENS[len(path)]
 	mask := ((uint64(1) << (uint32(lenKHash) * 8)) - 1)
 	nodeKHash := k & (^mask)
 	k2 := bytesToKhash(b)
@@ -50,14 +51,14 @@ func TestLeafEnlarge(t *testing.T) {
 }
 
 func TestLeaf(t *testing.T) {
-	InitDefaultGlobalConfig()
+	conf.InitDefault()
 
-	config.NumBucket = 256
-	config.Init()
+	conf.NumBucket = 256
+	conf.Init()
 
 	// lenKHash := KHASH_LENS[len(ni.path)]
-	// t.Logf("%d %d", lenKHash, config.TreeKeyHashLen)
-	lenKHash := config.TreeKeyHashLen
+	// t.Logf("%d %d", lenKHash, conf.TreeKeyHashLen)
+	lenKHash := conf.TreeKeyHashLen
 	lenItem := lenKHash + 10
 
 	var sh SliceHeader
