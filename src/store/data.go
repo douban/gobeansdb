@@ -232,7 +232,12 @@ func (ds *dataStore) ListFiles() (max int, err error) {
 				return
 			}
 		} else {
-			ds.filesizes[i] = uint32(st.Size())
+			sz := uint32(st.Size())
+			if (sz & 0xff) != 0 {
+				err = fmt.Errorf("file not 256 aligned, size 0x%x: %s ", sz, path)
+				return
+			}
+			ds.filesizes[i] = sz
 			max = i
 		}
 	}
