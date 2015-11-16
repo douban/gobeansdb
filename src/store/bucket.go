@@ -76,6 +76,7 @@ func (bkt *Bucket) buildHintFromData(chunkID int, start uint32) (err error) {
 		p := rec.Payload
 		p.Decompress()
 		vhash := Getvhash(p.Body)
+		p.Free()
 		item := newHintItem(khash, p.Ver, vhash, Position{0, offset}, string(rec.Key))
 		bkt.hints.setItem(item, chunkID, rec.Payload.RecSize)
 	}
