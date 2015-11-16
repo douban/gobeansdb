@@ -407,6 +407,7 @@ func (h *hintMgr) RemoveMerged() {
 }
 
 func (h *hintMgr) Merge() (err error) {
+	oldchunk := h.collisions.Chunk
 	h.mergeLock.Lock()
 	h.mergeing = true
 	st := time.Now()
@@ -415,6 +416,9 @@ func (h *hintMgr) Merge() (err error) {
 		h.mergeing = false
 		h.mergeLock.Unlock()
 	}()
+	if oldchunk != h.collisions.Chunk {
+		return
+	}
 	h.RemoveMerged()
 
 	// TODO: check hint with datas!
