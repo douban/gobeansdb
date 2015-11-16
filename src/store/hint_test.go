@@ -290,6 +290,7 @@ func TestHintMgr(t *testing.T) {
 	persp := 10
 	conf.SplitCap = int64(persp)
 	conf.IndexIntervalSize = 128
+	conf.MergeInterval = 250 // disable async merge
 	nsp := 2
 	n := persp * nsp
 	items := genSortedHintItems(n)
