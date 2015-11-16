@@ -77,8 +77,15 @@ func (store *HStore) scanBuckets() (err error) {
 
 		homefile.Close()
 		for _, fi := range fileinfos {
-			valid, bucketID := checkBucketDir(fi)
 			fullpath := filepath.Join(home, fi.Name())
+			if fi.Mode()&os.ModeSymlink != 0 {
+				fi, err = os.Stat(fullpath)
+				if err != nil {
+					return err
+				}
+			}
+			valid, bucketID := checkBucketDir(fi)
+
 			datas, err := filepath.Glob(filepath.Join(fullpath, "*.data"))
 			if err != nil {
 				logger.Errorf("%s", err.Error())
