@@ -285,15 +285,20 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 		}
 	}()
 	oldv := int32(0)
-	payload, _, err := bkt.get(ki, true)
+	payload, pos, err := bkt.get(ki, true)
 	if err != nil {
 		return err
 	}
+
 	if payload != nil {
 		oldv = payload.Ver
 		if conf.CheckVHash && oldv > 0 {
-			vhash := Getvhash(v.Body)
-			if vhash == payload.ValueHash {
+			v.CalcValueHash()
+			if v.ValueHash == payload.ValueHash {
+				if v.Ver != 0 {
+					// sync script would be here, e.g. set_raw(k, v, rev=xxx)
+					bkt.htree.set(ki, &v.Meta, pos)
+				}
 				return nil
 			}
 		}
@@ -343,7 +348,6 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 			Flag:      0,
 		}
 	}
-
 	var rec *Record
 	if memOnly {
 		payload = new(Payload)
@@ -365,6 +369,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		return
 	} else if bytes.Compare(rec.Key, ki.Key) == 0 {
 		payload = rec.Payload
+		payload.Ver = meta.Ver
 		return
 	}
 	defer rec.Payload.Free()
