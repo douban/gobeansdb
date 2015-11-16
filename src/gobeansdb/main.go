@@ -51,19 +51,24 @@ func main() {
 	flag.Parse()
 
 	conf.Load(*confdir)
+	runtime.GOMAXPROCS(conf.Threads)
 	if *dumpconf {
 		config.DumpConfig(conf)
 		return
 	} else if *buildhint != "" {
+		if *confdir != "" {
+			initWeb()
+		} else {
+			conf.HintConfig.SplitCap = (5 << 20) // cost maxrss about 1.5G
+		}
 		store.DataToHint(*buildhint)
 		return
 	}
 
 	initLog()
-
 	logger.Infof("gorivendb version %s starting at %d, config: %#v", config.Version, conf.Port, conf)
 	logger.Infof("route table: %#v", config.Route)
-	runtime.GOMAXPROCS(conf.Threads)
+
 	initWeb()
 
 	var err error
