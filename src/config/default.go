@@ -13,7 +13,7 @@ var (
 		WebPort:  7908,
 		Threads:  4,
 		ZK:       "NO",
-		LogDir:   "./log",
+		LogDir:   "./",
 	}
 
 	DefaultHintConfig = HintConfig{
