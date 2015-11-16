@@ -67,11 +67,12 @@ func main() {
 	initWeb()
 
 	var err error
-	storage = new(Storage)
-	storage.hstore, err = store.NewHStore()
+
+	hstore, err := store.NewHStore()
 	if err != nil {
 		logger.Fatalf("fail to init NewHStore %s", err.Error())
 	}
+	storage = &Storage{hstore: hstore}
 
 	server = mc.NewServer(storage)
 	addr := fmt.Sprintf("%s:%d", conf.Listen, conf.Port)
