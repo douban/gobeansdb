@@ -18,7 +18,7 @@ var (
 
 	DefaultHintConfig = HintConfig{
 		NoMerged:             false,
-		SplitCapStr:          "1k",
+		SplitCapStr:          "1M",
 		IndexIntervalSizeStr: "4K",
 		MergeInterval:        1,
 	}
