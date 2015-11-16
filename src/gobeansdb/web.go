@@ -89,7 +89,9 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 func handleWebPanic(w http.ResponseWriter) {
 	r := recover()
 	if r != nil {
-		fmt.Fprintf(w, "\npanic:%#v, stack:%s", r, utils.GetStack(1000))
+		stack := utils.GetStack(1000)
+		logger.Errorf("web req panic:%#v, stack:%s", r, stack)
+		fmt.Fprintf(w, "\npanic:%#v, stack:%s", r, stack)
 	}
 }
 
@@ -134,6 +136,7 @@ func handleMemStates(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleBuffers(w http.ResponseWriter, r *http.Request) {
+	defer handleWebPanic(w)
 	handleJson(w, &cmem.DBRL)
 }
 
@@ -141,6 +144,7 @@ func handleCollision(w http.ResponseWriter, r *http.Request) {
 	if storage == nil {
 		return
 	}
+	defer handleWebPanic(w)
 	e := []byte("need bucket id, e.g. /collision/c")
 	s := filepath.Base(r.URL.Path)
 	bucketID, err := strconv.ParseInt(s, 16, 16)
@@ -169,6 +173,7 @@ func handleKeyhash(w http.ResponseWriter, r *http.Request) {
 	if storage == nil {
 		return
 	}
+	defer handleWebPanic(w)
 	path := filepath.Base(r.URL.Path)
 	if len(path) != 16 {
 		return
@@ -189,9 +194,11 @@ func handleKeyhash(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleLogBuffer(w http.ResponseWriter, r *http.Request) {
+	defer handleWebPanic(w)
 	loghub.Default.DumpBuffer(w)
 }
 
 func handleLogLast(w http.ResponseWriter, r *http.Request) {
+	defer handleWebPanic(w)
 	w.Write(loghub.Default.GetLast())
 }
