@@ -61,7 +61,7 @@ func main() {
 
 	initLog()
 
-	logger.Infof("gorivendb version %s starting at %d, config: %#v", mc.VERSION, conf.Port, conf)
+	logger.Infof("gorivendb version %s starting at %d, config: %#v", config.Version, conf.Port, conf)
 	logger.Infof("route table: %#v", config.Route)
 	runtime.GOMAXPROCS(conf.Threads)
 	initWeb()

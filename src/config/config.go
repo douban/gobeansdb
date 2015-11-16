@@ -9,6 +9,10 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+const (
+	Version = "3.0.0"
+)
+
 var (
 	DB    DBConfig
 	Proxy ProxyConfig

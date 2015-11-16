@@ -3,6 +3,7 @@ package memcache
 import (
 	"bufio"
 	"cmem"
+	"config"
 	"errors"
 	"fmt"
 	"io"
@@ -586,7 +587,7 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 
 	case "version":
 		resp.status = "VERSION"
-		resp.msg = VERSION
+		resp.msg = config.Version
 
 	case "verbosity", "flush_all":
 		resp.status = "OK"
