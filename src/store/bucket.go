@@ -5,6 +5,7 @@ import (
 	"cmem"
 	"fmt"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"sync"
@@ -81,6 +82,7 @@ func (bkt *Bucket) buildHintFromData(chunkID int, start uint32) (err error) {
 		bkt.hints.setItem(item, chunkID, rec.Payload.RecSize)
 	}
 	bkt.hints.trydump(chunkID, true)
+	debug.FreeOSMemory()
 	return
 }
 
