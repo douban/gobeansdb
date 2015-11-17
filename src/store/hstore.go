@@ -371,16 +371,16 @@ func (store *HStore) HintDumper(interval time.Duration) {
 	logger.Infof("hint merger started")
 	mergeChan = make(chan int, 2)
 	for {
-		select {
-		case _ = <-mergeChan:
-		case <-time.After(interval):
-		}
-
 		for _, bkt := range store.buckets {
 			if bkt.state == BUCKET_STAT_READY {
 				bkt.hints.dumpAndMerge(false)
 			}
 		}
+		select {
+		case _ = <-mergeChan:
+		case <-time.After(interval):
+		}
+
 	}
 }
 
