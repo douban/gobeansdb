@@ -86,6 +86,7 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 	if payload.Ver > 0 {
 		vhash = store.Getvhash(payload.Body)
 		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
+		payload.Free()
 	}
 
 	var body string
