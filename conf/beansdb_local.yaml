@@ -4,6 +4,10 @@ server:
   port: 7980
   webport: 7988
 hstore:
+  data:
+    flush_interval: 0
+    flush_wake_str: 0
+
   local:
     hostname: 127.0.0.1
     homes:
