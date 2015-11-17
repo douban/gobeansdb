@@ -8,6 +8,7 @@ import (
 	"net"
 	"sync"
 	"time"
+	"utils"
 )
 
 var (
@@ -52,6 +53,10 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	req := c.req
 	var resp *Response = nil
 	defer func() {
+		if e := recover(); e != nil {
+			logger.Errorf("mc panic(%#v), cmd %s, keys %v, stack: %s",
+				e, req.Cmd, req.Keys, utils.GetStack(1000))
+		}
 		req.Clear()
 		if resp != nil {
 			resp.CleanBuffer()

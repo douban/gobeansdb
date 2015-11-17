@@ -2,7 +2,6 @@ package store
 
 import (
 	"fmt"
-	"loghub"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -367,14 +366,17 @@ func (h *hintMgr) close() {
 }
 
 func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
-	h.dumpLock.Lock()
+	defer func() {
+		if e := recover(); e != nil {
+			logger.Errorf("dumpAndMerge panic(%#v), stack: %s", e, utils.GetStack(1000))
+		}
+	}()
+
 	h.dumpAndMergeState = HintStatetWorking
+	h.dumpLock.Lock()
 	defer func() {
 		h.dumpAndMergeState = HintStateIdle
 		h.dumpLock.Unlock()
-		if err := recover(); err != nil {
-			logger.Errorf("Merge Error: %#v, stack: %s", err, loghub.GetStack(1000))
-		}
 	}()
 
 	maxDumpableChunkID := h.maxDumpableChunkID
@@ -393,6 +395,7 @@ func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
 		return
 	}
 	if !h.mergeing && (h.maxChunkID-h.collisions.Chunk > conf.MergeInterval) {
+		logger.Infof("start merge goroutine")
 		go h.Merge()
 	}
 	return
@@ -407,14 +410,20 @@ func (h *hintMgr) RemoveMerged() {
 }
 
 func (h *hintMgr) Merge() (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			logger.Errorf("merge panic(%#v), stack: %s", e, utils.GetStack(1000))
+		}
+	}()
+
 	oldchunk := h.collisions.Chunk
 	h.mergeLock.Lock()
 	h.mergeing = true
 	st := time.Now()
 	defer func() {
-		logger.Infof("merged done, %#v, %s", h.collisions.HintID, time.Since(st))
 		h.mergeing = false
 		h.mergeLock.Unlock()
+		logger.Infof("merged done, %#v, %s", h.collisions.HintID, time.Since(st))
 	}()
 	if oldchunk != h.collisions.Chunk {
 		return
