@@ -39,6 +39,7 @@ func init() {
 
 	http.HandleFunc("/reload", handleReload)
 	http.HandleFunc("/logbuf", handleLogBuffer)
+	http.HandleFunc("/logbufall", handleLogBufferALL)
 	http.HandleFunc("/loglast", handleLogLast)
 
 	// dir
@@ -49,7 +50,7 @@ func init() {
 
 func initWeb() {
 	webaddr := fmt.Sprintf("%s:%d", conf.Listen, conf.WebPort)
-	http.Handle("/log", http.FileServer(http.Dir(conf.LogDir))) // TODO: tail
+	//http.Handle("/log", http.FileServer(http.Dir(conf.LogDir))) // TODO: tail
 
 	go func() {
 		logger.Infof("http listen at %s", webaddr)
@@ -73,8 +74,8 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
     <a href='/buffers'> /buffers </a> <p/>
     <a href='/memstats'> /memstats </a> <p/>
     <a href='/rusage'> /rusage </a> <p/>
-    <a href='/log'> /log </a> <p/>
     <a href='/logbuf'> /logbuf </a> <p/>
+    <a href='/logbufall'> /logbufall </a> <p/>
     <a href='/loglast'> /loglast </a> <p/>
     <a href='/buckets'> /buckets </a> <p/>
 
@@ -195,7 +196,12 @@ func handleKeyhash(w http.ResponseWriter, r *http.Request) {
 
 func handleLogBuffer(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
-	loghub.Default.DumpBuffer(w)
+	loghub.Default.DumpBuffer(false, w)
+}
+
+func handleLogBufferALL(w http.ResponseWriter, r *http.Request) {
+	defer handleWebPanic(w)
+	loghub.Default.DumpBuffer(true, w)
 }
 
 func handleLogLast(w http.ResponseWriter, r *http.Request) {
