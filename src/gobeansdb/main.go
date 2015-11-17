@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"store"
 	"syscall"
+	"time"
 )
 
 var (
@@ -38,7 +39,6 @@ func handleSignals() {
 			sig := <-ch
 			logger.Infof("signal recieved " + sig.String())
 			server.Shutdown()
-
 		}
 	}(sch)
 }
@@ -86,6 +86,7 @@ func main() {
 	}
 	logger.Infof("mc server listen at %s", addr)
 	handleSignals()
+	go storage.hstore.HintDumper(1 * time.Minute) // it may start merge go routine
 	go storage.hstore.Flusher()
 	err = server.Serve()
 	tmp := storage
