@@ -31,7 +31,7 @@ var (
 		DataFileMaxStr: "4000M",
 		CheckVHash:     false,
 		FlushInterval:  5, // 5s
-		FlushWakeStr:   "4M",
+		FlushWakeStr:   "0",
 		FlushMaxStr:    "100M",
 	}
 
