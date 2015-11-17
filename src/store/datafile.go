@@ -122,14 +122,13 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		logger.Errorf(err.Error())
 		return
 	}
+	wrec.decodeHeader()
 	if !isValidKVSzie(wrec.ksz, wrec.vsz) {
 		err = fmt.Errorf("bad kv size %s:%d, wrec %v", path, offset, wrec)
 		logger.Errorf(err.Error())
 		return
 	}
-
-	wrec.decodeHeader()
-	kvSize := int64(wrec.ksz + wrec.vsz)
+	kvSize := wrec.ksz + wrec.vsz
 	var kv cmem.CArray
 	if !kv.Alloc(int(kvSize)) {
 		err = fmt.Errorf("fail to alloc for read %s:%d, wrec %v ", path, offset, wrec)
@@ -137,7 +136,7 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		return
 	}
 
-	cmem.DBRL.GetData.AddSize(kvSize)
+	cmem.DBRL.GetData.AddSize(int64(kvSize))
 	wrec.rec.Key = kv.Body[:wrec.ksz]
 
 	if n, err = f.ReadAt(kv.Body, int64(offset)+recHeaderSize); err != nil {
@@ -159,7 +158,7 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		cmem.DBRL.GetData.SubSize(int64(kvSize))
 		return
 	}
-	wrec.rec.Payload.AccountingSize = kvSize
+	wrec.rec.Payload.AccountingSize = int64(kvSize)
 	if wrec.rec.Payload.IsCompressed() {
 		diff := int64(quicklz.SizeDecompressed(wrec.rec.Payload.Body) - int(wrec.vsz))
 		cmem.DBRL.GetData.AddSize(diff)
