@@ -7,9 +7,37 @@ import shlex
 import shutil
 import socket
 import subprocess
+import json
+import urllib2
+import unittest
 
 from tests.dbclient import MCStore
 from tests.utils import mkdir_p
+
+def gethttp(addr, path):
+    url = "http://%s/%s" % (addr, path)
+    response = urllib2.urlopen(url)
+    return response.read()
+
+
+class BaseTest(unittest.TestCase):
+    def setUp(self):
+        self.db = BeansdbInstance()
+        self.db.clean_data()
+        self.db.start()
+
+    def tearDown(self):
+         self.db.clean()
+        #time.sleep(100)
+
+    def checkCounterZero(self):
+        time.sleep(0.1)
+        content = gethttp(self.db.webaddr, '/buffers')
+        buffers = json.loads(content)[0]
+        self.assertEqual(len(buffers), 4)
+        for k, v in buffers.items():
+            self.assertEqual(v['Count'], 0, content)
+            self.assertEqual(v['Size'], 0 ,content)
 
 
 ### start/stop cmd in subprocess
@@ -46,10 +74,17 @@ def get_server_addr(server_global=SERVER_GLOBAL, server_local=SERVER_LOCAL):
     global_conf = load_yaml(server_global)
     local_conf = load_yaml(server_local)
     port = global_conf['server']['port']
+    webport = global_conf['server']['webport']
     if local_conf.get('server') and local_conf.get('server').get('port'):
         port = local_conf['server']['port']
+    if local_conf.get('server') and local_conf.get('server').get('webport'):
+        webport = local_conf['server']['webport']
     hostname = local_conf['hstore']['local'].get('hostname') or socket.gethostname()
-    return '%s:%s' % (hostname, port)
+
+    mc_addr = '%s:%s' % (hostname, port)
+    web_addr = '%s:%s' % (hostname, webport)
+
+    return mc_addr, web_addr
 
 
 def get_db_homes(server_local=SERVER_LOCAL):
@@ -71,7 +106,8 @@ class BeansdbInstance(object):
     def __init__(self):
         self.popen = None
         self.cmd = "./bin/gobeansdb -confdir conf"
-        self.addr = get_server_addr()
+        self.addr, self.webaddr = get_server_addr()
+
         self.db_homes = get_db_homes()
 
     def __del__(self):
@@ -101,6 +137,9 @@ class BeansdbInstance(object):
     def clean(self):
         if self.popen:
             self.stop()
+        self.clean_data()
+
+    def clean_data(self):
         for db_home in self.db_homes:
             if os.path.exists(db_home):
                 shutil.rmtree(db_home)
