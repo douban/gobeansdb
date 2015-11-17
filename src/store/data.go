@@ -84,7 +84,6 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	ds.filesizes[ds.newHead] += size
 	ds.wbufSize += size
 	if rec.Payload.Ver > 0 {
-		cmem.DBRL.SetData.SubSize(rec.Payload.AccountingSize)
 		cmem.DBRL.FlushData.AddSize(rec.Payload.AccountingSize)
 	}
 	if cmem.DBRL.FlushData.Size > int64(conf.FlushWake) {
