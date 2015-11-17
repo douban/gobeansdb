@@ -430,15 +430,17 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 
 	if payload != nil {
 		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
-		s := string(payload.Body)
 		if payload.Flag != FLAG_INCR {
+			payload.Free()
 			logger.Warnf("incr with flag 0x%x", payload.Flag)
 			return 0
 		}
-		if len(s) > 22 {
-			logger.Warnf("incr with value %s", s)
+		if len(payload.Body) > 22 {
+			payload.Free()
+			logger.Warnf("incr with large value %s...", string(payload.Body[:22]))
 			return 0
 		}
+		s := string(payload.Body)
 		v, err := strconv.Atoi(s)
 		if err != nil {
 			logger.Warnf("incr with value %s", s)
@@ -454,6 +456,7 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 	payload.TS = uint32(time.Now().Unix())
 	payload.Body = []byte(s)
 	payload.CalcValueHash()
+	payload.AccountingSize = int64(len(ki.Key) + len(s))
 	bkt.set(ki, payload)
 	return value
 }
