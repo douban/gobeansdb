@@ -2,22 +2,17 @@
 import telnetlib
 import unittest
 from tests.dbclient import MCStore
-from tests.base import BeansdbInstance, get_server_addr
+from tests.base import BeansdbInstance, get_server_addr, BaseTest
 
 
-class AbnormalCmdTest(unittest.TestCase):
+class AbnormalCmdTest(BaseTest):
     def setUp(self):
-        self.addr = get_server_addr()
-        self.db = BeansdbInstance()
-        self.db.start()
-        self.store = MCStore(self.addr)
+        BaseTest.setUp(self)
+        self.store = MCStore(self.db.addr)
         self.invalid_key = '/this/is/a/bad/key/%s' % chr(15)
 
-    def tearDown(self):
-        self.db.clean()
-
     def run_cmd_by_telnet(self, cmd, expected, timeout=2):
-        addr, port = self.addr.split(':')
+        addr, port = self.db.addr.split(':')
         t = telnetlib.Telnet(addr, port)
         t.write('%s\r\n' % cmd)
         out = t.read_until('\n', timeout=timeout)
@@ -34,6 +29,7 @@ class AbnormalCmdTest(unittest.TestCase):
         # invalid key
         cmd = 'get %s' % self.invalid_key
         self.run_cmd_by_telnet(cmd, 'END')
+        self.checkCounterZero()
 
     def test_set(self):
         # invalid key
@@ -42,6 +38,7 @@ class AbnormalCmdTest(unittest.TestCase):
 
         cmd = 'set /test/set 0 0 3\r\naaaa'
         self.run_cmd_by_telnet(cmd, 'CLIENT_ERROR bad data chunk')
+        self.checkCounterZero()
 
     def test_incr(self):
         key = '/test/incr'
@@ -56,6 +53,7 @@ class AbnormalCmdTest(unittest.TestCase):
         cmd = 'incr %s 10' % key
         self.run_cmd_by_telnet(cmd, '0')
         self.assertEqual(self.store.get(key), 'aaa')
+        self.checkCounterZero()
 
     def test_delete(self):
         key = '/delete/not/exist/key'
@@ -64,6 +62,7 @@ class AbnormalCmdTest(unittest.TestCase):
 
         cmd = 'delete %s' % self.invalid_key
         self.run_cmd_by_telnet(cmd, 'NOT_FOUND')
+        self.checkCounterZero()
 
     def test_get_meta_by_key(self):
         key = '/get_meta_by_key/not/exist/key'
@@ -72,6 +71,7 @@ class AbnormalCmdTest(unittest.TestCase):
 
         cmd = 'get ?%s' % self.invalid_key
         self.run_cmd_by_telnet(cmd, 'END')
+        self.checkCounterZero()
 
     @unittest.skip("we will check gc completely in another pr")
     def test_gc(self):
