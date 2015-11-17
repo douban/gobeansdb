@@ -1,5 +1,8 @@
 mc:
   body_c_str: 1K
+server:
+  port: 7980
+  webport: 7988
 hstore:
   local:
     hostname: 127.0.0.1
