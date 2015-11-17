@@ -283,6 +283,11 @@ func (bkt *Bucket) checkAndUpdateVerison(oldv, ver int32) (int32, bool) {
 }
 
 func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
+	if len(v.Body) > 0 {
+		rec := &Record{ki.Key, v}
+		v.CalcValueHash()
+		rec.TryCompress()
+	}
 	bkt.writeLock.Lock()
 	ok := false
 	defer func() {
@@ -300,7 +305,6 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	if payload != nil {
 		oldv = payload.Ver
 		if conf.CheckVHash && oldv > 0 {
-			v.CalcValueHash()
 			if v.ValueHash == payload.ValueHash {
 				if v.Ver != 0 {
 					// sync script would be here, e.g. set_raw(k, v, rev=xxx)
@@ -325,7 +329,6 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 }
 
 func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
-	v.CalcValueHash()
 	pos, err := bkt.datas.AppendRecord(&Record{ki.Key, v})
 	if err != nil {
 		return err
@@ -450,6 +453,7 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 	s := strconv.Itoa(value)
 	payload.TS = uint32(time.Now().Unix())
 	payload.Body = []byte(s)
+	payload.CalcValueHash()
 	bkt.set(ki, payload)
 	return value
 }
