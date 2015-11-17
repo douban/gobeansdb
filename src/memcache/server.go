@@ -2,6 +2,7 @@ package memcache
 
 import (
 	"bufio"
+	"config"
 	"errors"
 	"io"
 	"loghub"
@@ -15,6 +16,7 @@ var (
 	SlowCmdTime = time.Millisecond * 100 // 100ms
 	RL          *ReqLimiter
 	logger      = loghub.Default
+	conf        = &config.DB
 )
 
 type ServerConn struct {

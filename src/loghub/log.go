@@ -147,7 +147,7 @@ type BufferLog struct {
 
 	all  queue
 	warn queue
-	Last [FATAL]*BufferLine
+	Last [FATAL + 1]*BufferLine
 }
 
 func (l *BufferLog) InitBuffer(size int) {

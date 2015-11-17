@@ -2,8 +2,11 @@ package config
 
 var (
 	DefaultMCConfig = MCConfig{
+		MaxReq:     16,
 		MaxKeyLen:  250,
 		BodyMaxStr: "50M",
+		BodyBigStr: "1M",
+		BodyInCStr: "4K",
 	}
 
 	DefaultServerConfig = ServerConfig{

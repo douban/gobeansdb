@@ -151,7 +151,7 @@ func testHStore(t *testing.T, op, numbucket int) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	logger.Infof("%#v", conf)
 	// set
 
 	N := 10

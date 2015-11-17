@@ -6,13 +6,15 @@ package cmem
 */
 import "C"
 import (
+	"config"
 	"reflect"
+	"sync/atomic"
 	"unsafe"
 )
-import "sync/atomic"
 
 var (
 	AllocRL ResourceLimiter
+	conf    = &config.DB
 )
 
 type ResourceLimiter struct {
@@ -62,7 +64,7 @@ type CArray struct {
 }
 
 func (arr *CArray) Alloc(size int) bool {
-	if size <= MemConfig.AllocLimit {
+	if size <= int(conf.MCConfig.BodyInC) {
 		arr.Body = make([]byte, size)
 		return true
 	}
@@ -97,7 +99,7 @@ func (arr *CArray) Clear() {
 
 func (arr *CArray) Copy() (arrNew CArray, ok bool) {
 	size := len(arr.Body)
-	if size <= MemConfig.AllocLimit {
+	if arr.Addr == 0 {
 		arrNew.Body = make([]byte, size)
 		copy(arrNew.Body, arr.Body)
 		ok = true

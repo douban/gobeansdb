@@ -1,7 +1,6 @@
 package memcache
 
 import (
-	"cmem"
 	"sync/atomic"
 	"time"
 )
@@ -73,7 +72,7 @@ func (rl *ReqLimiter) Put(req *Request) {
 }
 
 func InitTokens() {
-	n := cmem.MemConfig.NumReqToken
+	n := conf.MaxReq
 	if n == 0 {
 		n = 16
 	}

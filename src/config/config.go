@@ -112,6 +112,7 @@ func (c *DBConfig) InitDefault() {
 	c.ServerConfig = DefaultServerConfig
 	c.MCConfig = DefaultMCConfig
 	c.HStoreConfig.InitDefault()
+	utils.InitSizesPointer(c)
 }
 
 func (c *ProxyConfig) Load(confdir string) {
