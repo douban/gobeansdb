@@ -54,6 +54,13 @@ func (ds *dataStore) nextChunkID(chunkID int) int {
 	return chunkID + 1
 }
 
+func WakeupFlush() {
+	select {
+	case cmem.DBRL.FlushData.Chan <- 1:
+	default:
+	}
+}
+
 func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	// TODO: check err of last flush
 
@@ -81,21 +88,10 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 		cmem.DBRL.FlushData.AddSize(rec.Payload.AccountingSize)
 	}
 	if cmem.DBRL.FlushData.Size > int64(conf.FlushWake) {
-		select {
-		case cmem.DBRL.FlushData.Chan <- 1:
-		default:
-		}
+		WakeupFlush()
 	}
 	ds.Unlock()
 	return
-}
-
-// this is for test, use HStore.flusher instead,
-func (ds *dataStore) flusher() {
-	for {
-		ds.flush(-1, false)
-		time.Sleep(1 * time.Minute)
-	}
 }
 
 func (ds *dataStore) getDiskFileSize(chunkID int) uint32 {
@@ -112,6 +108,10 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	ds.flushLock.Lock()
 	defer ds.flushLock.Unlock()
 	ds.Lock()
+	if ds.wbufSize == 0 {
+		ds.Unlock()
+		return nil
+	}
 	if !force && (time.Since(ds.lastFlushTime) < time.Duration(conf.FlushInterval)*time.Second) && (ds.wbufSize < (1 << 20)) {
 		ds.Unlock()
 		return nil
@@ -289,7 +289,7 @@ func (ds *dataStore) getStreamWriter(chunk int, isappend bool) (*DataStreamWrite
 		logger.Infof("create data file: %s", path)
 		fd, err = os.Create(path)
 		if err != nil {
-			logger.Infof(err.Error())
+			logger.Fatalf(err.Error())
 			return nil, err
 		}
 	}
