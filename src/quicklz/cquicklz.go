@@ -82,8 +82,8 @@ func DecompressSafe(src []byte) (dst []byte, err error) {
 
 func CDecompressSafe(src []byte) (dst cmem.CArray, err error) {
 	defer func() {
-		if err == nil {
-			err = utils.PanicToError("decompress")
+		if e := recover(); e != nil {
+			err = fmt.Errorf("CDecompressSafe panic(%#v), stack: %s", e, utils.GetStack(1000))
 		}
 	}()
 	sizeC := SizeCompressed(src)

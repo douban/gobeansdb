@@ -27,7 +27,6 @@ func DataToHint(path string) (err error) {
 
 func DataToHintDir(path string, start, end int) (err error) {
 	bkt := &Bucket{}
-	conf.HintConfig.SplitCap = 10 << 20
 	bkt.datas = NewdataStore(0, path)
 	bkt.hints = newHintMgr(0, path)
 	_, err = bkt.datas.ListFiles()

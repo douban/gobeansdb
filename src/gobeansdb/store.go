@@ -9,19 +9,11 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	"utils"
 )
 
 var (
 	ErrorNotSupport = errors.New("operation not support")
 )
-
-func handlePanic(s string) {
-	e := utils.PanicToError(s)
-	if e != nil {
-		logger.Errorf(e.Error())
-	}
-}
 
 type Storage struct {
 	numClient int
@@ -40,7 +32,6 @@ type StorageClient struct {
 }
 
 func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, error) {
-	defer handlePanic("set")
 	if !store.IsValidKeyString(key) {
 		return false, nil
 	}
@@ -113,8 +104,6 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 }
 
 func (s *StorageClient) Get(key string) (*mc.Item, error) {
-
-	defer handlePanic("get")
 	if key[0] == '@' {
 		if len(key) > 1 && key[1] == '@' {
 			key2 := key[2:]
@@ -199,7 +188,6 @@ func (s *StorageClient) Append(key string, value []byte) (bool, error) {
 }
 
 func (s *StorageClient) Incr(key string, value int) (int, error) {
-	defer handlePanic("delete")
 	if !store.IsValidKeyString(key) {
 		return 0, nil
 	}
@@ -209,7 +197,6 @@ func (s *StorageClient) Incr(key string, value int) (int, error) {
 }
 
 func (s *StorageClient) Delete(key string) (bool, error) {
-	defer handlePanic("delete")
 	if !store.IsValidKeyString(key) {
 		return false, nil
 	}

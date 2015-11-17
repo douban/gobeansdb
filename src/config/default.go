@@ -2,8 +2,11 @@ package config
 
 var (
 	DefaultMCConfig = MCConfig{
+		MaxReq:     16,
 		MaxKeyLen:  250,
 		BodyMaxStr: "50M",
+		BodyBigStr: "1M",
+		BodyInCStr: "4K",
 	}
 
 	DefaultServerConfig = ServerConfig{
@@ -18,7 +21,7 @@ var (
 
 	DefaultHintConfig = HintConfig{
 		NoMerged:             false,
-		SplitCapStr:          "1k",
+		SplitCapStr:          "1M",
 		IndexIntervalSizeStr: "4K",
 		MergeInterval:        1,
 	}
@@ -31,7 +34,7 @@ var (
 		DataFileMaxStr: "4000M",
 		CheckVHash:     false,
 		FlushInterval:  5, // 5s
-		FlushWakeStr:   "4M",
+		FlushWakeStr:   "0",
 		FlushMaxStr:    "100M",
 	}
 

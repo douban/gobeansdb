@@ -98,13 +98,11 @@ func (l *Logger) Logf(level int, format string, v ...interface{}) {
 	l.hub.Log(l.name, level, file, line, msg)
 
 	bufline := &BufferLine{time.Now(), level, file, line, msg}
-	if level >= WARN {
-		l.Add(bufline)
-		if level == FATAL {
-			os.Exit(1)
-		}
-	}
+	l.Add(bufline)
 	l.Last[level] = bufline
+	if level == FATAL {
+		os.Exit(1)
+	}
 }
 
 type BufferLine struct {
@@ -115,40 +113,64 @@ type BufferLine struct {
 	Msg   string
 }
 
-type BufferLog struct {
-	sync.Mutex
+type queue struct {
 	head   int
 	Buffer []*BufferLine
-	Last   [FATAL]*BufferLine
 }
 
-func (l *BufferLog) InitBuffer(size int) {
-	l.Buffer = make([]*BufferLine, size)
+func (q *queue) Add(line *BufferLine) {
+	q.Buffer[q.head] = line
+	q.head += 1
+	if q.head >= len(q.Buffer) {
+		q.head = 0
+	}
 }
 
-func (l *BufferLog) DumpBuffer(out io.Writer) {
-	l.Lock()
-	defer l.Unlock()
-	i := l.head
-	for j := 0; j < len(l.Buffer); j++ {
-		line := l.Buffer[i]
+func (q *queue) DumpBuffer(out io.Writer) {
+	i := q.head
+	for j := 0; j < len(q.Buffer); j++ {
+		line := q.Buffer[i]
 		if line != nil {
 			out.Write([]byte(fmt.Sprintf("%v\n", line)))
 		}
 		i += 1
-		if i >= len(l.Buffer) {
+		if i >= len(q.Buffer) {
 			i = 0
 		}
+	}
+}
+
+type BufferLog struct {
+	sync.Mutex
+	head   int
+	Buffer []*BufferLine
+
+	all  queue
+	warn queue
+	Last [FATAL + 1]*BufferLine
+}
+
+func (l *BufferLog) InitBuffer(size int) {
+	l.all.Buffer = make([]*BufferLine, size)
+	l.warn.Buffer = make([]*BufferLine, size)
+}
+
+func (l *BufferLog) DumpBuffer(all bool, out io.Writer) {
+	l.Lock()
+	defer l.Unlock()
+	if all {
+		l.all.DumpBuffer(out)
+	} else {
+		l.warn.DumpBuffer(out)
 	}
 }
 
 func (l *BufferLog) Add(line *BufferLine) {
 	l.Lock()
 	defer l.Unlock()
-	l.Buffer[l.head] = line
-	l.head += 1
-	if l.head >= len(l.Buffer) {
-		l.head = 0
+	l.all.Add(line)
+	if line.Level >= WARN {
+		l.warn.Add(line)
 	}
 }
 

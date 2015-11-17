@@ -193,8 +193,8 @@ func (req *Request) Read(b *bufio.Reader) error {
 		if length > MaxValueSize {
 			return ErrValueTooLarge
 		}
-		if length > cmem.MemConfig.VictimSize {
-			if cmem.DBRL.FlushData.Size > cmem.MemConfig.FlushBufferHWM {
+		if length > int(conf.MCConfig.BodyBig) {
+			if cmem.DBRL.FlushData.Size > int64(conf.HStoreConfig.FlushMax) {
 				logger.Warnf("ErrOOM key %s, size %d", req.Keys[0], length)
 				return ErrOOM
 			}
@@ -576,7 +576,7 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			}
 			resp.msg = strings.Join(ss, "")
 		} else {
-			ss = make([]string, len(st) + 1)
+			ss = make([]string, len(st)+1)
 			cnt := 0
 			for k, v := range st {
 				ss[cnt] = fmt.Sprintf("STAT %s %d\r\n", k, v)

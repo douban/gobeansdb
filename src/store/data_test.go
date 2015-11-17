@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func randomValue(size int) []byte {
@@ -116,6 +117,7 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 	}
 	checkFileSize(t, 0, uint32(conf.DataFileMax))
 	checkFileSize(t, 1, 256*recsize)
+	time.Sleep(time.Second)
 }
 
 func breakdata(f *os.File, start, offset int) {
@@ -133,6 +135,7 @@ func TestDataBroken(t *testing.T) {
 	conf.Init()
 
 	ds := NewdataStore(0, conf.Homes[0])
+
 	key := []byte("key")
 	for i := 0; i < 7; i++ {
 		p := &Payload{}

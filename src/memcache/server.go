@@ -2,18 +2,21 @@ package memcache
 
 import (
 	"bufio"
+	"config"
 	"errors"
 	"io"
 	"loghub"
 	"net"
 	"sync"
 	"time"
+	"utils"
 )
 
 var (
 	SlowCmdTime = time.Millisecond * 100 // 100ms
 	RL          *ReqLimiter
 	logger      = loghub.Default
+	conf        = &config.DB
 )
 
 type ServerConn struct {
@@ -52,6 +55,10 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	req := c.req
 	var resp *Response = nil
 	defer func() {
+		if e := recover(); e != nil {
+			logger.Errorf("mc panic(%#v), cmd %s, keys %v, stack: %s",
+				e, req.Cmd, req.Keys, utils.GetStack(1000))
+		}
 		req.Clear()
 		if resp != nil {
 			resp.CleanBuffer()

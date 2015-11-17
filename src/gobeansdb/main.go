@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"store"
 	"syscall"
+	"time"
 )
 
 var (
@@ -38,7 +39,6 @@ func handleSignals() {
 			sig := <-ch
 			logger.Infof("signal recieved " + sig.String())
 			server.Shutdown()
-
 		}
 	}(sch)
 }
@@ -51,19 +51,24 @@ func main() {
 	flag.Parse()
 
 	conf.Load(*confdir)
+	runtime.GOMAXPROCS(conf.Threads)
 	if *dumpconf {
 		config.DumpConfig(conf)
 		return
 	} else if *buildhint != "" {
+		if *confdir != "" {
+			initWeb()
+		} else {
+			conf.HintConfig.SplitCap = (5 << 20) // cost maxrss about 1.5G
+		}
 		store.DataToHint(*buildhint)
 		return
 	}
 
 	initLog()
-
 	logger.Infof("gorivendb version %s starting at %d, config: %#v", config.Version, conf.Port, conf)
 	logger.Infof("route table: %#v", config.Route)
-	runtime.GOMAXPROCS(conf.Threads)
+
 	initWeb()
 
 	var err error
@@ -81,6 +86,7 @@ func main() {
 	}
 	logger.Infof("mc server listen at %s", addr)
 	handleSignals()
+	go storage.hstore.HintDumper(1 * time.Minute) // it may start merge go routine
 	go storage.hstore.Flusher()
 	err = server.Serve()
 	tmp := storage

@@ -5,6 +5,7 @@ import (
 	"cmem"
 	"fmt"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"sync"
@@ -16,6 +17,10 @@ const (
 	HTREE_SUFFIX       = "hash"
 	HINT_SUFFIX        = "s"
 	MERGED_HINT_SUFFIX = "m"
+
+	BUCKET_STAT_EMPTY = iota
+	BUCKET_STAT_NOT_EMPTY
+	BUCKET_STAT_READY
 )
 
 type Bucket struct {
@@ -76,10 +81,12 @@ func (bkt *Bucket) buildHintFromData(chunkID int, start uint32) (err error) {
 		p := rec.Payload
 		p.Decompress()
 		vhash := Getvhash(p.Body)
+		p.Free()
 		item := newHintItem(khash, p.Ver, vhash, Position{0, offset}, string(rec.Key))
 		bkt.hints.setItem(item, chunkID, rec.Payload.RecSize)
 	}
 	bkt.hints.trydump(chunkID, true)
+	debug.FreeOSMemory()
 	return
 }
 
