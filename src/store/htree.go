@@ -112,6 +112,7 @@ func (tree *HTree) load(path string) (err error) {
 	size := len(leafnodes)
 	for i := 0; i < size; i++ {
 		if _, err = io.ReadFull(reader, buf); err != nil {
+			logger.Errorf("load htree err %s %v", path, err)
 			return
 		}
 		leafnodes[i].count = binary.LittleEndian.Uint32(buf[0:4])
@@ -119,12 +120,14 @@ func (tree *HTree) load(path string) (err error) {
 	}
 	for i := 0; i < size; i++ {
 		if _, err = io.ReadFull(reader, buf[:4]); err != nil {
+			logger.Errorf("load htree err %s %v", path, err)
 			return
 		}
 		l := int(binary.LittleEndian.Uint32(buf[:4]))
 		if l > 0 {
 			tree.leafs[i].enlarge(int(l))
 			if _, err = io.ReadFull(reader, tree.leafs[i].ToBytes()); err != nil {
+				logger.Errorf("load htree err %s %v", path, err)
 				return
 			}
 		}
@@ -183,7 +186,7 @@ func (tree *HTree) dump(path string) {
 		return
 	}
 	os.Rename(tmp, path)
-	logger.Debugf("dumped %s, min leaf %d, max leaf %d", path, minleaf, maxleaf)
+	logger.Infof("htree dumped %s, min leaf %d, max leaf %d", path, minleaf, maxleaf)
 }
 
 func (tree *HTree) getHex(khash uint64, level int) int {
@@ -260,7 +263,7 @@ func (tree *HTree) getNode(ki *KeyInfo, ni *NodeInfo) {
 	}
 	ni.level = l - tree.depth
 	if ni.level > len(tree.levels)-1 {
-		panic(fmt.Sprintf("Bug: level TOO LARGE %d l=%d", h, l))
+		logger.Errorf("Bug: level TOO LARGE %d l=%d", h, l)
 	}
 	ni.offset = offset
 	ni.node = &tree.levels[ni.level][ni.offset]
