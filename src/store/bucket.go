@@ -95,7 +95,6 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 	meta := Meta{}
 	tree := bkt.htree
 	var pos Position
-	pos.ChunkID = chunkID
 	r := newHintFileReader(path, chunkID, 1<<20)
 	r.open()
 	maxoffset = r.datasize
@@ -115,6 +114,7 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 		meta.Ver = item.Ver
 		pos.Offset = item.Pos
 		if item.Ver > 0 {
+			pos.ChunkID = chunkID
 			tree.set(ki, &meta, pos)
 		} else {
 			pos.ChunkID = -1
