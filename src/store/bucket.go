@@ -283,7 +283,7 @@ func (bkt *Bucket) checkAndUpdateVerison(oldv, ver int32) (int32, bool) {
 }
 
 func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
-	if len(v.Body) > 0 {
+	if v.Ver >= 0 {
 		rec := &Record{ki.Key, v}
 		v.CalcValueHash()
 		rec.TryCompress()
