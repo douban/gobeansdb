@@ -82,6 +82,9 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	t := time.Now()
 
 	if err != nil {
+		if req.Item != nil {
+			req.Item.CArray.Free()
+		}
 		if err == ErrNetworkError {
 			// process client connection related error
 			c.Shutdown()
