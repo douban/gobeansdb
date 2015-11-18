@@ -222,10 +222,9 @@ func (req *Request) Read(b *bufio.Reader) error {
 		}
 
 		RL.Get(req)
-		// FIXME
+
 		if !item.Alloc(length) {
 			e = fmt.Errorf("fail to alloc %d", length)
-			// TODO: disconnect?
 			return e
 		}
 
