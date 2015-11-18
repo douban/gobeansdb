@@ -32,6 +32,12 @@ type StorageClient struct {
 }
 
 func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, error) {
+	tofree := &item.CArray
+	defer func() {
+		if tofree != nil {
+			tofree.Free()
+		}
+	}()
 	if !store.IsValidKeyString(key) {
 		return false, nil
 	}
@@ -42,6 +48,7 @@ func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, erro
 	payload.Ver = int32(item.Exptime)
 	payload.TS = uint32(item.ReceiveTime.Unix())
 
+	tofree = nil
 	err := s.hstore.Set(ki, payload)
 	if err != nil {
 		logger.Errorf("err to get %s: %s", key, err.Error())
