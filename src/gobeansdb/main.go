@@ -4,6 +4,7 @@ import (
 	"config"
 	"flag"
 	"fmt"
+	"log"
 	"loghub"
 	mc "memcache"
 	"os"
@@ -85,6 +86,7 @@ func main() {
 		logger.Fatalf("listen failed", err.Error())
 	}
 	logger.Infof("mc server listen at %s", addr)
+	log.Println("ready")
 	handleSignals()
 	go storage.hstore.HintDumper(1 * time.Minute) // it may start merge go routine
 	go storage.hstore.Flusher()
