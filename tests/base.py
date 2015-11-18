@@ -27,17 +27,17 @@ class BaseTest(unittest.TestCase):
         self.db.start()
 
     def tearDown(self):
-         self.db.clean()
-         #time.sleep(100)
+        self.db.clean()
+        # time.sleep(100)
 
     def checkCounterZero(self):
         time.sleep(0.1)
         content = gethttp(self.db.webaddr, '/buffers')
         buffers = json.loads(content)[0]
         self.assertEqual(len(buffers), 4)
-        for k, v in buffers.items():
+        for _, v in buffers.items():
             self.assertEqual(v['Count'], 0, content)
-            self.assertEqual(v['Size'], 0 ,content)
+            self.assertEqual(v['Size'], 0, content)
 
 
 ### start/stop cmd in subprocess
@@ -149,3 +149,4 @@ if __name__ == '__main__':
     db = BeansdbInstance()
     db.start()
     db.clean()
+    
