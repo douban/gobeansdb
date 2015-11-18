@@ -382,7 +382,10 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		payload.Ver = meta.Ver
 		return
 	}
-	defer rec.Payload.Free()
+	defer func() {
+		rec.Payload.Free()
+		cmem.DBRL.GetData.SubSize(rec.Payload.AccountingSize)
+	}()
 
 	keyhash := getKeyHash(rec.Key)
 	if keyhash != ki.KeyHash {
@@ -390,7 +393,6 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		// bkt.htree.remove(ki, pos)
 		err = fmt.Errorf("bad htree item %016x != %016x, pos %v", keyhash, ki.KeyHash, pos)
 		logger.Errorf("%s", err.Error())
-		cmem.DBRL.GetData.SubSize(rec.Payload.AccountingSize)
 		return
 	}
 
@@ -423,37 +425,41 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 }
 
 func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
-	payload, _, err := bkt.get(ki, false)
+	var tofree *Payload
+
+	tofree, _, err := bkt.get(ki, false)
 	if err != nil {
 		return 0
 	}
-
-	if payload != nil {
-		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
-		if payload.Flag != FLAG_INCR {
-			payload.Free()
-			logger.Warnf("incr with flag 0x%x", payload.Flag)
+	ver := int32(1)
+	if tofree != nil {
+		defer func() {
+			cmem.DBRL.GetData.SubSize(tofree.AccountingSize)
+			tofree.Free()
+		}()
+		if tofree.Flag != FLAG_INCR {
+			logger.Warnf("incr with flag 0x%x", tofree.Flag)
 			return 0
 		}
-		if len(payload.Body) > 22 {
-			payload.Free()
-			logger.Warnf("incr with large value %s...", string(payload.Body[:22]))
+		if len(tofree.Body) > 22 {
+			logger.Warnf("incr with large value %s...", string(tofree.Body[:22]))
 			return 0
 		}
-		s := string(payload.Body)
+		s := string(tofree.Body)
 		v, err := strconv.Atoi(s)
 		if err != nil {
 			logger.Warnf("incr with value %s", s)
 			return 0
 		}
+		ver += tofree.Ver
 		value += v
-	} else {
-		payload = &Payload{}
-		payload.Flag = FLAG_INCR
-		payload.Ver = 1
 	}
-	s := strconv.Itoa(value)
+
+	payload := &Payload{}
+	payload.Flag = FLAG_INCR
+	payload.Ver = ver
 	payload.TS = uint32(time.Now().Unix())
+	s := strconv.Itoa(value)
 	payload.Body = []byte(s)
 	payload.CalcValueHash()
 	payload.AccountingSize = int64(len(ki.Key) + len(s))
@@ -467,7 +473,6 @@ func (bkt *Bucket) listDir(ki *KeyInfo) ([]byte, error) {
 
 func (bkt *Bucket) getInfo(keys []string) ([]byte, error) {
 	return nil, nil
-
 }
 
 func (bkt *Bucket) GetRecordByKeyHash(ki *KeyInfo) (rec *Record, err error) {
