@@ -1,5 +1,25 @@
 package config
 
+/*
+
+1. easy to start:
+	Homes: []string{"./testdb"},
+	TreeHeight: 3
+	Hostname: "127.0.0.1"
+	serve all buckets
+
+2. easy for test:
+	flush at once
+		FlushInterval: 0,
+		FlushWakeStr: "0"
+	CheckVHash: false
+	NoMerged: false
+	MergeInterval: 1
+
+3. reasonabe setting for others
+
+*/
+
 var (
 	DefaultMCConfig = MCConfig{
 		MaxReq:     16,
@@ -33,7 +53,7 @@ var (
 	DefaultDataConfig = DataConfig{
 		DataFileMaxStr: "4000M",
 		CheckVHash:     false,
-		FlushInterval:  5, // 5s
+		FlushInterval:  0,
 		FlushWakeStr:   "0",
 		FlushMaxStr:    "100M",
 	}

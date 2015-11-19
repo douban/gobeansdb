@@ -1,13 +1,16 @@
+# for python test
 mc:
   body_c_str: 0
 server:
   port: 7980
   webport: 7988
+  logdir: ./
 hstore:
   data:
     flush_interval: 0
     flush_wake_str: 0
   local:
-    hostname: 127.0.0.1
     homes:
     - ./testdb
+  htree:
+    tree_height: 3
