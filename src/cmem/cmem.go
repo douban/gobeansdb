@@ -68,6 +68,8 @@ type CArray struct {
 func (arr *CArray) Alloc(size int) bool {
 	if size <= int(conf.MCConfig.BodyInC) {
 		arr.Body = make([]byte, size)
+		arr.Cap = 0
+		arr.Addr = 0
 		return true
 	}
 
@@ -111,6 +113,6 @@ func (arr *CArray) Copy() (arrNew CArray, ok bool) {
 		return
 	}
 	ok = true
-	C.memcpy(unsafe.Pointer(arrNew.Addr), unsafe.Pointer(arr.Addr), C.size_t(size))
+	copy(arrNew.Body, arr.Body)
 	return
 }
