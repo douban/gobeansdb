@@ -85,7 +85,6 @@ func (req *Request) String() (s string) {
 func (req *Request) Clear() {
 	req.NoReply = false
 	if req.Item != nil {
-		req.Item.CArray.Clear()
 		req.Item = nil
 	}
 	if req.SettingSize != 0 {
