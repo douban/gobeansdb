@@ -21,6 +21,7 @@ hstore:
     datafile_max_str: 4000M
     check_vhash: true
   hint:
+    hint_no_merged: true
     hint_split_cap_str: 1M
     hint_index_interval_str: 32K
     hint_no_merge: true
