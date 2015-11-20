@@ -60,7 +60,10 @@ class KeyVersionTest(BaseTest):
 
         store.delete(key)
         self.update_pos(256)
-        self.assertEqual(self.get_meta(store, key), None)
+        self.assertEqual(store.get(key), None)
+
+        self.assertEqual(self.get_meta(store, key), (-2, 0, self.last_pos))
+        self.checkCounterZero()
 
         store.set(key, 'bbb')
         self.update_pos(256)

@@ -92,9 +92,9 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 	vhash := uint16(0)
 	if payload.Ver > 0 {
 		vhash = store.Getvhash(payload.Body)
-		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
-		payload.Free()
 	}
+	cmem.DBRL.GetData.SubSize(payload.AccountingSize)
+	payload.Free()
 
 	var body string
 	if extended {
@@ -168,6 +168,11 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 		return nil, err
 	}
 	if payload == nil {
+		return nil, nil
+	}
+	if payload.Ver < 0 {
+		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
+		payload.Free()
 		return nil, nil
 	}
 	item := new(mc.Item) // TODO: avoid alloc?

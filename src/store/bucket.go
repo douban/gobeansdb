@@ -364,9 +364,6 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		payload.Meta = *meta
 		return // omit collision
 	}
-	if meta.Ver < 0 {
-		return
-	}
 
 	rec, err = bkt.datas.GetRecordByPos(pos)
 	if err != nil {
@@ -437,22 +434,24 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 			cmem.DBRL.GetData.SubSize(tofree.AccountingSize)
 			tofree.Free()
 		}()
-		if tofree.Flag != FLAG_INCR {
-			logger.Warnf("incr with flag 0x%x", tofree.Flag)
-			return 0
+		if tofree.Ver > 0 {
+			if tofree.Flag != FLAG_INCR {
+				logger.Warnf("incr with flag 0x%x", tofree.Flag)
+				return 0
+			}
+			if len(tofree.Body) > 22 {
+				logger.Warnf("incr with large value %s...", string(tofree.Body[:22]))
+				return 0
+			}
+			s := string(tofree.Body)
+			v, err := strconv.Atoi(s)
+			if err != nil {
+				logger.Warnf("incr with value %s", s)
+				return 0
+			}
+			ver += tofree.Ver
+			value += v
 		}
-		if len(tofree.Body) > 22 {
-			logger.Warnf("incr with large value %s...", string(tofree.Body[:22]))
-			return 0
-		}
-		s := string(tofree.Body)
-		v, err := strconv.Atoi(s)
-		if err != nil {
-			logger.Warnf("incr with value %s", s)
-			return 0
-		}
-		ver += tofree.Ver
-		value += v
 	}
 
 	payload := &Payload{}
