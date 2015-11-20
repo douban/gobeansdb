@@ -95,7 +95,6 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 	meta := Meta{}
 	tree := bkt.htree
 	var pos Position
-	pos.ChunkID = chunkID
 	r := newHintFileReader(path, chunkID, 1<<20)
 	r.open()
 	maxoffset = r.datasize
@@ -115,6 +114,7 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 		meta.Ver = item.Ver
 		pos.Offset = item.Pos
 		if item.Ver > 0 {
+			pos.ChunkID = chunkID
 			tree.set(ki, &meta, pos)
 		} else {
 			pos.ChunkID = -1
@@ -283,6 +283,11 @@ func (bkt *Bucket) checkAndUpdateVerison(oldv, ver int32) (int32, bool) {
 }
 
 func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
+	if v.Ver >= 0 {
+		rec := &Record{ki.Key, v}
+		v.CalcValueHash()
+		rec.TryCompress()
+	}
 	bkt.writeLock.Lock()
 	ok := false
 	defer func() {
@@ -300,7 +305,6 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	if payload != nil {
 		oldv = payload.Ver
 		if conf.CheckVHash && oldv > 0 {
-			v.CalcValueHash()
 			if v.ValueHash == payload.ValueHash {
 				if v.Ver != 0 {
 					// sync script would be here, e.g. set_raw(k, v, rev=xxx)
@@ -325,7 +329,6 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 }
 
 func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
-	v.CalcValueHash()
 	pos, err := bkt.datas.AppendRecord(&Record{ki.Key, v})
 	if err != nil {
 		return err
@@ -361,9 +364,6 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		payload.Meta = *meta
 		return // omit collision
 	}
-	if meta.Ver < 0 {
-		return
-	}
 
 	rec, err = bkt.datas.GetRecordByPos(pos)
 	if err != nil {
@@ -379,7 +379,10 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		payload.Ver = meta.Ver
 		return
 	}
-	defer rec.Payload.Free()
+	defer func() {
+		rec.Payload.Free()
+		cmem.DBRL.GetData.SubSize(rec.Payload.AccountingSize)
+	}()
 
 	keyhash := getKeyHash(rec.Key)
 	if keyhash != ki.KeyHash {
@@ -387,7 +390,6 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		// bkt.htree.remove(ki, pos)
 		err = fmt.Errorf("bad htree item %016x != %016x, pos %v", keyhash, ki.KeyHash, pos)
 		logger.Errorf("%s", err.Error())
-		cmem.DBRL.GetData.SubSize(rec.Payload.AccountingSize)
 		return
 	}
 
@@ -420,36 +422,46 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 }
 
 func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
-	payload, _, err := bkt.get(ki, false)
+	var tofree *Payload
+
+	tofree, _, err := bkt.get(ki, false)
 	if err != nil {
 		return 0
 	}
-
-	if payload != nil {
-		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
-		s := string(payload.Body)
-		if payload.Flag != FLAG_INCR {
-			logger.Warnf("incr with flag 0x%x", payload.Flag)
-			return 0
+	ver := int32(1)
+	if tofree != nil {
+		defer func() {
+			cmem.DBRL.GetData.SubSize(tofree.AccountingSize)
+			tofree.Free()
+		}()
+		if tofree.Ver > 0 {
+			if tofree.Flag != FLAG_INCR {
+				logger.Warnf("incr with flag 0x%x", tofree.Flag)
+				return 0
+			}
+			if len(tofree.Body) > 22 {
+				logger.Warnf("incr with large value %s...", string(tofree.Body[:22]))
+				return 0
+			}
+			s := string(tofree.Body)
+			v, err := strconv.Atoi(s)
+			if err != nil {
+				logger.Warnf("incr with value %s", s)
+				return 0
+			}
+			ver += tofree.Ver
+			value += v
 		}
-		if len(s) > 22 {
-			logger.Warnf("incr with value %s", s)
-			return 0
-		}
-		v, err := strconv.Atoi(s)
-		if err != nil {
-			logger.Warnf("incr with value %s", s)
-			return 0
-		}
-		value += v
-	} else {
-		payload = &Payload{}
-		payload.Flag = FLAG_INCR
-		payload.Ver = 1
 	}
-	s := strconv.Itoa(value)
+
+	payload := &Payload{}
+	payload.Flag = FLAG_INCR
+	payload.Ver = ver
 	payload.TS = uint32(time.Now().Unix())
+	s := strconv.Itoa(value)
 	payload.Body = []byte(s)
+	payload.CalcValueHash()
+	payload.AccountingSize = int64(len(ki.Key) + len(s))
 	bkt.set(ki, payload)
 	return value
 }
@@ -460,7 +472,6 @@ func (bkt *Bucket) listDir(ki *KeyInfo) ([]byte, error) {
 
 func (bkt *Bucket) getInfo(keys []string) ([]byte, error) {
 	return nil, nil
-
 }
 
 func (bkt *Bucket) GetRecordByKeyHash(ki *KeyInfo) (rec *Record, err error) {

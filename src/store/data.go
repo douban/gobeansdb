@@ -84,7 +84,6 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	ds.filesizes[ds.newHead] += size
 	ds.wbufSize += size
 	if rec.Payload.Ver > 0 {
-		cmem.DBRL.SetData.SubSize(rec.Payload.AccountingSize)
 		cmem.DBRL.FlushData.AddSize(rec.Payload.AccountingSize)
 	}
 	if cmem.DBRL.FlushData.Size > int64(conf.FlushWake) {
@@ -126,6 +125,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 
 	w, err := ds.getStreamWriter(chunk, true)
 	if err != nil {
+		logger.Fatalf("fail to open data file to flush, stop! err: %v", err)
 		return err
 	}
 	filessize := ds.getDiskFileSize(chunk)
@@ -139,7 +139,10 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		ds.Lock() // because append may change the slice
 		wrec := ds.wbufs[chunk][i]
 		ds.Unlock()
-		w.append(wrec)
+		_, err := w.append(wrec)
+		if err != nil {
+			logger.Fatalf("fail to append, stop! err: %v", err)
+		}
 		size := wrec.rec.Payload.RecSize
 		ds.wbufSize -= size
 		if wrec.rec.Payload.Ver > 0 {
@@ -148,7 +151,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		}
 	}
 	if err = w.Close(); err != nil {
-		logger.Fatalf("write data fail, stop! err: %s", err.Error())
+		logger.Fatalf("write data fail, stop! err: %v", err)
 		return err
 	}
 

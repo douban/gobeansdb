@@ -3,24 +3,19 @@
 import string
 import zlib
 import unittest
-from tests.base import BeansdbInstance
+from tests.base import BeansdbInstance, BaseTest
 from tests.dbclient import MCStore
 from tests.utils import random_string
 
 
 VERSION, HASH, FLAG, SIZE, TIMESTAMP, CHUNKID, OFFSET = range(7)
 
-
-class KeyVersionTest(unittest.TestCase):
+class KeyVersionTest(BaseTest):
     def setUp(self):
-        self.db = BeansdbInstance()
-        self.db.start()
+        BaseTest.setUp(self)
 
         self.last_pos = 0
         self.last_size = 0
-
-    def tearDown(self):
-        self.db.clean()
 
     def update_pos(self, size):
         self.last_pos += self.last_size
@@ -38,6 +33,7 @@ class KeyVersionTest(unittest.TestCase):
         key = 'key1'
         store.set(key, 'aaa')
         self.update_pos(256)
+
         self.assertEqual(store.get(key), 'aaa')
         self.assertEqual(self.get_meta(store, key), (1, 0, self.last_pos))
 
@@ -52,6 +48,8 @@ class KeyVersionTest(unittest.TestCase):
         self.assertEqual(store.get(key), 'bbb')
         self.assertEqual(self.get_meta(store, key), (4, 0, self.last_pos))
 
+        self.checkCounterZero()
+
     def test_delete_version(self):
         store = MCStore(self.db.addr)
         key = 'key1'
@@ -62,12 +60,16 @@ class KeyVersionTest(unittest.TestCase):
 
         store.delete(key)
         self.update_pos(256)
-        self.assertEqual(self.get_meta(store, key), None)
+        self.assertEqual(store.get(key), None)
+
+        self.assertEqual(self.get_meta(store, key), (-2, 0, self.last_pos))
+        self.checkCounterZero()
 
         store.set(key, 'bbb')
         self.update_pos(256)
         self.assertEqual(store.get(key), 'bbb')
         self.assertEqual(self.get_meta(store, key), (3, 0, self.last_pos))
+        self.checkCounterZero()
 
     def _test_compress(self, overflow):
         store = MCStore(self.db.addr)
@@ -89,6 +91,7 @@ class KeyVersionTest(unittest.TestCase):
         self.assertTrue(store.set(key, 'aaa'))
         self.update_pos(256)
         self.assertEqual(self.get_meta(store, key), (3, 0, self.last_pos))
+        self.checkCounterZero()
 
     def test_compress_257(self):
         self._test_compress(overflow=True)
@@ -108,7 +111,9 @@ class KeyVersionTest(unittest.TestCase):
         self.db.start()
         store = MCStore(self.db.addr)
         for (k, v) in kvs:
-            self.assertTrue(store.get(k), v)
+            v2 = store.get(k)
+            self.assertEqual(v2, v, "key %s, value %s, not %s" % (k, v, v2))
+        self.checkCounterZero()
 
     def test_big_value(self):
         store = MCStore(self.db.addr)
@@ -120,11 +125,14 @@ class KeyVersionTest(unittest.TestCase):
         self.assertTrue(store.set(key, string_large))
         self.assertEqual(store.get(key), string_large)
         self.update_pos(rsize)
+
         self.assertEqual(self.get_meta(store, key), (1, 0, self.last_pos))
 
         self.assertTrue(store.set(key, 'aaa'))
         self.update_pos(256)
         self.assertEqual(self.get_meta(store, key), (2, 0, self.last_pos))
+
+        self.checkCounterZero()
 
 
 if __name__ == '__main__':

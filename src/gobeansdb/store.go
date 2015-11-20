@@ -32,6 +32,12 @@ type StorageClient struct {
 }
 
 func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, error) {
+	tofree := &item.CArray
+	defer func() {
+		if tofree != nil {
+			tofree.Free()
+		}
+	}()
 	if !store.IsValidKeyString(key) {
 		return false, nil
 	}
@@ -42,6 +48,7 @@ func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, erro
 	payload.Ver = int32(item.Exptime)
 	payload.TS = uint32(item.ReceiveTime.Unix())
 
+	tofree = nil
 	err := s.hstore.Set(ki, payload)
 	if err != nil {
 		logger.Errorf("err to get %s: %s", key, err.Error())
@@ -85,8 +92,9 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 	vhash := uint16(0)
 	if payload.Ver > 0 {
 		vhash = store.Getvhash(payload.Body)
-		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
 	}
+	cmem.DBRL.GetData.SubSize(payload.AccountingSize)
+	payload.Free()
 
 	var body string
 	if extended {
@@ -160,6 +168,11 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 		return nil, err
 	}
 	if payload == nil {
+		return nil, nil
+	}
+	if payload.Ver < 0 {
+		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
+		payload.Free()
 		return nil, nil
 	}
 	item := new(mc.Item) // TODO: avoid alloc?

@@ -300,21 +300,21 @@ func (wrec *WriteRecord) append(wbuf io.Writer, dopadding bool) error {
 	wrec.encodeHeader()
 	size, sizeall := wrec.rec.Sizes()
 	if n, err := wbuf.Write(wrec.header[:]); err != nil {
-		logger.Fatalf(err.Error(), n)
+		logger.Errorf("%v %d", err, n)
 		return err
 	}
 	if n, err := wbuf.Write(wrec.rec.Key); err != nil {
-		logger.Fatalf(err.Error(), n)
+		logger.Errorf("%v %d", err, n)
 		return err
 	}
 	if n, err := wbuf.Write(wrec.rec.Payload.Body); err != nil {
-		logger.Fatalf(err.Error(), n)
+		logger.Errorf("%v %d", err, n)
 		return err
 	}
 	npad := sizeall - size
 	if dopadding && npad != 0 {
 		if n, err := wbuf.Write(padding[:npad]); err != nil {
-			logger.Fatalf(err.Error(), n)
+			logger.Errorf("%v %d", err, n)
 			return err
 		}
 	}
@@ -328,7 +328,8 @@ func (stream *DataStreamWriter) Offset() uint32 {
 func (stream *DataStreamWriter) Close() error {
 	if err := stream.wbuf.Flush(); err != nil {
 		st, _ := stream.fd.Stat()
-		logger.Fatalf("%s %s %s", stream.fd.Name, err.Error(), st.Mode())
+		logger.Errorf("flush err: %s %v %s", stream.fd.Name, err, st.Mode())
+		return err
 	}
 	return stream.fd.Close()
 }

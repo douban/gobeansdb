@@ -31,6 +31,7 @@ func (rl *ResourceLimiter) reset() {
 }
 
 func (rl *ResourceLimiter) AddSize(size int64) {
+	// fmt.Printf("add %d\n", size)
 	atomic.AddInt64(&rl.Size, int64(size))
 	atomic.AddInt64(&rl.Count, 1)
 	if rl.Size > rl.MaxSize {
@@ -42,6 +43,7 @@ func (rl *ResourceLimiter) AddSize(size int64) {
 }
 
 func (rl *ResourceLimiter) SubSize(size int64) {
+	// fmt.Printf("sub %d\n", size)
 	atomic.AddInt64(&rl.Size, -int64(size))
 	atomic.AddInt64(&rl.Count, -1)
 }
@@ -66,6 +68,8 @@ type CArray struct {
 func (arr *CArray) Alloc(size int) bool {
 	if size <= int(conf.MCConfig.BodyInC) {
 		arr.Body = make([]byte, size)
+		arr.Cap = 0
+		arr.Addr = 0
 		return true
 	}
 
@@ -109,6 +113,6 @@ func (arr *CArray) Copy() (arrNew CArray, ok bool) {
 		return
 	}
 	ok = true
-	C.memcpy(unsafe.Pointer(arrNew.Addr), unsafe.Pointer(arr.Addr), C.size_t(size))
+	copy(arrNew.Body, arr.Body)
 	return
 }

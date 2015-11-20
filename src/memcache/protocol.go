@@ -73,6 +73,8 @@ type Request struct {
 
 	Token   int
 	Working bool
+
+	SettingSize int
 }
 
 func (req *Request) String() (s string) {
@@ -83,9 +85,12 @@ func (req *Request) String() (s string) {
 func (req *Request) Clear() {
 	req.NoReply = false
 	if req.Item != nil {
-		req.Item.CArray.Clear()
 		req.Item = nil
 	}
+	if req.SettingSize != 0 {
+		cmem.DBRL.SetData.SubSize(int64(req.SettingSize))
+	}
+	req.SettingSize = 0
 
 }
 
@@ -216,14 +221,15 @@ func (req *Request) Read(b *bufio.Reader) error {
 		}
 
 		RL.Get(req)
-		// FIXME
+
 		if !item.Alloc(length) {
 			e = fmt.Errorf("fail to alloc %d", length)
-			// TODO: disconnect?
 			return e
 		}
 
-		cmem.DBRL.SetData.AddSize(int64(length + len(req.Keys[0])))
+		req.SettingSize = length + len(req.Keys[0])
+		cmem.DBRL.SetData.AddSize(int64(req.SettingSize))
+
 		if _, e = io.ReadFull(b, item.Body); e != nil {
 			return ErrNetworkError
 		}
