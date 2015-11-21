@@ -162,6 +162,13 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 	defer mgr.AfterBucket(bkt)
 
 	gc.Dst = startChunkID
+	for i := 0; i <= startChunkID; i++ {
+		sz := bkt.datas.filesizes[i]
+		if sz > 0 && (int64(sz) < conf.DataFileMax-conf.BodyMax) {
+			gc.Dst = i
+		}
+	}
+
 	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {
 		oldPos.ChunkID = gc.Src
 		var fileState GCFileState
