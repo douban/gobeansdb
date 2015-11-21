@@ -202,7 +202,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 
 	var ki KeyInfo
 	N := numRecPerFile / 2
-	logger.Infof("test 000 all updated in the same file")
+	logger.Infof("test gc all updated in the same file")
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
 		if err := store.Set(&ki, payload); err != nil {
@@ -238,8 +238,53 @@ func testGCUpdateSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 	}
 }
 
+func testGCDeleteSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
+	gen := newKVGen(16)
+
+	var ki KeyInfo
+	N := numRecPerFile / 2
+	logger.Infof("test gc all updated in the same file")
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 0)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < N; i++ {
+		gen.gen(&ki, i, 1)
+		if err := store.Set(&ki, GetPayloadForDelete()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store.flushdatas(true)
+	payload := gen.gen(&ki, -1, 0) // rotate
+	if err := store.Set(&ki, payload); err != nil {
+		t.Fatal(err)
+	}
+	store.flushdatas(true)
+	store.gcMgr.gc(store.buckets[bkt], 0, 0)
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 1)
+		payload2, pos, err := store.Get(&ki, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !(payload2 != nil && len(payload2.Body) == 0 && payload2.Ver == -2 &&
+			payload2.TS != 0 && pos == Position{0, uint32(PADDING * (i))}) {
+			if payload2 != nil {
+				t.Errorf("%d: exp %s, got %#v", i, string(payload.Body), payload2.Body)
+			}
+			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
+		}
+	}
+}
+
 func TestGCUpdateSame(t *testing.T) {
 	testGC(t, testGCUpdateSame, "updateSame")
+}
+
+func TestGCDeleteSame(t *testing.T) {
+	testGC(t, testGCDeleteSame, "deleteSame")
 }
 
 type testGCFunc func(t *testing.T, hstore *HStore, bucket, numRecPerFile int)
