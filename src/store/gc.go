@@ -47,6 +47,7 @@ func (s *GCFileState) add(size uint32, isRetained, isDeleted bool, sizeBroken ui
 		s.SizeReleased += size
 		if isDeleted {
 			s.NumReleasedDeleted += 1
+			s.SizeDeleted += size
 		}
 	}
 	s.SizeReleased += sizeBroken
@@ -72,8 +73,9 @@ func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) 
 			bkt.id, ki, meta, oldPos)
 		return true, false, false
 	} else if pos == oldPos {
-		return true, false, meta.Ver < 0
+		return true, false, false
 	} else {
+		isDeleted = meta.Ver < 0
 		it, collision := bkt.hints.collisions.get(ki.KeyHash, ki.StringKey)
 		if !collision {
 			// only in mem, in new hints buffers after gc begin
@@ -87,7 +89,7 @@ func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) 
 			}
 		}
 	}
-	return false, false, false
+	return false, false, isDeleted
 }
 
 func (mgr *GCMgr) UpdateCollision(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position, rec *Record) {
@@ -215,8 +217,8 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 				}
 			}
 			isRetained, isCollision, isDeleted := mgr.ShouldRetainRecord(bkt, rec, oldPos)
+			// logger.Infof("%v %v %v", isRetained, isCollision, isDeleted)
 			if isRetained {
-				//	logger.Infof("retain %s %s", string(rec.Key), string(rec.Payload.Body))
 				wrec := wrapRecord(rec)
 				if newPos.Offset, err = dstchunk.AppendRecordGC(wrec); err != nil {
 					gc.Err = err
@@ -229,8 +231,6 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 				} else {
 					mgr.UpdateHtreePos(bkt, keyinfo, oldPos, newPos)
 				}
-			} else {
-				//	logger.Infof("drop %s %s", string(rec.Key), string(rec.Payload.Body))
 			}
 			fileState.add(recsize, isRetained, isDeleted, sizeBroken)
 		}
