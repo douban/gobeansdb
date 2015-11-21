@@ -391,3 +391,12 @@ func (store *HStore) GetCollisionsByBucket(bucketID int) (content []byte) {
 	}
 	return
 }
+
+func GetPayloadForDelete() *Payload {
+	payload := &Payload{}
+	payload.Flag = 0
+	payload.Body = nil
+	payload.Ver = -1
+	payload.TS = uint32(time.Now().Unix())
+	return payload
+}

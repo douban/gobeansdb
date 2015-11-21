@@ -59,7 +59,7 @@ func (s *GCFileState) String() string {
 	return fmt.Sprintf("%#v", s)
 }
 
-func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) (retain, updateHtree bool) {
+func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) (retain, isCollision, isDeleted bool) {
 	ki := &mgr.ki
 	ki.KeyHash = getKeyHash(rec.Key)
 	ki.Key = rec.Key
@@ -68,29 +68,31 @@ func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) 
 	ki.Prepare()
 	meta, pos, found := bkt.htree.get(ki)
 	if !found {
-		logger.Errorf("old key not found in htree bucket %d %#v %#v %#v",
+		logger.Errorf("gc old key not found in htree bucket %d %#v %#v %#v",
 			bkt.id, ki, meta, oldPos)
-		return true, true
+		return true, false, false
 	} else if pos == oldPos {
-		return true, true
+		return true, false, meta.Ver < 0
 	} else {
 		it, collision := bkt.hints.collisions.get(ki.KeyHash, ki.StringKey)
 		if !collision {
-			it, collision = bkt.hints.getItemCollision(ki.KeyHash, ki.StringKey) // TODO
+			// only in mem, in new hints buffers after gc begin
+			it, collision = bkt.hints.getItemCollision(ki.KeyHash, ki.StringKey)
 		}
 		if collision {
 			if it != nil {
-				return decodePos(it.Pos) == oldPos, false
+				return decodePos(it.Pos) == oldPos, true, it.Ver < 0
 			} else {
-				return true, false
+				return true, true, false
 			}
 		}
 	}
-	return false, false
+	return false, false, false
 }
 
 func (mgr *GCMgr) UpdateCollision(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position, rec *Record) {
 	// not have to (leave it to get)
+
 	// if in ctable: update pos
 	// else: decompress, get vhash and set collisions
 }
@@ -107,19 +109,28 @@ func (mgr *GCMgr) UpdateHtreePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Positi
 }
 
 func (mgr *GCMgr) BeforeBucket(bkt *Bucket, startChunkID, endChunkID int) {
-	for bkt.hints.dumpAndMergeState != HintStateIdle {
-		time.Sleep(10 * time.Millisecond)
+	bkt.hints.state |= HintStateGC // will about
+	for bkt.hints.state&HintStateMerge != 0 {
+		logger.Infof("gc wait for merge to stop")
+		time.Sleep(5 * time.Millisecond)
 	}
-	bkt.hints.maxDumpableChunkID = endChunkID
-	bkt.hints.forceRotateSplit()
-	bkt.hints.dumpAndMerge(true)
-	bkt.removeHtree()
-	bkt.hints.ClearChunks(startChunkID, endChunkID)
 
+	// dump hint and do merge, and hold all new SETs in hint buffers
+	// so collision will be find either during merge or in hint buffer
+	// so will not wrongly GC a collision record. e.g.:
+	//   key1 and key2 have the same keyhash, key1 is set before gc, and key2 after that.
+	bkt.hints.maxDumpableChunkID = endChunkID - 1
+	bkt.hints.forceRotateSplit()
+	time.Sleep(time.Duration(SecsBeforeDump+1) * time.Second)
+	bkt.hints.dumpAndMerge(true) // TODO: should not dump idx.m!
+	bkt.hints.Merge(true)
+
+	// remove hints
+	bkt.removeHtree()
 }
 
 func (mgr *GCMgr) AfterBucket(bkt *Bucket) {
-	bkt.hints.dumpAndMerge(true)
+	bkt.hints.state &= ^HintStateGC
 	bkt.hints.maxDumpableChunkID = MAX_CHUNK_ID
 	bkt.dumpHtree()
 }
@@ -156,6 +167,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 		var fileState GCFileState
 		// reader must have a larger buffer
 		logger.Infof("begin GC bucket %d, file %d -> %d", bkt.id, gc.Src, gc.Dst)
+		bkt.hints.ClearChunks(gc.Src, gc.Src)
 		if r, err = bkt.datas.GetStreamReader(gc.Src); err != nil {
 			gc.Err = err
 			logger.Errorf("gc failed: %s", err.Error())
@@ -190,21 +202,24 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 					return
 				}
 			}
-			isRetained, updateHtree := mgr.ShouldRetainRecord(bkt, rec, oldPos)
+			isRetained, isCollision, isDeleted := mgr.ShouldRetainRecord(bkt, rec, oldPos)
 			if isRetained {
+				//	logger.Infof("retain %s %s", string(rec.Key), string(rec.Payload.Body))
 				if newPos.Offset, err = w.Append(rec); err != nil {
 					gc.Err = err
 					logger.Errorf("gc failed: %s", err.Error())
 					return
 				}
 				keyinfo := NewKeyInfoFromBytes(rec.Key, getKeyHash(rec.Key), false)
-				if updateHtree {
-					mgr.UpdateHtreePos(bkt, keyinfo, oldPos, newPos)
-				} else {
+				if isCollision {
 					mgr.UpdateCollision(bkt, keyinfo, oldPos, newPos, rec)
+				} else {
+					mgr.UpdateHtreePos(bkt, keyinfo, oldPos, newPos)
 				}
+			} else {
+				//	logger.Infof("drop %s %s", string(rec.Key), string(rec.Payload.Body))
 			}
-			fileState.add(recsize, isRetained, rec.Payload.Ver < 0, sizeBroken)
+			fileState.add(recsize, isRetained, isDeleted, sizeBroken)
 		}
 		w.Close()
 		size := w.Offset()

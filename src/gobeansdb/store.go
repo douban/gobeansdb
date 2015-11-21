@@ -8,7 +8,6 @@ import (
 	"store"
 	"strconv"
 	"sync"
-	"time"
 )
 
 var (
@@ -214,11 +213,7 @@ func (s *StorageClient) Delete(key string) (bool, error) {
 		return false, nil
 	}
 	ki := s.prepare(key, false)
-	payload := &store.Payload{}
-	payload.Flag = 0
-	payload.Body = nil
-	payload.Ver = -1
-	payload.TS = uint32(time.Now().Unix()) // TODO:
+	payload := store.GetPayloadForDelete()
 
 	err := s.hstore.Set(ki, payload)
 	if err != nil {

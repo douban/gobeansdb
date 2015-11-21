@@ -11,7 +11,15 @@ import (
 )
 
 const (
-	SecsBeforeDumpDefault = int64(10)
+	SecsBeforeDumpDefault = int64(5)
+)
+
+const (
+	HintStateIdle = 0
+
+	HintStateDump = 1 << iota
+	HintStateMerge
+	HintStateGC
 )
 
 var (
@@ -192,9 +200,8 @@ func (chunk *hintChunk) rotate() *hintSplit {
 	sp := newHintSplit()
 	n := len(chunk.splits)
 	chunk.splits = append(chunk.splits, sp)
-	if n > 1 {
+	if n > 0 {
 		logger.Infof("hint rotate split to %d, chunk %d", n, chunk.id)
-
 	}
 
 	return sp
@@ -277,8 +284,7 @@ type hintMgr struct {
 	mergeLock          sync.Mutex
 	maxDumpableChunkID int
 	merged             *hintFileIndex
-	dumpAndMergeState  int
-	mergeing           bool
+	state              int
 
 	collisions *CollisionTable
 }
@@ -365,22 +371,19 @@ func (h *hintMgr) close() {
 	}
 }
 
-func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
+func (h *hintMgr) dumpAndMerge(forGC bool) (maxSilence int64) {
+	h.state |= HintStateDump
+	h.dumpLock.Lock()
 	defer func() {
+		h.state &= (^HintStateDump)
+		h.dumpLock.Unlock()
 		if e := recover(); e != nil {
 			logger.Errorf("dumpAndMerge panic(%#v), stack: %s", e, utils.GetStack(1000))
 		}
 	}()
 
-	h.dumpAndMergeState = HintStatetWorking
-	h.dumpLock.Lock()
-	defer func() {
-		h.dumpAndMergeState = HintStateIdle
-		h.dumpLock.Unlock()
-	}()
-
 	maxDumpableChunkID := h.maxDumpableChunkID
-	if force {
+	if forGC {
 		maxDumpableChunkID = MAX_CHUNK_ID
 	}
 
@@ -391,12 +394,12 @@ func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
 		}
 	}
 
-	if h.maxDumpableChunkID < MAX_CHUNK_ID { // gcing
+	if h.state&HintStateDump != 0 { // gcing
 		return
 	}
-	if !h.mergeing && (h.maxChunkID-h.collisions.Chunk > conf.MergeInterval) {
+	if !(h.state&HintStateMerge != 0) && !forGC && (h.maxChunkID-h.collisions.Chunk > conf.MergeInterval) {
 		logger.Infof("start merge goroutine")
-		go h.Merge()
+		go h.Merge(false)
 	}
 	return
 }
@@ -409,7 +412,7 @@ func (h *hintMgr) RemoveMerged() {
 	h.merged = nil
 }
 
-func (h *hintMgr) Merge() (err error) {
+func (h *hintMgr) Merge(forGC bool) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			logger.Errorf("merge panic(%#v), stack: %s", e, utils.GetStack(1000))
@@ -418,10 +421,10 @@ func (h *hintMgr) Merge() (err error) {
 
 	oldchunk := h.collisions.Chunk
 	h.mergeLock.Lock()
-	h.mergeing = true
+	h.state |= HintStateMerge
 	st := time.Now()
 	defer func() {
-		h.mergeing = false
+		h.state &= ^HintStateMerge
 		h.mergeLock.Unlock()
 		logger.Infof("merged done, %#v, %s", h.collisions.HintID, time.Since(st))
 	}()
@@ -451,8 +454,9 @@ func (h *hintMgr) Merge() (err error) {
 		readers = append(readers, r)
 	}
 	dst := h.getPath(maxid.Chunk, maxid.Split, true)
+	// since we DO NOT check collision in hint bufffer, merger even if only one idx.s
 	logger.Infof("to merge %s from %v", dst, names)
-	index, err := merge(readers, dst, h.collisions, &h.dumpAndMergeState)
+	index, err := merge(readers, dst, h.collisions, &h.state, forGC)
 	if err != nil {
 		logger.Errorf("merge to %s fail: %s", dst, err.Error())
 		return

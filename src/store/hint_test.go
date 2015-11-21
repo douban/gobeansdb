@@ -141,9 +141,9 @@ func testMerge(t *testing.T, nsrc int) {
 	}
 	dst := fmt.Sprintf("%s/dst.hint.s", dir)
 	utils.Remove(dst)
-	state := HintStatetWorking
+	state := HintStateDump
 	ct := newCollisionTable()
-	merge(srcp, dst, ct, &state)
+	merge(srcp, dst, ct, &state, false)
 	defer utils.Remove(dst)
 	readHintAndCheck(t, dst, items)
 }
@@ -269,7 +269,7 @@ func fillChunk(t *testing.T, dir string, hm *hintMgr, items []*HintItem, chunkID
 	setAndCheckMgr(t, hm, items[0], chunkID)
 	time.Sleep(time.Second * 4)
 	hm.dumpAndMerge(false)
-	hm.Merge()
+	hm.Merge(false)
 	logger.Infof("check %d", chunkID)
 	checkFiles(t, dir, files)
 
