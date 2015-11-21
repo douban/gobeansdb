@@ -277,7 +277,7 @@ func (stream *DataStreamReader) Close() error {
 }
 
 type DataStreamWriter struct {
-	ds   *dataStore
+	path string
 	fd   *os.File
 	wbuf *bufio.Writer
 

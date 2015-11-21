@@ -113,7 +113,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	ds.Unlock()
 	// logger.Infof("flushing %d records to data %d", n, chunk)
 
-	w, err := ds.getStreamWriter(chunk, true)
+	w, err := ds.GetStreamWriter(chunk, true)
 	if err != nil {
 		logger.Fatalf("fail to open data file to flush, stop! err: %v", err)
 		return err
@@ -172,16 +172,10 @@ func (ds *dataStore) GetStreamReader(chunk int) (*DataStreamReader, error) {
 	return newDataStreamReader(path, 1<<20)
 }
 
-func (ds *dataStore) GetStreamWriter(chunk int, isappend bool) (*DataStreamWriter, error) {
-	return ds.getStreamWriter(chunk, isappend)
-}
-
-func (ds *dataStore) getStreamWriter(chunk int, isappend bool) (*DataStreamWriter, error) {
+func GetStreamWriter(path string, isappend bool) (*DataStreamWriter, error) {
 	offset := uint32(0)
 
-	path := ds.genPath(chunk)
 	var fd *os.File
-
 	if stat, err := os.Stat(path); err == nil { // TODO: avoid stat
 		fd, err = os.OpenFile(path, os.O_WRONLY, 0)
 		if err != nil {
@@ -207,6 +201,12 @@ func (ds *dataStore) getStreamWriter(chunk int, isappend bool) (*DataStreamWrite
 		}
 	}
 	wbuf := bufio.NewWriterSize(fd, 1<<20)
-	w := &DataStreamWriter{ds: ds, fd: fd, wbuf: wbuf, offset: offset}
+	w := &DataStreamWriter{path: path, fd: fd, wbuf: wbuf, offset: offset}
 	return w, nil
+}
+
+func (ds *dataStore) GetStreamWriter(chunk int, isappend bool) (*DataStreamWriter, error) {
+	path := ds.genPath(chunk)
+	return GetStreamWriter(path, isappend)
+
 }

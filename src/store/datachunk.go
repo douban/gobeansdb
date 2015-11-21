@@ -29,15 +29,25 @@ func (dc *dataChunk) AppendRecord(wrec *WriteRecord) {
 	size := wrec.rec.Payload.RecSize
 
 	dc.writingHead += size
+	dc.size = dc.writingHead
+}
+
+func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error) {
+	offset = dc.writingHead
+	dc.wbuf = append(dc.wbuf, wrec)
+	size := wrec.rec.Payload.RecSize
+
+	dc.writingHead += size
 	if dc.writingHead >= dc.size {
 		dc.size = dc.writingHead
 	}
-	if dc.rewriting {
-		dc.gcbufsize += size
-		if dc.gcbufsize > (1 << 20) {
-			dc.flush(dc.gcWriter)
-		}
+
+	dc.gcbufsize += size
+	if dc.gcbufsize > (1 << 20) {
+		_, err = dc.flush(dc.gcWriter)
+		dc.gcbufsize = 0
 	}
+	return
 }
 
 func (dc *dataChunk) getDiskFileSize() uint32 {
@@ -133,4 +143,30 @@ func (dc *dataChunk) Truncate(size uint32) error {
 		return utils.Remove(path)
 	}
 	return os.Truncate(path, int64(size))
+}
+
+func (dc *dataChunk) beginGCWriting(srcChunk int) (err error) {
+	if dc.chunkid == srcChunk {
+		dc.rewriting = true
+		dc.writingHead = 0
+	}
+	dc.gcWriter, err = GetStreamWriter(dc.path, !dc.rewriting)
+	if err != nil {
+		dc.gcWriter = nil
+	}
+	return
+}
+
+func (dc *dataChunk) endGCWriting() (err error) {
+	if dc.gcWriter != nil {
+		_, err = dc.flush(dc.gcWriter)
+		dc.gcWriter.Close()
+		dc.gcWriter = nil
+	}
+	if dc.rewriting && dc.writingHead < dc.size {
+		dc.Truncate(dc.writingHead)
+		dc.size = dc.writingHead
+	}
+	dc.rewriting = false
+	return
 }

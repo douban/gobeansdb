@@ -155,7 +155,6 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 	var newPos Position
 	var rec *Record
 	var r *DataStreamReader
-	var w *DataStreamWriter
 	mfs := uint32(conf.DataFileMax)
 
 	mgr.BeforeBucket(bkt, startChunkID, endChunkID)
@@ -168,6 +167,13 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 			gc.Dst = i
 		}
 	}
+	dstchunk := bkt.datas.chunks[gc.Dst]
+	err = dstchunk.beginGCWriting(gc.Begin)
+	if err != nil {
+		gc.Err = err
+		return
+	}
+	defer dstchunk.endGCWriting()
 
 	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {
 		oldPos.ChunkID = gc.Src
@@ -180,11 +186,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 			logger.Errorf("gc failed: %s", err.Error())
 			return
 		}
-		w, err = bkt.datas.GetStreamWriter(gc.Dst, gc.Dst != gc.Src)
-		if err != nil {
-			gc.Err = err
-			return
-		}
+
 		for {
 			var sizeBroken uint32
 			rec, oldPos.Offset, sizeBroken, err = r.Next()
@@ -199,20 +201,24 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 
 			_, recsize := rec.Sizes()
 
-			if recsize+w.Offset() > mfs {
-				w.Close()
+			if recsize+dstchunk.writingHead > mfs {
+				dstchunk.endGCWriting()
+
 				gc.Dst++
 				newPos.ChunkID = gc.Dst
-				if w, err = bkt.datas.GetStreamWriter(gc.Dst, gc.Dst != gc.Src); err != nil {
+
+				dstchunk = bkt.datas.chunks[gc.Dst]
+				err = dstchunk.beginGCWriting(gc.Src)
+				if err != nil {
 					gc.Err = err
-					logger.Errorf("gc failed: %s", err.Error())
 					return
 				}
 			}
 			isRetained, isCollision, isDeleted := mgr.ShouldRetainRecord(bkt, rec, oldPos)
 			if isRetained {
 				//	logger.Infof("retain %s %s", string(rec.Key), string(rec.Payload.Body))
-				if newPos.Offset, err = w.Append(rec); err != nil {
+				wrec := wrapRecord(rec)
+				if newPos.Offset, err = dstchunk.AppendRecordGC(wrec); err != nil {
 					gc.Err = err
 					logger.Errorf("gc failed: %s", err.Error())
 					return
@@ -228,9 +234,6 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 			}
 			fileState.add(recsize, isRetained, isDeleted, sizeBroken)
 		}
-		w.Close()
-		size := w.Offset()
-		bkt.datas.chunks[gc.Dst].Truncate(size)
 		if gc.Src != gc.Dst {
 			bkt.datas.DeleteFile(gc.Src)
 		}
