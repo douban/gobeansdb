@@ -163,7 +163,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 
 	gc.Dst = startChunkID
 	for i := 0; i <= startChunkID; i++ {
-		sz := bkt.datas.filesizes[i]
+		sz := bkt.datas.chunks[i].size
 		if sz > 0 && (int64(sz) < conf.DataFileMax-conf.BodyMax) {
 			gc.Dst = i
 		}
@@ -230,7 +230,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 		}
 		w.Close()
 		size := w.Offset()
-		bkt.datas.Truncate(gc.Dst, size)
+		bkt.datas.chunks[gc.Dst].Truncate(size)
 		if gc.Src != gc.Dst {
 			bkt.datas.DeleteFile(gc.Src)
 		}

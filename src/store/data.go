@@ -5,7 +5,6 @@ import (
 	"cmem"
 	"fmt"
 	"os"
-	"sort"
 	"sync"
 	"time"
 	"utils"
@@ -27,8 +26,7 @@ type dataStore struct {
 	newHead int
 	newTail int
 
-	filesizes     [MAX_NUM_CHUNK]uint32
-	wbufs         [MAX_NUM_CHUNK][]*WriteRecord
+	chunks        [MAX_NUM_CHUNK]dataChunk
 	wbufSize      uint32
 	lastFlushTime time.Time
 }
@@ -37,21 +35,11 @@ func NewdataStore(bucketID int, home string) *dataStore {
 	ds := new(dataStore)
 	ds.bucketID = bucketID
 	ds.home = home
-
+	for i := 0; i < MAX_NUM_CHUNK; i++ {
+		ds.chunks[i].chunkid = i
+		ds.chunks[i].path = genDataPath(ds.home, i)
+	}
 	return ds
-}
-
-func genPath(home string, chunkID int) string {
-	return fmt.Sprintf("%s/%03d.data", home, chunkID)
-}
-
-func (ds *dataStore) genPath(chunkID int) string {
-
-	return genPath(ds.home, chunkID)
-}
-
-func (ds *dataStore) nextChunkID(chunkID int) int {
-	return chunkID + 1
 }
 
 func WakeupFlush() {
@@ -61,16 +49,26 @@ func WakeupFlush() {
 	}
 }
 
-func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
-	// TODO: check err of last flush
+func genDataPath(home string, chunkID int) string {
+	return fmt.Sprintf("%s/%03d.data", home, chunkID)
+}
 
+func (ds *dataStore) genPath(chunkID int) string {
+	return genDataPath(ds.home, chunkID)
+}
+
+func (ds *dataStore) nextChunkID(chunkID int) int {
+	return chunkID + 1
+}
+
+func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	// must  CalcValueHash before compress
 	rec.TryCompress()
 
 	wrec := wrapRecord(rec)
 	ds.Lock()
 	size := rec.Payload.RecSize
-	currOffset := ds.filesizes[ds.newHead]
+	currOffset := ds.chunks[ds.newHead].writingHead
 	if currOffset+size > uint32(conf.DataFileMax) {
 		ds.newHead++
 		logger.Infof("rotate to %d, size %d, new rec size %d", ds.newHead, currOffset, size)
@@ -80,10 +78,9 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	pos.ChunkID = ds.newHead
 	pos.Offset = currOffset
 	wrec.pos = pos
-	ds.wbufs[ds.newHead] = append(ds.wbufs[ds.newHead], wrec)
-	ds.filesizes[ds.newHead] += size
+	ds.chunks[ds.newHead].AppendRecord(wrec)
 	ds.wbufSize += size
-	if rec.Payload.Ver > 0 {
+	if wrec.rec.Payload.Ver > 0 {
 		cmem.DBRL.FlushData.AddSize(rec.Payload.AccountingSize)
 	}
 	if cmem.DBRL.FlushData.Size > int64(conf.FlushWake) {
@@ -91,13 +88,6 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	}
 	ds.Unlock()
 	return
-}
-
-func (ds *dataStore) getDiskFileSize(chunkID int) uint32 {
-	if len(ds.wbufs[chunkID]) > 0 {
-		return ds.wbufs[chunkID][0].pos.Offset
-	}
-	return ds.filesizes[chunkID]
 }
 
 func (ds *dataStore) flush(chunk int, force bool) error {
@@ -128,107 +118,31 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		logger.Fatalf("fail to open data file to flush, stop! err: %v", err)
 		return err
 	}
-	filessize := ds.getDiskFileSize(chunk)
+
+	filessize := ds.chunks[chunk].getDiskFileSize()
 	if w.offset != filessize {
 		logger.Fatalf("wrong data file size, exp %d, got %d, %s", filessize, w.offset, ds.genPath(chunk))
 	}
-	ds.Lock()
-	n := len(ds.wbufs[chunk])
-	ds.Unlock()
-	for i := 0; i < n; i++ {
-		ds.Lock() // because append may change the slice
-		wrec := ds.wbufs[chunk][i]
-		ds.Unlock()
-		_, err := w.append(wrec)
-		if err != nil {
-			logger.Fatalf("fail to append, stop! err: %v", err)
-		}
-		size := wrec.rec.Payload.RecSize
-		ds.wbufSize -= size
-		if wrec.rec.Payload.Ver > 0 {
-			cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
-			// NOTE: not freed yet, make it a little diff with AllocRL, which may provide more insight
-		}
-	}
-	if err = w.Close(); err != nil {
-		logger.Fatalf("write data fail, stop! err: %v", err)
-		return err
-	}
+	nflushed, err := ds.chunks[chunk].flush(w)
+	ds.wbufSize -= nflushed
+	w.Close()
 
-	ds.Lock()
-	tofree := ds.wbufs[chunk][:n]
-	ds.wbufs[chunk] = ds.wbufs[chunk][n:]
-	ds.Unlock()
-	for _, wrec := range tofree {
-		wrec.rec.Payload.Free()
-	}
 	return nil
 }
 
-func (ds *dataStore) GetRecordByPosInBuffer(pos Position) (res *Record, err error) {
-	ds.Lock()
-	defer ds.Unlock()
-
-	wbuf := ds.wbufs[pos.ChunkID]
-	n := len(wbuf)
-	if n == 0 || wbuf[0].pos.Offset > pos.Offset {
-		return
-	}
-
-	idx := sort.Search(n, func(i int) bool { return wbuf[i].pos.Offset >= pos.Offset })
-	wrec := wbuf[idx]
-	if wrec.pos.Offset == pos.Offset {
-		cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
-		res = wrec.rec.Copy()
-		return
-	} else {
-		err = fmt.Errorf("rec should in buffer, but not, pos = %#v", pos)
-		return
-	}
-
-	return
-}
-
 func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
-	res, err = ds.GetRecordByPosInBuffer(pos)
-	if err != nil {
-		return
-	}
-	if res != nil {
-		res.Payload.Decompress()
-		return
-	}
-	wrec, e := readRecordAtPath(ds.genPath(pos.ChunkID), pos.Offset)
-	if e != nil {
-		return nil, e
-	}
-	wrec.rec.Payload.Decompress()
-	return wrec.rec, nil
-}
-
-func (ds *dataStore) Truncate(chunk int, size uint32) error {
-	path := ds.genPath(chunk)
-	st, err := os.Stat(path)
-	if err != nil {
-		logger.Infof(err.Error())
-		return err
-	}
-	logger.Infof("truncate %s %d to %d", path, st.Size(), size)
-	if size == 0 {
-		return utils.Remove(path)
-	}
-	return os.Truncate(path, int64(size))
+	return ds.chunks[pos.ChunkID].GetRecordByOffset(pos.Offset)
 }
 
 func (ds *dataStore) ListFiles() (max int, err error) {
 	max = -1
 	for i := 0; i < MAX_NUM_CHUNK; i++ {
-		path := genPath(ds.home, i)
+		path := genDataPath(ds.home, i)
 		st, e := os.Stat(path)
 		if e != nil {
 			pe := e.(*os.PathError)
 			if "no such file or directory" == pe.Err.Error() {
-				ds.filesizes[i] = 0
+				ds.chunks[i].size = 0
 			} else {
 				logger.Errorf(pe.Err.Error())
 				err = pe
@@ -240,16 +154,12 @@ func (ds *dataStore) ListFiles() (max int, err error) {
 				err = fmt.Errorf("file not 256 aligned, size 0x%x: %s ", sz, path)
 				return
 			}
-			ds.filesizes[i] = sz
+			ds.chunks[i].size = sz
 			max = i
 		}
 	}
 	ds.newHead = max + 1
 	return
-}
-
-func (ds *dataStore) GetCurrPos() Position {
-	return Position{ds.newHead, ds.filesizes[ds.newHead]}
 }
 
 func (ds *dataStore) DeleteFile(chunkID int) error {

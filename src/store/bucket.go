@@ -126,12 +126,13 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 }
 
 func (bkt *Bucket) checkHintWithData(chunkID int) (err error) {
-	if bkt.datas.filesizes[chunkID] == 0 {
+	size := bkt.datas.chunks[chunkID].size
+	if size == 0 {
 		bkt.hints.RemoveHintfilesByChunk(chunkID)
 		return
 	}
 	hintDataSize := bkt.hints.loadHintsByChunk(chunkID)
-	if hintDataSize < bkt.datas.filesizes[chunkID] {
+	if hintDataSize < size {
 		err = bkt.buildHintFromData(chunkID, hintDataSize)
 	}
 	return
