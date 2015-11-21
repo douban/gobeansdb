@@ -87,32 +87,21 @@ func newKVGen(numbucket int) *KVGen {
 	}
 	gen.depth = d
 
-	getKeyHash = func(key []byte) uint64 {
-		s := string(key)
-		parts := strings.Split(s, "_")
-		bkt, _ := strconv.ParseUint(parts[1], 16, 32)
-		hash, _ := strconv.ParseUint(parts[2], 16, 32)
-		h := (bkt << (4 * (16 - gen.depth))) + hash
-		return h
-	}
 	return gen
 }
 
-func (g *KVGen) gen(ki *KeyInfo, i int) (payload *Payload) {
+func (g *KVGen) gen(ki *KeyInfo, i, ver int) (payload *Payload) {
 	ki.StringKey = fmt.Sprintf("key_%x_%x", g.numbucket-1, i)
 	ki.Key = []byte(ki.StringKey)
-	value := fmt.Sprintf("value_%x", i)
+	value := fmt.Sprintf("value_%x_%d", i, ver)
 	payload = &Payload{
 		Meta: Meta{
 			TS:  uint32(i),
-			Ver: 1},
+			Ver: 0},
 	}
 	payload.Body = []byte(value)
 
 	return
-}
-func (g *KVGen) close() {
-	getKeyHash = getKeyHashDefalut
 }
 
 func TestHStoreMem(t *testing.T) {
@@ -133,7 +122,6 @@ func TestHStoreRestart1(t *testing.T) {
 
 func testHStore(t *testing.T, op, numbucket int) {
 	conf.InitDefault()
-	gen := newKVGen(numbucket)
 
 	setupTest(fmt.Sprintf("testHStore_%d_%d", op, numbucket), 1)
 	defer clearTest()
@@ -142,10 +130,15 @@ func testHStore(t *testing.T, op, numbucket int) {
 	conf.Buckets[numbucket-1] = 1
 	conf.TreeHeight = 3
 	conf.Init()
-	defer gen.close()
 
 	bucketDir := filepath.Join(conf.Homes[0], "0") // will be removed
 	os.Mkdir(bucketDir, 0777)
+
+	gen := newKVGen(numbucket)
+	getKeyHash = makeKeyHasherParse(gen.depth)
+	defer func() {
+		getKeyHash = getKeyHashDefalut
+	}()
 
 	store, err := NewHStore()
 	if err != nil {
@@ -157,7 +150,7 @@ func testHStore(t *testing.T, op, numbucket int) {
 	N := 10
 	var ki KeyInfo
 	for i := 0; i < N; i++ {
-		payload := gen.gen(&ki, i)
+		payload := gen.gen(&ki, i, 0)
 
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
@@ -175,7 +168,7 @@ func testHStore(t *testing.T, op, numbucket int) {
 
 	// get
 	for i := 0; i < N; i++ {
-		payload := gen.gen(&ki, i)
+		payload := gen.gen(&ki, i, 0)
 		payload2, pos, err := store.Get(&ki, false)
 		if err != nil {
 			t.Fatal(err)
@@ -184,4 +177,102 @@ func testHStore(t *testing.T, op, numbucket int) {
 			t.Fatalf("%d: %#v %#v", i, payload2, pos)
 		}
 	}
+}
+
+func makeKeyHasherFixBucet(bucket, depth uint) HashFuncType {
+	return func(key []byte) uint64 {
+		shift := depth * 4
+		return (getKeyHashDefalut(key) >> shift) | (uint64(bucket) << (64 - shift))
+	}
+}
+
+func makeKeyHasherParse(depth uint) HashFuncType {
+	return func(key []byte) uint64 {
+		s := string(key)
+		parts := strings.Split(s, "_")
+		bkt, _ := strconv.ParseUint(parts[1], 16, 32)
+		hash, _ := strconv.ParseUint(parts[2], 16, 32)
+		h := (bkt << (4 * (16 - depth))) + hash
+		return h
+	}
+}
+
+func testGCUpdateSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
+	gen := newKVGen(16)
+
+	var ki KeyInfo
+	N := numRecPerFile / 2
+	logger.Infof("test 000 all updated in the same file")
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 0)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 1)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store.flushdatas(true)
+
+	payload := gen.gen(&ki, -1, 0) // rotate
+	if err := store.Set(&ki, payload); err != nil {
+		t.Fatal(err)
+	}
+	store.flushdatas(true)
+	store.gcMgr.gc(store.buckets[bkt], 0, 0)
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 1)
+		payload2, pos, err := store.Get(&ki, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if payload2 == nil || (string(payload.Body) != string(payload2.Body)) || (pos != Position{0, uint32(PADDING * (i))}) {
+			if payload2 != nil {
+				t.Errorf("%d: exp %s, got %s", i, string(payload.Body), string(payload2.Body))
+			}
+			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
+		}
+	}
+}
+
+func TestGCUpdateSame(t *testing.T) {
+	testGC(t, testGCUpdateSame, "updateSame")
+}
+
+type testGCFunc func(t *testing.T, hstore *HStore, bucket, numRecPerFile int)
+
+func testGC(t *testing.T, casefunc testGCFunc, name string) {
+
+	setupTest(fmt.Sprintf("testGC_%s", name), 1)
+	defer clearTest()
+
+	numbucket := 16
+	bkt := numbucket - 1
+	conf.NumBucket = numbucket
+	conf.Buckets = make([]int, numbucket)
+	conf.Buckets[bkt] = 1
+	conf.TreeHeight = 3
+	getKeyHash = makeKeyHasherFixBucet(uint(bkt), 1)
+	defer func() {
+		getKeyHash = getKeyHashDefalut
+	}()
+
+	numRecPerFile := 10 // must be even
+	conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(numRecPerFile)))
+
+	conf.Init()
+
+	bucketDir := filepath.Join(conf.Homes[0], "f") // will be removed
+	os.Mkdir(bucketDir, 0777)
+
+	store, err := NewHStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger.Infof("%#v", conf)
+	casefunc(t, store, bkt, numRecPerFile)
+	store.Close()
 }
