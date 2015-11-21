@@ -279,6 +279,58 @@ func testGCDeleteSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 	}
 }
 
+func testGCMulti(t *testing.T, store *HStore, bkt, numRecPerFile int) {
+	gen := newKVGen(16)
+
+	var ki KeyInfo
+	N := numRecPerFile
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 0)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 1)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 2)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	store.flushdatas(true)
+
+	payload := gen.gen(&ki, -1, 0) // rotate
+	if err := store.Set(&ki, payload); err != nil {
+		t.Fatal(err)
+	}
+	store.flushdatas(true)
+	store.gcMgr.gc(store.buckets[bkt], 0, 2)
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 2)
+		payload2, pos, err := store.Get(&ki, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if payload2 == nil || payload2.Ver != 3 || (string(payload.Body) != string(payload2.Body)) || (pos != Position{0, uint32(PADDING * (i))}) {
+			if payload2 != nil {
+				t.Errorf("%d: exp %s, got %s", i, string(payload.Body), string(payload2.Body))
+			}
+			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
+		}
+	}
+}
+
+func TestGCMulti(t *testing.T) {
+	testGC(t, testGCMulti, "multi")
+}
+
 func TestGCUpdateSame(t *testing.T) {
 	testGC(t, testGCUpdateSame, "updateSame")
 }
