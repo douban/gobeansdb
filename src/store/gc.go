@@ -7,7 +7,7 @@ import (
 
 type GCMgr struct {
 	bucketID int
-	stat     *GCState // curr or laste
+	stat     *GCState // curr or last
 	ki       KeyInfo
 }
 
@@ -72,7 +72,7 @@ func (mgr *GCMgr) UpdateHtreePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Positi
 	meta, pos, _ := bkt.htree.get(ki)
 	if pos != oldPos {
 		logger.Warnf("old key update when updating pos bucket %d %s %#v %#v",
-			bkt.id, ki.StringKey, meta, oldPos)
+			bkt.ID, ki.StringKey, meta, oldPos)
 		return
 	}
 	bkt.htree.set(ki, meta, newPos)
@@ -105,11 +105,64 @@ func (mgr *GCMgr) AfterBucket(bkt *Bucket) {
 	bkt.dumpHtree()
 }
 
-func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
-	if endChunkID < 0 || endChunkID >= bkt.datas.newHead {
-		endChunkID = bkt.datas.newHead - 1
+func (bkt *Bucket) gcCheckEnd(start, endChunkID, noGCDays int) (end int, err error) {
+	end = endChunkID
+	if end < 0 || end >= bkt.datas.newHead-1 {
+		end = bkt.datas.newHead - 1
 	}
-	logger.Infof("begin GC bucket %d chunk [%d, %d]", bkt.id, startChunkID, endChunkID)
+
+	if noGCDays < 0 {
+		noGCDays = conf.NoGCDays
+	}
+	for next := end + 1; next >= start+1; next-- {
+		if bkt.datas.chunks[next].size <= 0 {
+			continue
+		}
+		var ts int64
+		ts, err = bkt.datas.chunks[next].getFirstRecTs()
+		if err != nil {
+			return
+		}
+		if time.Now().Unix()-ts < int64(noGCDays)*86400 {
+			for end = next - 1; end >= start; end-- {
+				if bkt.datas.chunks[end].size >= 0 {
+					return
+				}
+			}
+			return
+		}
+	}
+	return
+}
+
+func (bkt *Bucket) gcCheckStart(startChunkID int) (start int) {
+	if startChunkID < 0 {
+		start = bkt.NextGCChunk
+	} else {
+		start = startChunkID
+	}
+	for ; start < bkt.datas.newHead; start++ {
+		if bkt.datas.chunks[start].size >= 0 {
+			break
+		}
+	}
+	return
+}
+
+func (bkt *Bucket) gcCheckRange(startChunkID, endChunkID, noGCDays int) (start, end int, err error) {
+	start = bkt.gcCheckStart(startChunkID)
+	if end, err = bkt.gcCheckEnd(start, endChunkID, noGCDays); err != nil {
+		return
+	}
+	if end <= start {
+		err = fmt.Errorf("end %d <= start %d, nothing to gc", end, start)
+	}
+	return
+}
+
+func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
+
+	logger.Infof("begin GC bucket %d chunk [%d, %d]", bkt.ID, startChunkID, endChunkID)
 
 	bkt.GCHistory = append(bkt.GCHistory, GCState{})
 	gc := &bkt.GCHistory[len(bkt.GCHistory)-1]
@@ -138,7 +191,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 		}
 	}
 	dstchunk := bkt.datas.chunks[gc.Dst]
-	err = dstchunk.beginGCWriting(gc.Begin)
+	err := dstchunk.beginGCWriting(gc.Begin)
 	if err != nil {
 		gc.Err = err
 		return
@@ -149,7 +202,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 		oldPos.ChunkID = gc.Src
 		var fileState GCFileState
 		// reader must have a larger buffer
-		logger.Infof("begin GC bucket %d, file %d -> %d", bkt.id, gc.Src, gc.Dst)
+		logger.Infof("begin GC bucket %d, file %d -> %d", bkt.ID, gc.Src, gc.Dst)
 		bkt.hints.ClearChunks(gc.Src, gc.Src)
 		if r, err = bkt.datas.GetStreamReader(gc.Src); err != nil {
 			gc.Err = err
@@ -196,7 +249,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 				}
 			} else { // should not happen
 				logger.Errorf("gc old key not found in htree bucket %d %#v %#v %#v",
-					bkt.id, ki, meta, oldPos)
+					bkt.ID, ki, meta, oldPos)
 				isNewest = true
 				meta.ValueHash = rec.Payload.Getvhash()
 			}
@@ -239,5 +292,4 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 		}
 		logger.Infof("end GC file %#v", fileState)
 	}
-	return nil
 }

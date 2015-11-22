@@ -35,17 +35,17 @@ func init() {
 	http.HandleFunc("/memstats", handleMemStates)
 	http.HandleFunc("/rusage", handleRusage)
 
-	http.HandleFunc("/buckets", handleBuckets)
-
 	http.HandleFunc("/reload", handleReload)
 	http.HandleFunc("/logbuf", handleLogBuffer)
 	http.HandleFunc("/logbufall", handleLogBufferALL)
 	http.HandleFunc("/loglast", handleLogLast)
 
 	// dir
+	http.HandleFunc("/gc/", handleGC)
+	http.HandleFunc("/bucket/", handleBucket)
 	http.HandleFunc("/collision/", handleCollision)
-	http.HandleFunc("/hash/", handleKeyhash)
 
+	http.HandleFunc("/hash/", handleKeyhash)
 }
 
 func initWeb() {
@@ -77,16 +77,17 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
     <a href='/logbuf'> /logbuf </a> <p/>
     <a href='/logbufall'> /logbufall </a> <p/>
     <a href='/loglast'> /loglast </a> <p/>
-    <a href='/buckets'> /buckets </a> <p/>
 
     <hr/>
 
+    <a href='/bucket'> /bucket/{hex bucket id} </a> <p/>
     <a href='/collision'> /collision/{16-byte-len hex keyhash} </a> <p/>
     <a href='/hash'> /hash/{hex bucket id} </a> <p/>
 
     `)
 }
 
+// tools
 func handleWebPanic(w http.ResponseWriter) {
 	r := recover()
 	if r != nil {
@@ -115,6 +116,22 @@ func handleYaml(w http.ResponseWriter, v ...interface{}) {
 		w.Write(b)
 	}
 }
+
+func getBucket(r *http.Request) (bucketID int64, err error) {
+	s := filepath.Base(r.URL.Path)
+	return strconv.ParseInt(s, 16, 16)
+}
+
+func getFormValueInt(r *http.Request, name string, ndefault int) (n int, err error) {
+	n = ndefault
+	s := r.FormValue(name)
+	if s != "" {
+		n, err = strconv.Atoi(s)
+	}
+	return
+}
+
+// handlers
 
 func handleConfig(w http.ResponseWriter, r *http.Request) {
 	handleJson(w, conf)
@@ -147,8 +164,7 @@ func handleCollision(w http.ResponseWriter, r *http.Request) {
 	}
 	defer handleWebPanic(w)
 	e := []byte("need bucket id, e.g. /collision/c")
-	s := filepath.Base(r.URL.Path)
-	bucketID, err := strconv.ParseInt(s, 16, 16)
+	bucketID, err := getBucket(r)
 	if err != nil {
 		w.Write(e)
 		return
@@ -166,8 +182,18 @@ func handleReload(w http.ResponseWriter, r *http.Request) {
 	// reload route config
 }
 
-func handleBuckets(w http.ResponseWriter, r *http.Request) {
-	// TODO: show infos by buckets
+func handleBucket(w http.ResponseWriter, r *http.Request) {
+	if storage == nil {
+		return
+	}
+	defer handleWebPanic(w)
+	var err error
+	var bucketID int64
+	bucketID, err = getBucket(r)
+	if err != nil {
+		return
+	}
+	handleJson(w, storage.hstore.GetBucketInfo(int(bucketID)))
 }
 
 func handleKeyhash(w http.ResponseWriter, r *http.Request) {
@@ -207,4 +233,47 @@ func handleLogBufferALL(w http.ResponseWriter, r *http.Request) {
 func handleLogLast(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
 	w.Write(loghub.Default.GetLast())
+}
+
+func handleGC(w http.ResponseWriter, r *http.Request) {
+	if storage == nil {
+		return
+	}
+	defer handleWebPanic(w)
+	var err error
+	var bucketID int64
+	var pretend bool
+	defer func() {
+		if err != nil {
+			w.Write([]byte(err.Error()))
+		} else if !pretend {
+			resp := fmt.Sprintf("ok, goto /bucket/%d", bucketID, bucketID)
+			w.Write([]byte(resp))
+		}
+	}()
+
+	bucketID, err = getBucket(r)
+	if err != nil {
+		return
+	}
+	r.ParseForm()
+	start, err := getFormValueInt(r, "start", -1)
+	if err != nil {
+		return
+	}
+	end, err := getFormValueInt(r, "end", -1)
+	if err != nil {
+		return
+	}
+	noGCDays, err := getFormValueInt(r, "nogcdays", -1)
+	if err != nil {
+		return
+	}
+
+	s := r.FormValue("run")
+	pretend = (s != "true")
+	start, end, err = storage.hstore.GC(int(bucketID), start, end, noGCDays, pretend)
+	if err == nil && pretend {
+		w.Write([]byte(fmt.Sprintf("pretend bucket %d, start %d, end %d", bucketID, start, end)))
+	}
 }

@@ -23,33 +23,46 @@ const (
 	BUCKET_STAT_READY
 )
 
+type BucketStat struct {
+	// pre open init
+	State  int
+	HomeID int
+
+	// init in open
+	ID   int
+	Home string
+
+	TreeID      HintID
+	NextGCChunk int
+}
+
+type BucketInfo struct {
+	BucketStat
+
+	// tmp
+	Pos Position
+
+	LastGC    *GCState
+	hintState int
+}
+
 type Bucket struct {
 	// TODO: replace with hashlock later (crc)
 	writeLock sync.Mutex
+	BucketInfo
 
-	// pre open init
-	state  int
-	homeID int
-
-	// init in open
-	id   int
-	home string
-
-	htree   *HTree
-	hints   *hintMgr
-	datas   *dataStore
-	htreeID HintID
-
+	htree     *HTree
+	hints     *hintMgr
+	datas     *dataStore
 	GCHistory []GCState
-	lastGC    int
 }
 
 func (bkt *Bucket) getHtreePath(chunkID, SplitID int) string {
-	return getIndexPath(bkt.home, chunkID, SplitID, "hash")
+	return getIndexPath(bkt.Home, chunkID, SplitID, "hash")
 }
 
 func (bkt *Bucket) getCollisionPath() string {
-	return fmt.Sprintf("%s/collision.yaml", bkt.home)
+	return fmt.Sprintf("%s/collision.yaml", bkt.Home)
 }
 
 func (bkt *Bucket) dumpCollisions() {
@@ -120,7 +133,6 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 			pos.ChunkID = -1
 			tree.remove(ki, pos)
 		}
-
 	}
 	return
 }
@@ -141,13 +153,13 @@ func (bkt *Bucket) checkHintWithData(chunkID int) (err error) {
 func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	st := time.Now()
 	// load HTree
-	bkt.id = bucketID
-	bkt.home = home
+	bkt.ID = bucketID
+	bkt.Home = home
 	bkt.datas = NewdataStore(bucketID, home)
 	bkt.hints = newHintMgr(bucketID, home)
 	bkt.loadCollisions()
 	bkt.htree = newHTree(conf.TreeDepth, bucketID, conf.TreeHeight)
-	bkt.htreeID = HintID{0, -1}
+	bkt.TreeID = HintID{0, -1}
 
 	maxdata, err := bkt.datas.ListFiles()
 	if err != nil {
@@ -161,25 +173,25 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 			logger.Errorf("htree beyond data: htree=%s, maxdata=%d", treepath, maxdata)
 			utils.Remove(treepath)
 		} else {
-			if bkt.htreeID.isLarger(id.Chunk, id.Split) {
+			if bkt.TreeID.isLarger(id.Chunk, id.Split) {
 				err := bkt.htree.load(treepath)
 				if err != nil {
-					bkt.htreeID = HintID{0, -1}
+					bkt.TreeID = HintID{0, -1}
 					bkt.htree = newHTree(conf.TreeDepth, bucketID, conf.TreeHeight)
 					continue
 				}
-				bkt.htreeID = id
+				bkt.TreeID = id
 			} else {
-				logger.Errorf("found old htree: htree=%s, currenct_htree_id=%s", treepath, bkt.htreeID)
+				logger.Errorf("found old htree: htree=%s, currenct_htree_id=%s", treepath, bkt.TreeID)
 				utils.Remove(treepath)
 			}
 		}
 	}
 
-	for i := bkt.htreeID.Chunk; i < MAX_NUM_CHUNK; i++ {
+	for i := bkt.TreeID.Chunk; i < MAX_NUM_CHUNK; i++ {
 		startsp := 0
-		if i == bkt.htreeID.Chunk {
-			startsp = bkt.htreeID.Split + 1
+		if i == bkt.TreeID.Chunk {
+			startsp = bkt.TreeID.Split + 1
 		}
 		e := bkt.checkHintWithData(i)
 		if e != nil {
@@ -201,7 +213,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 		}
 	}
 	go func() {
-		for i := 0; i < bkt.htreeID.Chunk; i++ {
+		for i := 0; i < bkt.TreeID.Chunk; i++ {
 			bkt.checkHintWithData(i)
 		}
 	}()
@@ -220,9 +232,9 @@ func abs(n int32) int32 {
 
 // called by hstore, data already flushed
 func (bkt *Bucket) close() {
-	logger.Infof("closing bucket %s", bkt.home)
+	logger.Infof("closing bucket %s", bkt.Home)
 	bkt.datas.flush(-1, true)
-	datas, _ := filepath.Glob(fmt.Sprintf("%s/*.data", bkt.home))
+	datas, _ := filepath.Glob(fmt.Sprintf("%s/*.data", bkt.Home))
 	if len(datas) == 0 {
 		return
 	}
@@ -235,15 +247,15 @@ func (bkt *Bucket) close() {
 
 func (bkt *Bucket) dumpHtree() {
 	hintID := bkt.hints.maxDumpedHintID
-	if bkt.htreeID.isLarger(hintID.Chunk, hintID.Split) {
+	if bkt.TreeID.isLarger(hintID.Chunk, hintID.Split) {
 		bkt.removeHtree()
-		bkt.htreeID = hintID
-		bkt.htree.dump(bkt.getHtreePath(bkt.htreeID.Chunk, bkt.htreeID.Split))
+		bkt.TreeID = hintID
+		bkt.htree.dump(bkt.getHtreePath(bkt.TreeID.Chunk, bkt.TreeID.Split))
 	}
 }
 
 func (bkt *Bucket) getAllIndex(suffix string) (paths []string, ids []HintID) {
-	pattern := getIndexPath(bkt.home, -1, -1, suffix)
+	pattern := getIndexPath(bkt.Home, -1, -1, suffix)
 	paths0, _ := filepath.Glob(pattern)
 	sort.Sort(sort.StringSlice(paths0))
 	for _, p := range paths0 {
@@ -263,7 +275,7 @@ func (bkt *Bucket) removeHtree() {
 	for _, p := range paths {
 		utils.Remove(p)
 	}
-	bkt.htreeID = HintID{0, 0}
+	bkt.TreeID = HintID{0, 0}
 }
 
 func (bkt *Bucket) checkAndUpdateVerison(oldv, ver int32) (int32, bool) {
@@ -471,8 +483,15 @@ func (bkt *Bucket) listDir(ki *KeyInfo) ([]byte, error) {
 	return bkt.htree.ListDir(ki)
 }
 
-func (bkt *Bucket) getInfo(keys []string) ([]byte, error) {
-	return nil, nil
+func (bkt *Bucket) getInfo() *BucketInfo {
+	head := bkt.datas.newHead
+	bkt.Pos = Position{head, bkt.datas.chunks[head].size}
+	bkt.hintState = bkt.hints.state
+	n := len(bkt.GCHistory)
+	if n > 0 {
+		bkt.LastGC = &bkt.GCHistory[n-1]
+	}
+	return &bkt.BucketInfo
 }
 
 func (bkt *Bucket) GetRecordByKeyHash(ki *KeyInfo) (rec *Record, err error) {
@@ -483,10 +502,9 @@ func (bkt *Bucket) GetRecordByKeyHash(ki *KeyInfo) (rec *Record, err error) {
 	return bkt.datas.GetRecordByPos(pos)
 }
 
-func (b *Bucket) loadGCHistroy() {
-	// TODO
+func (b *Bucket) loadGCHistroy() error {
+	return nil
 }
 
 func (b *Bucket) dumpGCHistroy() {
-	// TODO
 }

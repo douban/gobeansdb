@@ -98,12 +98,12 @@ func (store *HStore) scanBuckets() (err error) {
 						logger.Errorf("fail to delete empty bucket %s", fullpath)
 					}
 				} else {
-					if store.buckets[bucketID].state > BUCKET_STAT_EMPTY {
+					if store.buckets[bucketID].State > BUCKET_STAT_EMPTY {
 						return fmt.Errorf("found dup bucket %d", bucketID)
 					}
 					logger.Infof("found bucket %x in %s", bucketID, conf.Homes[homeid])
-					store.buckets[bucketID].state = BUCKET_STAT_NOT_EMPTY
-					store.buckets[bucketID].homeID = homeid
+					store.buckets[bucketID].State = BUCKET_STAT_NOT_EMPTY
+					store.buckets[bucketID].HomeID = homeid
 					store.homeToBuckets[homeid][bucketID] = true
 				}
 			} else {
@@ -124,7 +124,7 @@ func (store *HStore) allocBucket(bucketID int) (err error) {
 			min = l
 		}
 	}
-	store.buckets[bucketID].homeID = homeid
+	store.buckets[bucketID].HomeID = homeid
 	store.homeToBuckets[homeid][bucketID] = true
 
 	dirpath := store.getBucketPath(homeid, bucketID)
@@ -155,7 +155,9 @@ func NewHStore() (store *HStore, err error) {
 	store.gcMgr = new(GCMgr)
 	store.buckets = make([]*Bucket, conf.NumBucket)
 	for i := 0; i < conf.NumBucket; i++ {
-		store.buckets[i] = &Bucket{id: i}
+		store.buckets[i] = &Bucket{}
+		store.buckets[i].ID = i
+
 	}
 	nhome := len(conf.Homes)
 	store.homeToBuckets = make([]map[int]bool, nhome)
@@ -170,7 +172,7 @@ func NewHStore() (store *HStore, err error) {
 
 	for i := 0; i < conf.NumBucket; i++ {
 		need := conf.Buckets[i] > 0
-		found := (store.buckets[i].state >= BUCKET_STAT_NOT_EMPTY)
+		found := (store.buckets[i].State >= BUCKET_STAT_NOT_EMPTY)
 		if need {
 			if !found {
 				err = store.allocBucket(i)
@@ -179,7 +181,7 @@ func NewHStore() (store *HStore, err error) {
 				}
 
 			}
-			store.buckets[i].state = BUCKET_STAT_READY
+			store.buckets[i].State = BUCKET_STAT_READY
 		} else {
 			if found {
 				logger.Warnf("found unexpect bucket %d", i)
@@ -191,7 +193,7 @@ func NewHStore() (store *HStore, err error) {
 	for i := 0; i < conf.NumBucket; i++ {
 		bkt := store.buckets[i]
 		if conf.Buckets[i] > 0 {
-			err = bkt.open(i, store.getBucketPath(bkt.homeID, i))
+			err = bkt.open(i, store.getBucketPath(bkt.HomeID, i))
 			if err != nil {
 				return
 			}
@@ -234,7 +236,7 @@ func (store *HStore) Close() {
 
 func (store *HStore) NumKey() (n int) {
 	for _, b := range store.buckets {
-		if b.state == BUCKET_STAT_READY {
+		if b.State == BUCKET_STAT_READY {
 			n += int(b.htree.levels[0][0].count)
 		}
 	}
@@ -292,7 +294,7 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 	}
 	if len(ki.Key) >= conf.TreeDepth {
 		bkt := store.buckets[ki.BucketID]
-		if bkt.state != BUCKET_STAT_READY {
+		if bkt.State != BUCKET_STAT_READY {
 			return nil, nil
 		}
 		return bkt.listDir(ki)
@@ -300,38 +302,51 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 	return store.ListUpper(ki)
 }
 
-func (store *HStore) GC(bucketID, beginChunkID, endChunkID int) error {
+func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, pretend bool) (begin, end int, err error) {
 	if bucketID >= conf.NumBucket {
-		return fmt.Errorf("bad bucket id")
+		err = fmt.Errorf("bad bucket id: %d", bucketID)
+		return
 	}
 	bkt := store.buckets[bucketID]
-	if bkt.state != BUCKET_STAT_READY {
-		return nil
+	if bkt.State != BUCKET_STAT_READY {
+		err = fmt.Errorf("no datay for bucket id: %d", bucketID)
+		return
 	}
 	if store.gcMgr.stat != nil && store.gcMgr.stat.Running {
-		return fmt.Errorf("already running")
+		err = fmt.Errorf("already running")
+		return
 	}
-	go store.gcMgr.gc(store.buckets[bucketID], beginChunkID, endChunkID)
-	return nil
+	begin, end, err = bkt.gcCheckRange(beginChunkID, endChunkID, noGCDays)
+	if err != nil {
+		return
+	}
+	if pretend {
+		return
+	}
+	go store.gcMgr.gc(bkt, begin, end)
+	return
 }
 
 func (store *HStore) GCStat() (int, *GCState) {
 	return store.gcMgr.bucketID, store.gcMgr.stat
 }
 
-func (store *HStore) GetBucketInfo(bucketID int, keys []string) ([]byte, error) {
-	bkt := store.buckets[bucketID]
-	if bkt.state != BUCKET_STAT_READY {
-		return nil, nil
+func (store *HStore) GetBucketInfo(bucketID int) *BucketInfo {
+	if bucketID < 0 || bucketID > len(store.buckets) {
+		return nil
 	}
-	return bkt.getInfo(keys)
+	bkt := store.buckets[bucketID]
+	if bkt.State != BUCKET_STAT_READY {
+		return nil
+	}
+	return bkt.getInfo()
 }
 
 func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Position, err error) {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
 	bkt := store.buckets[ki.BucketID]
-	if bkt.state != BUCKET_STAT_READY {
+	if bkt.State != BUCKET_STAT_READY {
 		return
 	}
 	return bkt.get(ki, memOnly)
@@ -342,7 +357,7 @@ func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
 	bkt := store.buckets[ki.BucketID]
-	if bkt.state != BUCKET_STAT_READY {
+	if bkt.State != BUCKET_STAT_READY {
 		return nil
 	}
 	return bkt.checkAndSet(ki, p)
@@ -351,7 +366,7 @@ func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, error) {
 	ki.Prepare()
 	bkt := store.buckets[ki.BucketID]
-	if bkt.state != BUCKET_STAT_READY {
+	if bkt.State != BUCKET_STAT_READY {
 		return nil, nil
 	}
 	return bkt.GetRecordByKeyHash(ki)
@@ -361,7 +376,7 @@ func (store *HStore) Incr(ki *KeyInfo, value int) int {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
 	bkt := store.buckets[ki.BucketID]
-	if bkt.state != BUCKET_STAT_READY {
+	if bkt.State != BUCKET_STAT_READY {
 		return 0
 	}
 	return bkt.incr(ki, value)
@@ -372,7 +387,7 @@ func (store *HStore) HintDumper(interval time.Duration) {
 	mergeChan = make(chan int, 2)
 	for {
 		for _, bkt := range store.buckets {
-			if bkt.state == BUCKET_STAT_READY {
+			if bkt.State == BUCKET_STAT_READY {
 				bkt.hints.dumpAndMerge(false)
 			}
 		}
@@ -380,13 +395,12 @@ func (store *HStore) HintDumper(interval time.Duration) {
 		case _ = <-mergeChan:
 		case <-time.After(interval):
 		}
-
 	}
 }
 
 func (store *HStore) GetCollisionsByBucket(bucketID int) (content []byte) {
 	bkt := store.buckets[bucketID]
-	if bkt.state == BUCKET_STAT_READY {
+	if bkt.State == BUCKET_STAT_READY {
 		return bkt.hints.collisions.dumps()
 	}
 	return

@@ -12,11 +12,10 @@ import (
 
 const (
 	SecsBeforeDumpDefault = int64(5)
+	HintStateIdle         = 0
 )
 
 const (
-	HintStateIdle = 0
-
 	HintStateDump = 1 << iota
 	HintStateMerge
 	HintStateGC

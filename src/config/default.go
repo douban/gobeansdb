@@ -56,6 +56,7 @@ var (
 		FlushInterval:  0,
 		FlushWakeStr:   "0",
 		FlushMaxStr:    "100M",
+		NoGCDays:       0,
 	}
 
 	DefaultDBLocalConfig = DBLocalConfig{

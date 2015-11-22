@@ -6,7 +6,6 @@ import (
 	"fmt"
 	mc "memcache"
 	"store"
-	"strconv"
 	"sync"
 )
 
@@ -236,40 +235,6 @@ func (s *StorageClient) Process(cmd string, args []string) (status string, msg s
 	msg = "bad command line format"
 
 	switch cmd {
-
-	case "gc":
-		l := len(args)
-		if !(l == 2 || l == 3) || args[0][0] != '@' {
-			return
-		}
-
-		bucket, err := strconv.ParseUint(args[0][1:], 16, 32)
-		if err != nil || bucket < 0 {
-			return
-		}
-
-		start, err := strconv.Atoi(args[1])
-		if err != nil {
-			return
-		}
-
-		end := -1
-		if l == 3 {
-			end, err = strconv.Atoi(args[2])
-			if err != nil {
-				return
-			}
-		}
-
-		err = s.hstore.GC(int(bucket), start, end)
-		if err != nil {
-			status = "ERROR"
-			msg = err.Error()
-		} else {
-			status = "OK"
-			msg = ""
-		}
-
 	case "optimize_stat":
 		msg = ""
 		bucketid, gcstat := s.hstore.GCStat()

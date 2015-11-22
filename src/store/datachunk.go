@@ -170,3 +170,21 @@ func (dc *dataChunk) endGCWriting() (err error) {
 	dc.rewriting = false
 	return
 }
+
+func (dc *dataChunk) getFirstRecTs() (ts int64, err error) {
+	f, err := os.Open(dc.path)
+	if err != nil {
+		logger.Errorf("%v", err)
+		return
+	}
+	var n int
+	wrec := newWriteRecord()
+	if n, err = f.ReadAt(wrec.header[:], 0); err != nil {
+		err = fmt.Errorf("fail to read head %s, err = %v, n = %d", dc.path, err, n)
+		logger.Errorf(err.Error())
+		return
+	}
+	wrec.decodeHeader()
+	ts = int64(wrec.rec.Payload.TS)
+	return
+}
