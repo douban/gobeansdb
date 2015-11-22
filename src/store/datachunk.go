@@ -97,7 +97,7 @@ func (dc *dataChunk) GetRecordByOffsetInBuffer(offset uint32) (res *Record, err 
 
 	wbuf := dc.wbuf
 	n := len(wbuf)
-	if n == 0 || offset < wbuf[0].pos.Offset || offset > dc.writingHead {
+	if n == 0 || offset < wbuf[0].pos.Offset || offset >= dc.writingHead {
 		return
 	}
 
