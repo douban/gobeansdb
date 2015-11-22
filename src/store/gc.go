@@ -197,6 +197,8 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 			} else { // should not happen
 				logger.Errorf("gc old key not found in htree bucket %d %#v %#v %#v",
 					bkt.id, ki, meta, oldPos)
+				isNewest = true
+				meta.ValueHash = rec.Payload.Getvhash()
 			}
 
 			wrec := wrapRecord(rec)
