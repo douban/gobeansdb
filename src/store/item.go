@@ -158,6 +158,19 @@ func (p *Payload) Decompress() (err error) {
 	return
 }
 
+func (p *Payload) Getvhash() uint16 {
+	if p.Ver < 0 {
+		return 0
+	}
+	if p.Flag&FLAG_COMPRESS == 0 {
+		return Getvhash(p.Body)
+	}
+	arr, _ := quicklz.CDecompressSafe(p.Body)
+	vhash := Getvhash(arr.Body)
+	arr.Free()
+	return vhash
+}
+
 type Position struct {
 	ChunkID int
 	Offset  uint32

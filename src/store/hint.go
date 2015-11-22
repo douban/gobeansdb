@@ -653,3 +653,20 @@ func (h *hintMgr) ClearChunks(min, max int) {
 		h.RemoveHintfilesByChunk(i)
 	}
 }
+
+// e.g. get A
+// merged | hint buffer
+// A B    |              =>  it, true
+// A      | B            => nil, true
+//        | A B          =>  it, true
+//        | A            =>  it, false
+// A/B    |              => nil, false
+//        | B            => nil, true // should not happen when used in gc
+func (h *hintMgr) getCollisionGC(ki *KeyInfo) (it *HintItem, collision bool) {
+	it, collision = h.collisions.get(ki.KeyHash, ki.StringKey)
+	if !collision {
+		// only in mem, in new hints buffers after gc begin
+		it, collision = h.getItemCollision(ki.KeyHash, ki.StringKey)
+	}
+	return
+}

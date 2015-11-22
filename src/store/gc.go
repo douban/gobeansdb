@@ -41,8 +41,8 @@ type GCFileState struct {
 	SizeBroken         uint32
 }
 
-func (s *GCFileState) add(size uint32, isRetained, isDeleted bool, sizeBroken uint32) {
-	if !isRetained {
+func (s *GCFileState) add(size uint32, isNewest, isDeleted bool, sizeBroken uint32) {
+	if !isNewest {
 		s.NumReleased += 1
 		s.SizeReleased += size
 		if isDeleted {
@@ -58,38 +58,6 @@ func (s *GCFileState) add(size uint32, isRetained, isDeleted bool, sizeBroken ui
 
 func (s *GCFileState) String() string {
 	return fmt.Sprintf("%#v", s)
-}
-
-func (mgr *GCMgr) ShouldRetainRecord(bkt *Bucket, rec *Record, oldPos Position) (retain, isCollision, isDeleted bool) {
-	ki := &mgr.ki
-	ki.KeyHash = getKeyHash(rec.Key)
-	ki.Key = rec.Key
-	ki.StringKey = string(ki.Key)
-	ki.KeyIsPath = false
-	ki.Prepare()
-	meta, pos, found := bkt.htree.get(ki)
-	if !found {
-		logger.Errorf("gc old key not found in htree bucket %d %#v %#v %#v",
-			bkt.id, ki, meta, oldPos)
-		return true, false, false
-	} else if pos == oldPos {
-		return true, false, false
-	} else {
-		isDeleted = meta.Ver < 0
-		it, collision := bkt.hints.collisions.get(ki.KeyHash, ki.StringKey)
-		if !collision {
-			// only in mem, in new hints buffers after gc begin
-			it, collision = bkt.hints.getItemCollision(ki.KeyHash, ki.StringKey)
-		}
-		if collision {
-			if it != nil {
-				return decodePos(it.Pos) == oldPos, true, it.Ver < 0
-			} else {
-				return true, true, false
-			}
-		}
-	}
-	return false, false, isDeleted
 }
 
 func (mgr *GCMgr) UpdateCollision(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position, rec *Record) {
@@ -201,7 +169,43 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 				break
 			}
 
-			_, recsize := rec.Sizes()
+			var isNewest, isCoverdByCollision, isDeleted bool
+			meta := rec.Payload.Meta
+			ki := NewKeyInfoFromBytes(rec.Key, getKeyHash(rec.Key), false)
+			treeMeta, treePos, found := bkt.htree.get(ki)
+			if found {
+				if oldPos == treePos { // easy
+					meta.ValueHash = treeMeta.ValueHash
+					isNewest = true
+				} else {
+					isDeleted = treeMeta.Ver < 0
+					hintit, isCoverdByCollision := bkt.hints.getCollisionGC(ki)
+					if isCoverdByCollision {
+						if hintit != nil {
+							if decodePos(hintit.Pos) == oldPos {
+								isNewest = true
+								meta.ValueHash = hintit.Vhash
+							} else {
+
+							}
+						} else {
+							isNewest = true // guess
+							meta.ValueHash = rec.Payload.Getvhash()
+						}
+					}
+				}
+			} else { // should not happen
+				logger.Errorf("gc old key not found in htree bucket %d %#v %#v %#v",
+					bkt.id, ki, meta, oldPos)
+			}
+
+			wrec := wrapRecord(rec)
+			recsize := wrec.rec.Payload.RecSize
+			fileState.add(recsize, isNewest, isDeleted, sizeBroken)
+			// logger.Infof("%v %v %v %v", ki.StringKey, isNewest, isCollision, isDeleted)
+			if !isNewest {
+				continue
+			}
 
 			if recsize+dstchunk.writingHead > mfs {
 				dstchunk.endGCWriting()
@@ -216,23 +220,17 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) (err error) {
 					return
 				}
 			}
-			isRetained, isCollision, isDeleted := mgr.ShouldRetainRecord(bkt, rec, oldPos)
-			// logger.Infof("%v %v %v", isRetained, isCollision, isDeleted)
-			if isRetained {
-				wrec := wrapRecord(rec)
-				if newPos.Offset, err = dstchunk.AppendRecordGC(wrec); err != nil {
-					gc.Err = err
-					logger.Errorf("gc failed: %s", err.Error())
-					return
-				}
-				keyinfo := NewKeyInfoFromBytes(rec.Key, getKeyHash(rec.Key), false)
-				if isCollision {
-					mgr.UpdateCollision(bkt, keyinfo, oldPos, newPos, rec)
-				} else {
-					mgr.UpdateHtreePos(bkt, keyinfo, oldPos, newPos)
-				}
+			if newPos.Offset, err = dstchunk.AppendRecordGC(wrec); err != nil {
+				gc.Err = err
+				logger.Errorf("gc failed: %s", err.Error())
+				return
 			}
-			fileState.add(recsize, isRetained, isDeleted, sizeBroken)
+			if isCoverdByCollision {
+				mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
+			} else {
+				mgr.UpdateHtreePos(bkt, ki, oldPos, newPos)
+			}
+			bkt.hints.set(ki, &meta, newPos, recsize)
 		}
 		if gc.Src != gc.Dst {
 			bkt.datas.DeleteFile(gc.Src)
