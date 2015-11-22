@@ -166,7 +166,7 @@ func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *HintItem) {
 	if !buf.set(it, 0) {
 		t.Fatalf("%#v set return false", it)
 	}
-	r := buf.get(it.Key)
+	r, _ := buf.get(it.Keyhash, it.Key)
 	if r == nil || *r != *it {
 		t.Fatalf("%#v != %#v", r, it)
 	}

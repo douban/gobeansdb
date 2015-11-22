@@ -91,11 +91,11 @@ type HintStatus struct {
 }
 
 type hintBuffer struct {
-	maxoffset uint32
-	expsize   int
-	keys      map[string]int
-	keyhashs  map[uint64]bool
-	array     []*HintItem
+	maxoffset  uint32
+	index      map[uint64]int
+	collisions map[uint64]map[string]int
+	items      []*HintItem
+	num        int
 }
 
 type hintSplit struct {
@@ -105,8 +105,8 @@ type hintSplit struct {
 
 func newHintBuffer() *hintBuffer {
 	buf := &hintBuffer{}
-	buf.keys = make(map[string]int)
-	buf.keyhashs = make(map[uint64]bool)
+	buf.index = make(map[uint64]int)
+	buf.collisions = make(map[uint64]map[string]int)
 	return buf
 }
 
@@ -115,23 +115,40 @@ func newHintSplit() *hintSplit {
 }
 
 func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
-	if len(h.keys) == 0 {
-		h.array = make([]*HintItem, conf.SplitCap)
+	if len(h.index) == 0 {
+		h.items = make([]*HintItem, conf.SplitCap)
 	}
 
-	idx, found := h.keys[it.Key]
+	idx, found := h.index[it.Keyhash]
+	iscollision := false
+	if found && it.Key != h.items[idx].Key {
+		iscollision = true
+		var keys map[string]int
+		keys, found = h.collisions[it.Keyhash]
+		if found {
+			idx, found = keys[it.Key]
+		} else {
+			keys = make(map[string]int)
+			keys[h.items[idx].Key] = idx
+			h.collisions[it.Keyhash] = keys
+		}
+	}
 	if !found {
-		h.expsize += len(it.Key) + 8*4 // meta and at least 4 pointers
-		idx = len(h.keys)
-		if idx >= len(h.array) {
+		idx = h.num
+		if idx >= len(h.items) {
 			if it.Pos > h.maxoffset {
 				h.maxoffset = it.Pos
 			}
 			return false
 		}
-		h.keys[it.Key] = idx
+		h.num += 1
 	}
-	h.array[idx] = it
+	h.items[idx] = it
+	h.index[it.Keyhash] = idx
+	if iscollision {
+		h.collisions[it.Keyhash][it.Key] = idx
+	}
+
 	end := it.Pos + recSize
 	if end > h.maxoffset {
 		h.maxoffset = end
@@ -139,27 +156,37 @@ func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
 	return true
 }
 
-func (h *hintBuffer) get(key string) *HintItem {
-	idx, found := h.keys[key]
+func (h *hintBuffer) get(keyhash uint64, key string) (it *HintItem, iscollision bool) {
+	idx, found := h.index[keyhash]
 	if found {
-		return h.array[idx]
+		if key != h.items[idx].Key {
+			iscollision = true
+			var keys map[string]int
+			keys, found = h.collisions[keyhash]
+			if found {
+				idx, found = keys[key]
+			}
+		}
 	}
-	return nil
+	if found {
+		it = h.items[idx]
+	}
+	return
 }
 
 func (h *hintBuffer) dump(path string) (index *hintFileIndex, err error) {
-	n := len(h.keys)
+	n := h.num
 	arr := make([]int, n)
 	for i := 0; i < n; i++ {
 		arr[i] = i
 	}
-	sort.Sort(&byKeyHash{arr, h.array})
+	sort.Sort(&byKeyHash{arr, h.items})
 	w, err := newHintFileWriter(path, h.maxoffset, 1<<20)
 	if err != nil {
 		return
 	}
 	for _, idx := range arr {
-		err = w.writeItem(h.array[idx])
+		err = w.writeItem(h.items[idx])
 		if err != nil {
 			return
 		}
@@ -177,7 +204,7 @@ func (h *hintBuffer) dump(path string) (index *hintFileIndex, err error) {
 }
 
 func (h *hintSplit) needDump() bool {
-	return h.file == nil && h.buf.keys != nil && len(h.buf.keys) > 0
+	return h.file == nil && h.buf.num > 0
 }
 
 type hintChunk struct {
@@ -226,7 +253,7 @@ func (chunk *hintChunk) getMemOnly(keyhash uint64, key string) (it *HintItem, sp
 	for sp = len(chunk.splits) - 1; sp >= 0; sp-- {
 		split := chunk.splits[sp]
 		if split.buf != nil {
-			if it = split.buf.get(key); it != nil {
+			if it, _ = split.buf.get(keyhash, key); it != nil {
 				return
 			}
 		} else {
@@ -562,12 +589,9 @@ func (chunk *hintChunk) getItemCollision(keyhash uint64, key string) (it *HintIt
 			stop = true
 			return
 		} else {
-			if it = split.buf.get(key); it != nil {
-				collision = true
+			if it, collision = split.buf.get(keyhash, key); it != nil {
 				it.Pos |= uint32(chunk.id)
 				return
-			} else if !collision {
-				_, collision = split.buf.keyhashs[keyhash]
 			}
 		}
 	}
