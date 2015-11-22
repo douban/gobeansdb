@@ -94,11 +94,13 @@ func genSortedHintItems(n int) []*HintItem {
 	for i := 0; i < n; i++ {
 		base := i * 3
 		it := &HintItem{
-			Keyhash: uint64(i),
-			Key:     genKey(i),
-			Pos:     uint32(base) * 256,
-			Ver:     int32(base + 1),
-			Vhash:   uint16(base + 2),
+			HintItemMeta{
+				Keyhash: uint64(i),
+				Pos:     uint32(base) * 256,
+				Ver:     int32(base + 1),
+				Vhash:   uint16(base + 2),
+			},
+			genKey(i),
 		}
 		items[i] = it
 	}

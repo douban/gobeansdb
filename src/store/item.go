@@ -45,17 +45,19 @@ type HTreeItem struct {
 	ver     int32
 	vhash   uint16
 }
-
-type HintItem struct {
+type HintItemMeta struct {
 	Keyhash uint64
 	Pos     uint32
 	Ver     int32
 	Vhash   uint16
-	Key     string
+}
+type HintItem struct {
+	HintItemMeta
+	Key string
 }
 
 func newHintItem(khash uint64, ver int32, vhash uint16, pos Position, key string) *HintItem {
-	return &HintItem{khash, pos.encode(), ver, vhash, key}
+	return &HintItem{HintItemMeta{khash, pos.encode(), ver, vhash}, key}
 }
 
 type Payload struct {
