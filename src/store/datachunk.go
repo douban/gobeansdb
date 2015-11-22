@@ -44,7 +44,7 @@ func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error
 
 	dc.gcbufsize += size
 	if dc.gcbufsize > (1 << 20) {
-		_, err = dc.flush(dc.gcWriter)
+		_, err = dc.flush(dc.gcWriter, true)
 		dc.gcbufsize = 0
 	}
 	return
@@ -57,7 +57,7 @@ func (dc *dataChunk) getDiskFileSize() uint32 {
 	return dc.size
 }
 
-func (dc *dataChunk) flush(w *DataStreamWriter) (flushed uint32, err error) {
+func (dc *dataChunk) flush(w *DataStreamWriter, gc bool) (flushed uint32, err error) {
 	dc.Lock()
 	n := len(dc.wbuf)
 	dc.Unlock()
@@ -71,7 +71,7 @@ func (dc *dataChunk) flush(w *DataStreamWriter) (flushed uint32, err error) {
 		}
 		size := wrec.rec.Payload.RecSize
 		flushed += size
-		if wrec.rec.Payload.Ver > 0 {
+		if !gc && wrec.rec.Payload.Ver > 0 {
 			cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
 			// NOTE: not freed yet, make it a little diff with AllocRL, which may provide more insight
 		}
@@ -159,7 +159,7 @@ func (dc *dataChunk) beginGCWriting(srcChunk int) (err error) {
 
 func (dc *dataChunk) endGCWriting() (err error) {
 	if dc.gcWriter != nil {
-		_, err = dc.flush(dc.gcWriter)
+		_, err = dc.flush(dc.gcWriter, true)
 		dc.gcWriter.Close()
 		dc.gcWriter = nil
 	}

@@ -123,7 +123,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	if w.offset != filessize {
 		logger.Fatalf("wrong data file size, exp %d, got %d, %s", filessize, w.offset, ds.genPath(chunk))
 	}
-	nflushed, err := ds.chunks[chunk].flush(w)
+	nflushed, err := ds.chunks[chunk].flush(w, false)
 	ds.wbufSize -= nflushed
 	w.Close()
 
