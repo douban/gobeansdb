@@ -31,7 +31,6 @@ type GCState struct {
 }
 
 type GCFileState struct {
-	Src                int
 	NumBefore          int
 	NumReleased        int
 	NumReleasedDeleted int
@@ -41,7 +40,17 @@ type GCFileState struct {
 	SizeBroken         uint32
 }
 
-func (s *GCFileState) add(size uint32, isNewest, isDeleted bool, sizeBroken uint32) {
+func (s *GCFileState) add(s2 *GCFileState) {
+	s.NumBefore += s2.NumBefore
+	s.NumReleased += s2.NumReleased
+	s.NumReleasedDeleted += s2.NumReleasedDeleted
+	s.SizeBefore += s2.SizeBefore
+	s.SizeBroken += s2.SizeBroken
+	s.SizeDeleted += s2.SizeDeleted
+	s.SizeReleased += s2.SizeReleased
+}
+
+func (s *GCFileState) addRecord(size uint32, isNewest, isDeleted bool, sizeBroken uint32) {
 	if !isNewest {
 		s.NumReleased += 1
 		s.SizeReleased += size
@@ -260,7 +269,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 
 			wrec := wrapRecord(rec)
 			recsize := wrec.rec.Payload.RecSize
-			fileState.add(recsize, isNewest, isDeleted, sizeBroken)
+			fileState.addRecord(recsize, isNewest, isDeleted, sizeBroken)
 			// logger.Infof("%v %v %v %v", ki.StringKey, isNewest, isCollision, isDeleted)
 			if !isNewest {
 				continue
@@ -291,6 +300,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 			}
 			bkt.hints.set(ki, &meta, newPos, recsize)
 		}
+
 		if gc.Src != gc.Dst {
 			bkt.datas.chunks[gc.Src].Clear()
 		}
@@ -299,5 +309,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 			bkt.dumpGCHistroy()
 		}
 		logger.Infof("end GC file %#v", fileState)
+		gc.add(&fileState)
 	}
+	logger.Infof("end GC all %#v", gc)
 }
