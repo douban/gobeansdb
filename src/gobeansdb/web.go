@@ -247,7 +247,7 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.Write([]byte(err.Error()))
 		} else if !pretend {
-			resp := fmt.Sprintf("ok, goto /bucket/%d", bucketID, bucketID)
+			resp := fmt.Sprintf("ok, goto /bucket/%d", bucketID)
 			w.Write([]byte(resp))
 		}
 	}()
