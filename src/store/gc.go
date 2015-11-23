@@ -115,7 +115,7 @@ func (bkt *Bucket) gcCheckEnd(start, endChunkID, noGCDays int) (end int, err err
 		noGCDays = conf.NoGCDays
 	}
 	for next := end + 1; next >= start+1; next-- {
-		if bkt.datas.chunks[next].size <= 0 {
+		if bkt.datas.chunks[next].getDiskFileSize() <= 0 {
 			continue
 		}
 		var ts int64
