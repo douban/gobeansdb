@@ -334,7 +334,16 @@ type byKeyHash struct {
 func (by byKeyHash) Len() int      { return len(by.idx) }
 func (by byKeyHash) Swap(i, j int) { by.idx[i], by.idx[j] = by.idx[j], by.idx[i] }
 func (by byKeyHash) Less(i, j int) bool {
-	return by.data[by.idx[i]].Keyhash < by.data[by.idx[j]].Keyhash
+	a := by.data[by.idx[i]]
+	b := by.data[by.idx[j]]
+	if a.Keyhash < b.Keyhash {
+		return true
+	} else if a.Keyhash < b.Keyhash {
+		return false
+	} else {
+		return a.Key < b.Key
+	}
+	return false
 }
 
 func (h *hintMgr) dump(chunkID, splitID int) (err error) {
