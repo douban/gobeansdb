@@ -101,7 +101,7 @@ func decodeHeader(wrec *WriteRecord, h []byte) (err error) {
 func readRecordAtPath(path string, offset uint32) (*WriteRecord, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		logger.Infof(err.Error())
+		logger.Errorf("fail to open: %s: %v", path, err)
 		return nil, err
 	}
 	defer f.Close()

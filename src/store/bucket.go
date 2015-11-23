@@ -17,7 +17,9 @@ const (
 	HTREE_SUFFIX       = "hash"
 	HINT_SUFFIX        = "s"
 	MERGED_HINT_SUFFIX = "m"
+)
 
+const (
 	BUCKET_STAT_EMPTY = iota
 	BUCKET_STAT_NOT_EMPTY
 	BUCKET_STAT_READY
