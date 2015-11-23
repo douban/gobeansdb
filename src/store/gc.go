@@ -294,6 +294,10 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 		if gc.Src != gc.Dst {
 			bkt.datas.chunks[gc.Src].Clear()
 		}
+		if gc.Src > bkt.NextGCChunk {
+			bkt.NextGCChunk = gc.Src
+			bkt.dumpGCHistroy()
+		}
 		logger.Infof("end GC file %#v", fileState)
 	}
 }
