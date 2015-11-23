@@ -24,6 +24,17 @@ type dataChunk struct {
 	gcWriter  *DataStreamWriter
 }
 
+func (dc *dataChunk) Clear() error {
+	dc.wbuf = nil
+	dc.size = 0
+	dc.rewriting = false
+	dc.gcWriter = nil
+	dc.gcbufsize = 0
+	dc.writingHead = 0
+
+	return utils.Remove(dc.path)
+}
+
 func (dc *dataChunk) AppendRecord(wrec *WriteRecord) {
 	dc.wbuf = append(dc.wbuf, wrec)
 	size := wrec.rec.Payload.RecSize

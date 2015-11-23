@@ -7,7 +7,6 @@ import (
 	"os"
 	"sync"
 	"time"
-	"utils"
 )
 
 const (
@@ -160,11 +159,6 @@ func (ds *dataStore) ListFiles() (max int, err error) {
 	}
 	ds.newHead = max + 1
 	return
-}
-
-func (ds *dataStore) DeleteFile(chunkID int) error {
-	path := ds.genPath(chunkID)
-	return utils.Remove(path)
 }
 
 func (ds *dataStore) GetStreamReader(chunk int) (*DataStreamReader, error) {

@@ -288,7 +288,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 			bkt.hints.set(ki, &meta, newPos, recsize)
 		}
 		if gc.Src != gc.Dst {
-			bkt.datas.DeleteFile(gc.Src)
+			bkt.datas.chunks[gc.Src].Clear()
 		}
 		logger.Infof("end GC file %#v", fileState)
 	}
