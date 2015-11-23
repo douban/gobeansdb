@@ -42,10 +42,10 @@ type BucketInfo struct {
 	BucketStat
 
 	// tmp
-	Pos Position
-
-	LastGC    *GCState
-	hintState int
+	Pos             Position
+	LastGC          *GCState
+	HintState       int
+	MaxDumpedHintID HintID
 }
 
 type Bucket struct {
@@ -189,7 +189,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 			}
 		}
 	}
-
+	bkt.hints.maxDumpedHintID = bkt.TreeID
 	for i := bkt.TreeID.Chunk; i < MAX_NUM_CHUNK; i++ {
 		startsp := 0
 		if i == bkt.TreeID.Chunk {
@@ -488,7 +488,8 @@ func (bkt *Bucket) listDir(ki *KeyInfo) ([]byte, error) {
 func (bkt *Bucket) getInfo() *BucketInfo {
 	head := bkt.datas.newHead
 	bkt.Pos = Position{head, bkt.datas.chunks[head].size}
-	bkt.hintState = bkt.hints.state
+	bkt.HintState = bkt.hints.state
+	bkt.MaxDumpedHintID = bkt.hints.maxDumpedHintID
 	n := len(bkt.GCHistory)
 	if n > 0 {
 		bkt.LastGC = &bkt.GCHistory[n-1]
