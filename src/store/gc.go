@@ -199,6 +199,10 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 	defer dstchunk.endGCWriting()
 
 	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {
+		if bkt.datas.chunks[gc.Src].size <= 0 {
+			logger.Infof("skip empty chunk %d", gc.Src)
+			continue
+		}
 		oldPos.ChunkID = gc.Src
 		var fileState GCFileState
 		// reader must have a larger buffer
