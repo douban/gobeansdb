@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"cmem"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"runtime/debug"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	"utils"
@@ -244,7 +247,6 @@ func (bkt *Bucket) close() {
 	bkt.dumpCollisions()
 	bkt.hints.close()
 	bkt.dumpHtree()
-	bkt.dumpGCHistroy()
 }
 
 func (bkt *Bucket) dumpHtree() {
@@ -505,9 +507,42 @@ func (bkt *Bucket) GetRecordByKeyHash(ki *KeyInfo) (rec *Record, err error) {
 	return bkt.datas.GetRecordByPos(pos)
 }
 
-func (b *Bucket) loadGCHistroy() error {
-	return nil
+func (bkt *Bucket) getGCHistoryPath() string {
+	return fmt.Sprintf("%s/%s", bkt.Home, "nextgc.txt")
 }
 
-func (b *Bucket) dumpGCHistroy() {
+func (bkt *Bucket) loadGCHistroy() (err error) {
+	fd, err := os.Open(bkt.getGCHistoryPath())
+	if err != nil {
+		logger.Warnf("%v", err)
+		return
+	}
+	defer fd.Close()
+	buf := make([]byte, 10)
+	n, e := fd.Read(buf)
+	if e != nil && e != io.EOF {
+		err = e
+		logger.Errorf("%v", err)
+		return
+	}
+	s := string(buf[:n])
+	s = strings.TrimSpace(s)
+	n, err = strconv.Atoi(s)
+	if err == nil {
+		bkt.NextGCChunk = n
+		logger.Infof("bucket %d load nextgc %d", bkt.ID, n)
+	}
+	return
+}
+
+func (bkt *Bucket) dumpGCHistroy() {
+	p := bkt.getGCHistoryPath()
+	fd, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		logger.Errorf("%v", err)
+		return
+	}
+	defer fd.Close()
+	fd.WriteString(fmt.Sprintf("%d", bkt.NextGCChunk))
+
 }
