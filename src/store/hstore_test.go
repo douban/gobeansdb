@@ -198,7 +198,35 @@ func makeKeyHasherParse(depth uint) HashFuncType {
 	}
 }
 
-func testGCUpdateSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
+func checkDataSize(t *testing.T, ds *dataStore, sizes0 []uint32) {
+	sizes := make([]uint32, 256)
+	copy(sizes, sizes0)
+	for i, sz := range sizes {
+		ck := ds.chunks[i]
+		if ck.size != sz {
+			t.Fatalf("chunk %d wrong mem size %d != %d", i, ck.size, sz)
+		}
+		st, err := os.Stat(ck.path)
+		if sz > 0 {
+			if err != nil {
+				t.Fatalf("chunk %d file not exist, should have size %d, err = %v", i, sz, err)
+			}
+			if st.Size() != int64(sz) {
+				t.Fatalf("chunk %d wrong disk size %d != %d", i, st.Size(), sz)
+			}
+		} else {
+			if ck.size != 0 {
+				t.Fatalf("chunk %d wrong mem size %d != 0", i, ck.size, 0)
+			}
+			st, err := os.Stat(ck.path)
+			if err == nil {
+				t.Fatalf("chunk %d file should not exist, size %d", i, st.Size())
+			}
+		}
+	}
+}
+
+func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 
 	var ki KeyInfo
@@ -223,7 +251,9 @@ func testGCUpdateSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 		t.Fatal(err)
 	}
 	store.flushdatas(true)
-	store.gcMgr.gc(store.buckets[bkt], 0, 0)
+	bkt := store.buckets[bucketID]
+	store.gcMgr.gc(bkt, 0, 0)
+
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
 		payload2, pos, err := store.Get(&ki, false)
@@ -237,6 +267,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
 		}
 	}
+	checkDataSize(t, bkt.datas, []uint32{1280, 256})
 	dir := utils.NewDir()
 	dir.Set("000.data", 1280)
 	dir.Set("000.000.idx.s", -1)
@@ -244,10 +275,10 @@ func testGCUpdateSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 	dir.Set("001.000.idx.s", -1)
 	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
-	checkFiles(t, store.buckets[bkt].Home, dir)
+	checkFiles(t, bkt.Home, dir)
 }
 
-func testGCDeleteSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
+func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 
 	var ki KeyInfo
@@ -271,7 +302,8 @@ func testGCDeleteSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 		t.Fatal(err)
 	}
 	store.flushdatas(true)
-	store.gcMgr.gc(store.buckets[bkt], 0, 0)
+	bkt := store.buckets[bucketID]
+	store.gcMgr.gc(bkt, 0, 0)
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
 		payload2, pos, err := store.Get(&ki, false)
@@ -286,6 +318,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
 		}
 	}
+	checkDataSize(t, bkt.datas, []uint32{1280, 256})
 	dir := utils.NewDir()
 	dir.Set("000.data", 1280)
 	dir.Set("000.000.idx.s", -1)
@@ -293,11 +326,11 @@ func testGCDeleteSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 	dir.Set("001.000.idx.s", -1)
 	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
-	checkFiles(t, store.buckets[bkt].Home, dir)
+	checkFiles(t, bkt.Home, dir)
 
 }
 
-func testGCMulti(t *testing.T, store *HStore, bkt, numRecPerFile int) {
+func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 
 	var ki KeyInfo
@@ -329,7 +362,8 @@ func testGCMulti(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 		t.Fatal(err)
 	}
 	store.flushdatas(true)
-	store.gcMgr.gc(store.buckets[bkt], 0, 2)
+	bkt := store.buckets[bucketID]
+	store.gcMgr.gc(bkt, 0, 2)
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 2)
 		payload2, pos, err := store.Get(&ki, false)
@@ -344,6 +378,7 @@ func testGCMulti(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 		}
 	}
 
+	checkDataSize(t, bkt.datas, []uint32{2560, 0, 0, 256})
 	dir := utils.NewDir()
 	dir.Set("000.data", 2560)
 	dir.Set("000.000.idx.s", -1)
@@ -351,7 +386,7 @@ func testGCMulti(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 	dir.Set("003.000.idx.s", -1)
 	dir.Set("003.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
-	checkFiles(t, store.buckets[bkt].Home, dir)
+	checkFiles(t, bkt.Home, dir)
 }
 
 func TestGCMulti(t *testing.T) {
