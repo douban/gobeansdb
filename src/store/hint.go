@@ -493,7 +493,7 @@ func (h *hintMgr) Merge(forGC bool) (err error) {
 	logger.Infof("to merge %s from %v", dst, names)
 	index, err := merge(readers, dst, h.collisions, &h.state, forGC)
 	if err != nil {
-		logger.Errorf("merge to %s fail: %s", dst, err.Error())
+		logger.Errorf("merge to %s fail: %v", dst, err)
 		return
 	}
 	h.merged = index

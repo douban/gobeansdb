@@ -174,6 +174,8 @@ func (dc *dataChunk) beginGCWriting(srcChunk int) (err error) {
 	if dc.chunkid == srcChunk {
 		dc.rewriting = true
 		dc.writingHead = 0
+	} else {
+		dc.writingHead = dc.size
 	}
 	dc.gcWriter, err = GetStreamWriter(dc.path, !dc.rewriting)
 	if err != nil {

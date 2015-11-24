@@ -432,6 +432,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 
 	var ki KeyInfo
 	N := numRecPerFile
+
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
 		if err := store.Set(&ki, payload); err != nil {
@@ -531,6 +532,102 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	readfunc()
 }
 
+func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+	conf.BodyMax = 512
+	defer func() {
+		conf.BodyMax = 50 << 20
+	}()
+	gen := newKVGen(16)
+
+	var ki KeyInfo
+
+	N := numRecPerFile / 2
+	logger.Infof("test gc numRecPerFile = %d", numRecPerFile)
+
+	payload := gen.gen(&ki, -1, 0) // rotate
+	if err := store.Set(&ki, payload); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	logger.Infof("closed")
+
+	store, err := NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	bkt := store.buckets[bucketID]
+	tsShift := 1
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 0)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 1)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store.flushdatas(true)
+
+	payload = gen.gen(&ki, -2, 0) // rotate
+	if err := store.Set(&ki, payload); err != nil {
+		t.Fatal(err)
+	}
+	store.flushdatas(true)
+	store.gcMgr.gc(bkt, 1, 1)
+	readfunc := func() {
+		for i := 0; i < N; i++ {
+			payload := gen.gen(&ki, i, 1)
+			payload2, pos, err := store.Get(&ki, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if payload2 != nil {
+				cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			}
+			if !(payload2 != nil && payload2.Ver == 2 &&
+				payload2.TS == uint32(i+tsShift) && pos == Position{0, uint32(PADDING * (i + 1))}) {
+				if payload2 != nil {
+					t.Errorf("%d: exp %s, got %#v", i, string(payload.Body), string(payload2.Body))
+				}
+				t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
+			}
+		}
+	}
+	readfunc()
+	n := (N + 1) * 256
+	checkDataSize(t, bkt.datas, []uint32{uint32(n), 0, 256})
+	dir := utils.NewDir()
+	dir.Set("000.data", int64(n))
+	dir.Set("000.000.idx.s", -1)
+	dir.Set("000.001.idx.s", -1)
+	dir.Set("002.data", 256)
+	dir.Set("002.000.idx.s", -1)
+	dir.Set("002.000.idx.hash", -1)
+	dir.Set("nextgc.txt", 1)
+	dir.Set("collision.yaml", -1)
+	checkFiles(t, bkt.Home, dir)
+
+	treeID := HintID{2, 0}
+	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
+	}
+
+	store.Close()
+	logger.Infof("closed")
+	utils.Remove(bkt.Home + "/002.000.idx.hash")
+	store, err = NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	bkt = store.buckets[bucketID]
+	dir.Delete("002.000.idx.hash")
+	checkFiles(t, bkt.Home, dir)
+	readfunc()
+}
+
 func TestGCMultiBigBuffer(t *testing.T) {
 	testGC(t, testGCMulti, "multiBig", 10000)
 }
@@ -545,6 +642,10 @@ func TestGCMultiSmallBuffer(t *testing.T) {
 
 func TestGCNothing(t *testing.T) {
 	testGC(t, testGCNothing, "nothing", 100)
+}
+
+func TestGCToLast(t *testing.T) {
+	testGC(t, testGCToLast, "tolast", 100)
 }
 
 func TestGCUpdateSame(t *testing.T) {

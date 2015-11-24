@@ -154,6 +154,7 @@ func (ds *dataStore) ListFiles() (max int, err error) {
 				return
 			}
 			ds.chunks[i].size = sz
+			ds.chunks[i].writingHead = sz
 			max = i
 		}
 	}
