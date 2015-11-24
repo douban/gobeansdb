@@ -30,6 +30,10 @@ func (rl *ResourceLimiter) reset() {
 	rl.Chan = make(chan int, 1)
 }
 
+func (rl *ResourceLimiter) IsZero() bool {
+	return rl.Count == 0 && rl.Size == 0
+}
+
 func (rl *ResourceLimiter) AddSize(size int64) {
 	// fmt.Printf("add %d\n", size)
 	atomic.AddInt64(&rl.Size, int64(size))

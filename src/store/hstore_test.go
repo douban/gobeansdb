@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmem"
 	"flag"
 	"fmt"
 	"os"
@@ -260,6 +261,9 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 		if err != nil {
 			t.Fatal(err)
 		}
+		if payload2 != nil {
+			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+		}
 		if payload2 == nil || (string(payload.Body) != string(payload2.Body)) || (pos != Position{0, uint32(PADDING * (i))}) {
 			if payload2 != nil {
 				t.Errorf("%d: exp %s, got %s", i, string(payload.Body), string(payload2.Body))
@@ -276,6 +280,11 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
 	checkFiles(t, bkt.Home, dir)
+
+	treeID := HintID{1, 0}
+	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
+	}
 }
 
 func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
@@ -310,6 +319,9 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 		if err != nil {
 			t.Fatal(err)
 		}
+		if payload2 != nil {
+			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+		}
 		if !(payload2 != nil && len(payload2.Body) == 0 && payload2.Ver == -2 &&
 			payload2.TS != 0 && pos == Position{0, uint32(PADDING * (i))}) {
 			if payload2 != nil {
@@ -328,6 +340,10 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	dir.Set("nextgc.txt", 1)
 	checkFiles(t, bkt.Home, dir)
 
+	treeID := HintID{1, 0}
+	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
+	}
 }
 
 func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
@@ -376,6 +392,9 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 			}
 			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
 		}
+		if payload2 != nil {
+			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+		}
 	}
 
 	checkDataSize(t, bkt.datas, []uint32{2560, 0, 0, 256})
@@ -387,6 +406,11 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	dir.Set("003.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
 	checkFiles(t, bkt.Home, dir)
+
+	treeID := HintID{3, 0}
+	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
+	}
 }
 
 func TestGCMulti(t *testing.T) {
@@ -433,5 +457,10 @@ func testGC(t *testing.T, casefunc testGCFunc, name string) {
 	}
 	logger.Infof("%#v", conf)
 	casefunc(t, store, bkt, numRecPerFile)
+
+	if !cmem.DBRL.IsZero() {
+		t.Fatalf("%#v", cmem.DBRL)
+	}
+
 	store.Close()
 }
