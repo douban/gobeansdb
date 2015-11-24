@@ -60,6 +60,12 @@ func (d *Dir) SetMulti(files map[string]int64) {
 	}
 }
 
+func (d *Dir) SetMultiNoSize(files ...string) {
+	for _, name := range files {
+		d.Files[name] = -1
+	}
+}
+
 func (d *Dir) Delete(name string) {
 	delete(d.Files, name)
 }
