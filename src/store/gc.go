@@ -294,6 +294,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 				logger.Errorf("gc failed: %s", err.Error())
 				return
 			}
+			//logger.Infof("%#v %#v %#v", ki, newPos, meta)
 			if isCoverdByCollision {
 				mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
 			} else {

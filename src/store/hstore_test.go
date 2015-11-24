@@ -348,6 +348,27 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	}
 }
 
+func readHStore(t *testing.T, store *HStore, n, v int) {
+	gen := newKVGen(16)
+	for i := 0; i < n; i++ {
+		var ki KeyInfo
+		payload := gen.gen(&ki, i, v)
+		payload2, pos, err := store.Get(&ki, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if payload2 == nil || payload2.Ver != 3 || (string(payload.Body) != string(payload2.Body)) {
+			if payload2 != nil {
+				t.Errorf("%d: exp %s, got %s", i, string(payload.Body), string(payload2.Body))
+			}
+			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
+		}
+		if payload2 != nil {
+			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+		}
+	}
+}
+
 func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 
@@ -379,25 +400,38 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	if err := store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
 	}
+
 	store.flushdatas(true)
 	bkt := store.buckets[bucketID]
-	store.gcMgr.gc(bkt, 0, 2)
-	for i := 0; i < N; i++ {
-		payload := gen.gen(&ki, i, 2)
-		payload2, pos, err := store.Get(&ki, false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if payload2 == nil || payload2.Ver != 3 || (string(payload.Body) != string(payload2.Body)) || (pos != Position{0, uint32(PADDING * (i))}) {
-			if payload2 != nil {
-				t.Errorf("%d: exp %s, got %s", i, string(payload.Body), string(payload2.Body))
+
+	stop := false
+	readfunc := func() {
+		for i := 0; i < N; i++ {
+			payload := gen.gen(&ki, i, 2)
+			payload2, pos, err := store.Get(&ki, false)
+			if err != nil {
+				t.Fatal(err)
 			}
-			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
-		}
-		if payload2 != nil {
-			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			if payload2 == nil || payload2.Ver != 3 || (string(payload.Body) != string(payload2.Body)) || (stop && pos != Position{0, uint32(PADDING * (i))}) {
+				if payload2 != nil {
+					t.Errorf("%d: exp %s, got %s", i, string(payload.Body), string(payload2.Body))
+				}
+				t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
+			}
+			if payload2 != nil {
+				cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			}
 		}
 	}
+
+	go func() {
+		for !stop {
+			readHStore(t, store, N, 2)
+		}
+	}()
+	store.gcMgr.gc(bkt, 0, 2)
+	stop = true
+	readfunc()
 
 	n := 256 * numRecPerFile
 	checkDataSize(t, bkt.datas, []uint32{uint32(n), 0, 0, 256})
