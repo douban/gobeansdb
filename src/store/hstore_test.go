@@ -451,7 +451,15 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 }
 
 func TestGCMulti(t *testing.T) {
-	testGC(t, testGCMulti, "multi", 100)
+	testGC(t, testGCMulti, "multi", 10000)
+}
+
+func TestGCMultiFlush(t *testing.T) {
+	GCWriteBufferSize = 256
+	defer func() {
+		GCWriteBufferSize = GCWriteBufferSizeDefault
+	}()
+	testGC(t, testGCMulti, "multi", 1000)
 }
 
 func TestGCUpdateSame(t *testing.T) {

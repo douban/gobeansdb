@@ -9,6 +9,11 @@ import (
 	"utils"
 )
 
+var (
+	GCWriteBufferSizeDefault = uint32(1 << 20)
+	GCWriteBufferSize        = GCWriteBufferSizeDefault
+)
+
 type dataChunk struct {
 	sync.Mutex
 
@@ -56,7 +61,7 @@ func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error
 	}
 
 	dc.gcbufsize += size
-	if dc.gcbufsize > (1 << 20) {
+	if dc.gcbufsize > GCWriteBufferSize {
 		_, err = dc.flush(dc.gcWriter, true)
 		dc.gcbufsize = 0
 	}
