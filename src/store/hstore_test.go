@@ -271,9 +271,10 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
 		}
 	}
-	checkDataSize(t, bkt.datas, []uint32{1280, 256})
+	n := N * 256
+	checkDataSize(t, bkt.datas, []uint32{uint32(n), 256})
 	dir := utils.NewDir()
-	dir.Set("000.data", 1280)
+	dir.Set("000.data", int64(n))
 	dir.Set("000.000.idx.s", -1)
 	dir.Set("001.data", 256)
 	dir.Set("001.000.idx.s", -1)
@@ -330,9 +331,10 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
 		}
 	}
-	checkDataSize(t, bkt.datas, []uint32{1280, 256})
+	n := N * 256
+	checkDataSize(t, bkt.datas, []uint32{uint32(n), 256})
 	dir := utils.NewDir()
-	dir.Set("000.data", 1280)
+	dir.Set("000.data", int64(n))
 	dir.Set("000.000.idx.s", -1)
 	dir.Set("001.data", 256)
 	dir.Set("001.000.idx.s", -1)
@@ -397,9 +399,10 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 		}
 	}
 
-	checkDataSize(t, bkt.datas, []uint32{2560, 0, 0, 256})
+	n := 256 * numRecPerFile
+	checkDataSize(t, bkt.datas, []uint32{uint32(n), 0, 0, 256})
 	dir := utils.NewDir()
-	dir.Set("000.data", 2560)
+	dir.Set("000.data", int64(n))
 	dir.Set("000.000.idx.s", -1)
 	dir.Set("003.data", 256)
 	dir.Set("003.000.idx.s", -1)
@@ -414,20 +417,21 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 }
 
 func TestGCMulti(t *testing.T) {
-	testGC(t, testGCMulti, "multi")
+	testGC(t, testGCMulti, "multi", 100)
 }
 
 func TestGCUpdateSame(t *testing.T) {
-	testGC(t, testGCUpdateSame, "updateSame")
+	testGC(t, testGCUpdateSame, "updateSame", 100)
 }
 
 func TestGCDeleteSame(t *testing.T) {
-	testGC(t, testGCDeleteSame, "deleteSame")
+	testGC(t, testGCDeleteSame, "deleteSame", 100)
 }
 
 type testGCFunc func(t *testing.T, hstore *HStore, bucket, numRecPerFile int)
 
-func testGC(t *testing.T, casefunc testGCFunc, name string) {
+// numRecPerFile should be even
+func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 
 	setupTest(fmt.Sprintf("testGC_%s", name), 1)
 	defer clearTest()
@@ -443,7 +447,6 @@ func testGC(t *testing.T, casefunc testGCFunc, name string) {
 		getKeyHash = getKeyHashDefalut
 	}()
 
-	numRecPerFile := 10 // must be even
 	conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(numRecPerFile)))
 
 	conf.Init()
