@@ -506,6 +506,29 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
 		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
 	}
+
+	store.Close()
+	logger.Infof("closed")
+	store, err := NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	bkt = store.buckets[bucketID]
+	dir.Set("collision.yaml", -1)
+	checkFiles(t, bkt.Home, dir)
+	readfunc()
+
+	store.Close()
+	logger.Infof("closed")
+	utils.Remove(bkt.Home + "/003.000.idx.hash")
+	store, err = NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	bkt = store.buckets[bucketID]
+	dir.Delete("003.000.idx.hash")
+	checkFiles(t, bkt.Home, dir)
+	readfunc()
 }
 
 func TestGCMultiBigBuffer(t *testing.T) {
