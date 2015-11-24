@@ -434,6 +434,13 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	N := numRecPerFile
 
 	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i*(-1)-1, 0)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
@@ -471,7 +478,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if payload2 == nil || payload2.Ver != 3 || (string(payload.Body) != string(payload2.Body)) || (stop && pos != Position{0, uint32(PADDING * (i))}) {
+			if payload2 == nil || payload2.Ver != 3 || (string(payload.Body) != string(payload2.Body)) || (stop && pos != Position{1, uint32(PADDING * (i))}) {
 				if payload2 != nil {
 					t.Errorf("%d: exp %s, got %s", i, string(payload.Body), string(payload2.Body))
 				}
@@ -488,24 +495,29 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 			readHStore(t, store, N, 2)
 		}
 	}()
-	store.gcMgr.gc(bkt, 0, 2)
+	store.gcMgr.gc(bkt, 1, 3)
 	stop = true
 	readfunc()
 
 	n := 256 * numRecPerFile
-	checkDataSize(t, bkt.datas, []uint32{uint32(n), 0, 0, 256})
+	checkDataSize(t, bkt.datas, []uint32{uint32(n), uint32(n), 0, 0, 256})
 	dir := utils.NewDir()
 	dir.Set("000.data", int64(n))
 	dir.Set("000.000.idx.s", -1)
-	dir.Set("003.data", 256)
-	dir.Set("003.000.idx.s", -1)
-	dir.Set("003.000.idx.hash", -1)
+	dir.Set("001.data", int64(n))
+	dir.Set("001.000.idx.s", -1)
+	dir.Set("004.data", 256)
+	dir.Set("004.000.idx.s", -1)
+	dir.Set("004.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
 	checkFiles(t, bkt.Home, dir)
 
-	treeID := HintID{3, 0}
+	treeID := HintID{4, 0}
 	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
-		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
+		t.Fatalf("wrong treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
+	}
+	if bkt.hints.state != HintStateIdle {
+		t.Fatalf("wrong bkt.hints.stat %v", bkt.hints.state)
 	}
 
 	store.Close()
@@ -521,13 +533,13 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 
 	store.Close()
 	logger.Infof("closed")
-	utils.Remove(bkt.Home + "/003.000.idx.hash")
+	utils.Remove(bkt.Home + "/004.000.idx.hash")
 	store, err = NewHStore()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
 	bkt = store.buckets[bucketID]
-	dir.Delete("003.000.idx.hash")
+	dir.Delete("004.000.idx.hash")
 	checkFiles(t, bkt.Home, dir)
 	readfunc()
 }
