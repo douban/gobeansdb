@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"utils"
 )
 
 var (
@@ -236,6 +237,14 @@ func testGCUpdateSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
 		}
 	}
+	dir := utils.NewDir()
+	dir.Set("000.data", 1280)
+	dir.Set("000.000.idx.s", -1)
+	dir.Set("001.data", 256)
+	dir.Set("001.000.idx.s", -1)
+	dir.Set("001.000.idx.hash", -1)
+	dir.Set("nextgc.txt", 1)
+	checkFiles(t, store.buckets[bkt].Home, dir)
 }
 
 func testGCDeleteSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
@@ -277,6 +286,15 @@ func testGCDeleteSame(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
 		}
 	}
+	dir := utils.NewDir()
+	dir.Set("000.data", 1280)
+	dir.Set("000.000.idx.s", -1)
+	dir.Set("001.data", 256)
+	dir.Set("001.000.idx.s", -1)
+	dir.Set("001.000.idx.hash", -1)
+	dir.Set("nextgc.txt", 1)
+	checkFiles(t, store.buckets[bkt].Home, dir)
+
 }
 
 func testGCMulti(t *testing.T, store *HStore, bkt, numRecPerFile int) {
@@ -325,6 +343,15 @@ func testGCMulti(t *testing.T, store *HStore, bkt, numRecPerFile int) {
 			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
 		}
 	}
+
+	dir := utils.NewDir()
+	dir.Set("000.data", 2560)
+	dir.Set("000.000.idx.s", -1)
+	dir.Set("003.data", 256)
+	dir.Set("003.000.idx.s", -1)
+	dir.Set("003.000.idx.hash", -1)
+	dir.Set("nextgc.txt", 1)
+	checkFiles(t, store.buckets[bkt].Home, dir)
 }
 
 func TestGCMulti(t *testing.T) {

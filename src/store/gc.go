@@ -300,11 +300,12 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 			}
 			bkt.hints.set(ki, &meta, newPos, recsize)
 		}
+		bkt.hints.trydump(gc.Dst, true)
 
 		if gc.Src != gc.Dst {
 			bkt.datas.chunks[gc.Src].Clear()
 		}
-		if gc.Src > bkt.NextGCChunk {
+		if gc.Src >= bkt.NextGCChunk {
 			bkt.NextGCChunk = gc.Src
 			bkt.dumpGCHistroy()
 		}

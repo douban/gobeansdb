@@ -536,6 +536,7 @@ func (bkt *Bucket) loadGCHistroy() (err error) {
 }
 
 func (bkt *Bucket) dumpGCHistroy() {
+
 	p := bkt.getGCHistoryPath()
 	fd, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -544,5 +545,5 @@ func (bkt *Bucket) dumpGCHistroy() {
 	}
 	defer fd.Close()
 	fd.WriteString(fmt.Sprintf("%d", bkt.NextGCChunk))
-
+	logger.Infof("dump %s %d", p, bkt.NextGCChunk)
 }
