@@ -671,13 +671,23 @@ func (hm *hintMgr) loadHintsByChunk(chunkID int) (datasize uint32) {
 			logger.Errorf("fail to load hint: hintpath=%s", p)
 			utils.Remove(p)
 		} else {
+			logger.Infof("load hint %s datasize = %d", p, sp.file.datasize)
+			if sp.file.datasize < datasize {
+				logger.Errorf("later hint has smaller datasize %p %d < %d", p, sp.file.datasize, datasize)
+			} else {
+				datasize = sp.file.datasize
+			}
 			l := len(ck.splits)
+
 			bufsp := ck.splits[l-1]
 			ck.splits[l-1] = sp
 			ck.splits = append(ck.splits, bufsp)
 		}
 	}
-	return ck.splits[len(ck.splits)-2].file.datasize
+	if len(ck.splits) < 2 {
+		return 0
+	}
+	return
 }
 func (h *hintMgr) ClearChunks(min, max int) {
 	for i := min; i <= max; i++ {
