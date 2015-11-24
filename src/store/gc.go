@@ -179,6 +179,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 	gc.Running = true
 	defer func() {
 		gc.Running = false
+
 	}()
 	gc.Begin = startChunkID
 	gc.End = endChunkID
@@ -199,7 +200,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 			gc.Dst = i
 		}
 	}
-	dstchunk := bkt.datas.chunks[gc.Dst]
+	dstchunk := &bkt.datas.chunks[gc.Dst]
 	err := dstchunk.beginGCWriting(gc.Begin)
 	if err != nil {
 		gc.Err = err
@@ -281,7 +282,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 				gc.Dst++
 				newPos.ChunkID = gc.Dst
 
-				dstchunk = bkt.datas.chunks[gc.Dst]
+				dstchunk = &bkt.datas.chunks[gc.Dst]
 				err = dstchunk.beginGCWriting(gc.Src)
 				if err != nil {
 					gc.Err = err
