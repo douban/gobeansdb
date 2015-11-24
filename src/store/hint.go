@@ -338,7 +338,7 @@ func (by byKeyHash) Less(i, j int) bool {
 	b := by.data[by.idx[j]]
 	if a.Keyhash < b.Keyhash {
 		return true
-	} else if a.Keyhash < b.Keyhash {
+	} else if a.Keyhash > b.Keyhash {
 		return false
 	} else {
 		return a.Key < b.Key
