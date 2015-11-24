@@ -44,7 +44,9 @@ func (dc *dataChunk) AppendRecord(wrec *WriteRecord) {
 }
 
 func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error) {
+	wrec.pos.ChunkID = dc.chunkid
 	offset = dc.writingHead
+	wrec.pos.Offset = offset
 	dc.wbuf = append(dc.wbuf, wrec)
 	size := wrec.rec.Payload.RecSize
 
@@ -113,6 +115,11 @@ func (dc *dataChunk) GetRecordByOffsetInBuffer(offset uint32) (res *Record, err 
 	}
 
 	idx := sort.Search(n, func(i int) bool { return wbuf[i].pos.Offset >= offset })
+	if idx >= n {
+		err = fmt.Errorf("%d %d %d %d %d", n, idx, dc.size, dc.writingHead, offset)
+		logger.Errorf("%v", err)
+		return
+	}
 	wrec := wbuf[idx]
 	if wrec.pos.Offset == offset {
 		cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
