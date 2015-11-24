@@ -412,7 +412,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		// not remove for now: it may cause many sync
 		// bkt.htree.remove(ki, pos)
 		err = fmt.Errorf("bad htree item want (%s, %016x) got (%s, %016x), pos %x, inbuffer %v",
-			rec.Key, keyhash, ki.Key, ki.KeyHash, pos, inbuffer)
+			ki.Key, ki.KeyHash, rec.Key, keyhash, pos, inbuffer)
 		logger.Errorf("%s", err.Error())
 		return
 	}
