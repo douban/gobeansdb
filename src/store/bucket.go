@@ -403,6 +403,12 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 
 	keyhash := getKeyHash(rec.Key)
 	if keyhash != ki.KeyHash {
+		if inbuffer && pos.ChunkID < bkt.datas.newHead-1 {
+			logger.Warnf("get out-of-date pos during gc, should be rarely seen, omit it, pos %v", pos)
+			payload = nil
+			return
+		}
+
 		// not remove for now: it may cause many sync
 		// bkt.htree.remove(ki, pos)
 		err = fmt.Errorf("bad htree item want (%s, %016x) got (%s, %016x), pos %x, inbuffer %v",
