@@ -508,4 +508,82 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 	}
 
 	store.Close()
+	checkAllDataWithHints(bucketDir)
+}
+
+func checkDataWithHints(dir string, chunk int) error {
+	dpath := fmt.Sprintf("%s/%03d.data")
+	_, err := os.Stat(dpath)
+	hpat := fmt.Sprintf("%s/%03d.*")
+	hpaths, _ := filepath.Glob(hpat)
+	if err != nil {
+		if len(hpaths) > 0 {
+			return fmt.Errorf("%v should not exist", hpaths)
+		}
+	} else {
+		if len(hpaths) == 0 {
+			return fmt.Errorf("%v has no hints", dpath)
+		} else {
+			dm := make(map[string]*HintItemMeta)
+			ds, _ := newDataStreamReader(dpath, 1<<20)
+			defer ds.Close()
+			for {
+				rec, offset, _, err := ds.Next()
+				if err != nil {
+					return err
+				}
+				if rec == nil {
+					break
+				}
+				rec.Payload.Decompress()
+				rec.Payload.CalcValueHash()
+				dm[string(rec.Key)] = &HintItemMeta{getKeyHash(rec.Key), offset, rec.Payload.Ver, rec.Payload.ValueHash}
+			}
+			hm := make(map[string]*HintItemMeta)
+			for _, hp := range hpaths {
+				hs := newHintFileReader(hp, 0, 4<<10)
+				err := hs.open()
+				if err != nil {
+					return err
+				}
+				for {
+					it, err := hs.next()
+					if err != nil {
+						return err
+					}
+					if it == nil {
+						break
+					}
+					hm[it.Key] = &it.HintItemMeta
+				}
+			}
+			for k, v := range dm {
+				it, ok := hm[k]
+				if !ok {
+					return fmt.Errorf("data key %s not in hint", k)
+				}
+				if *it != *v {
+					return fmt.Errorf("key %s diff: %#v != %#v", k, it, v)
+				}
+				delete(hm, k)
+			}
+			n := len(hm)
+			if n > 0 {
+				for k, _ := range dm {
+					return fmt.Errorf("%d hint key not in data, one of them: %s", n, k)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func checkAllDataWithHints(dir string) error {
+	for i := 0; i < 256; i++ {
+		err := checkDataWithHints(dir, i)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
