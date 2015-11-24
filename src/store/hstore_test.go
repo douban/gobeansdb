@@ -98,7 +98,7 @@ func (g *KVGen) gen(ki *KeyInfo, i, ver int) (payload *Payload) {
 	value := fmt.Sprintf("value_%x_%d", i, ver)
 	payload = &Payload{
 		Meta: Meta{
-			TS:  uint32(i),
+			TS:  uint32(i + 1),
 			Ver: 0},
 	}
 	payload.Body = []byte(value)
@@ -288,6 +288,61 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	}
 }
 
+func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+	gen := newKVGen(16)
+
+	var ki KeyInfo
+	N := numRecPerFile
+	logger.Infof("test gc all updated in the same file")
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 0)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store.flushdatas(true)
+	payload := gen.gen(&ki, -1, 0) // rotate
+	if err := store.Set(&ki, payload); err != nil {
+		t.Fatal(err)
+	}
+	store.flushdatas(true)
+
+	bkt := store.buckets[bucketID]
+	store.gcMgr.gc(bkt, 0, 0)
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 0)
+		payload2, pos, err := store.Get(&ki, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if payload2 != nil {
+			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+		}
+		if !(payload2 != nil && len(payload2.Body) != 0 && payload2.Ver == 1 &&
+			payload2.TS == uint32(i+1) && pos == Position{0, uint32(PADDING * (i))}) {
+			if payload2 != nil {
+				t.Errorf("%d: exp %s, got %#v", i, string(payload.Body), string(payload2.Body))
+			}
+			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
+		}
+	}
+	n := N * 256
+	checkDataSize(t, bkt.datas, []uint32{uint32(n), 256})
+	dir := utils.NewDir()
+	dir.Set("000.data", int64(n))
+	dir.Set("000.000.idx.s", -1)
+	dir.Set("001.data", 256)
+	dir.Set("001.000.idx.s", -1)
+	dir.Set("001.000.idx.hash", -1)
+	dir.Set("nextgc.txt", 1)
+	checkFiles(t, bkt.Home, dir)
+
+	treeID := HintID{1, 0}
+	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
+	}
+}
+
 func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 
@@ -300,9 +355,12 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 			t.Fatal(err)
 		}
 	}
+	tsShift := 8
 	for i := 0; i < N; i++ {
 		gen.gen(&ki, i, 1)
-		if err := store.Set(&ki, GetPayloadForDelete()); err != nil {
+		p := GetPayloadForDelete()
+		p.TS = uint32(i + tsShift)
+		if err := store.Set(&ki, p); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -324,7 +382,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
 		}
 		if !(payload2 != nil && len(payload2.Body) == 0 && payload2.Ver == -2 &&
-			payload2.TS != 0 && pos == Position{0, uint32(PADDING * (i))}) {
+			payload2.TS == uint32(i+tsShift) && pos == Position{0, uint32(PADDING * (i))}) {
 			if payload2 != nil {
 				t.Errorf("%d: exp %s, got %#v", i, string(payload.Body), payload2.Body)
 			}
@@ -450,16 +508,20 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	}
 }
 
-func TestGCMulti(t *testing.T) {
-	testGC(t, testGCMulti, "multi", 10000)
+func TestGCMultiBigBuffer(t *testing.T) {
+	testGC(t, testGCMulti, "multiBig", 10000)
 }
 
-func TestGCMultiFlush(t *testing.T) {
+func TestGCMultiSmallBuffer(t *testing.T) {
 	GCWriteBufferSize = 256
 	defer func() {
 		GCWriteBufferSize = GCWriteBufferSizeDefault
 	}()
-	testGC(t, testGCMulti, "multi", 1000)
+	testGC(t, testGCMulti, "multiSmalll", 1000)
+}
+
+func TestGCNothing(t *testing.T) {
+	testGC(t, testGCNothing, "nothing", 100)
 }
 
 func TestGCUpdateSame(t *testing.T) {
