@@ -129,7 +129,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 	return nil
 }
 
-func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, err error) {
+func (ds *dataStore) GetRecordByPos(pos Position) (res *Record, inbuffer bool, err error) {
 	return ds.chunks[pos.ChunkID].GetRecordByOffset(pos.Offset)
 }
 

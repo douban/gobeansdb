@@ -382,13 +382,13 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		return // omit collision
 	}
 
-	rec, err = bkt.datas.GetRecordByPos(pos)
+	rec, inbuffer, err := bkt.datas.GetRecordByPos(pos)
 	if err != nil {
 		// not remove for now: it may cause many sync
 		// bkt.htree.remove(ki, pos)
 		return
 	} else if rec == nil {
-		err = fmt.Errorf("bad htree item, get nothing,  pos %v", pos)
+		err = fmt.Errorf("bad htree item, get nothing, key %s pos %v inbuffer %v", ki.Key, pos, inbuffer)
 		logger.Errorf("%s", err.Error())
 		return
 	} else if bytes.Compare(rec.Key, ki.Key) == 0 {
@@ -405,7 +405,8 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	if keyhash != ki.KeyHash {
 		// not remove for now: it may cause many sync
 		// bkt.htree.remove(ki, pos)
-		err = fmt.Errorf("bad htree item %016x != %016x, pos %v", keyhash, ki.KeyHash, pos)
+		err = fmt.Errorf("bad htree item want (%s, %016x) got (%s, %016x), pos %x, inbuffer %v",
+			rec.Key, keyhash, ki.Key, ki.KeyHash, pos, inbuffer)
 		logger.Errorf("%s", err.Error())
 		return
 	}
@@ -428,7 +429,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	hintit.Pos = pos.encode()
 	bkt.hints.collisions.compareAndSet(hintit) // the one not in htree
 
-	rec2, err := bkt.datas.GetRecordByPos(pos)
+	rec2, _, err := bkt.datas.GetRecordByPos(pos)
 	if err != nil {
 		logger.Errorf("%s", err.Error())
 		return
@@ -499,7 +500,7 @@ func (bkt *Bucket) getInfo() *BucketInfo {
 	return &bkt.BucketInfo
 }
 
-func (bkt *Bucket) GetRecordByKeyHash(ki *KeyInfo) (rec *Record, err error) {
+func (bkt *Bucket) GetRecordByKeyHash(ki *KeyInfo) (rec *Record, inbuffer bool, err error) {
 	_, pos, found := bkt.htree.get(ki)
 	if !found {
 		return

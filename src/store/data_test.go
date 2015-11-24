@@ -107,7 +107,7 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 		// TODO: check pos
 		ds.flush(-1, true)
 		r = nil
-		r, err = ds.GetRecordByPos(pos)
+		r, _, err = ds.GetRecordByPos(pos)
 		if err != nil {
 			log.Fatal(err.Error())
 		}

@@ -125,21 +125,23 @@ func (dc *dataChunk) GetRecordByOffsetInBuffer(offset uint32) (res *Record, err 
 	return
 }
 
-func (dc *dataChunk) GetRecordByOffset(offset uint32) (res *Record, err error) {
+func (dc *dataChunk) GetRecordByOffset(offset uint32) (res *Record, inbuffer bool, err error) {
 	res, err = dc.GetRecordByOffsetInBuffer(offset)
 	if err != nil {
+		inbuffer = true
 		return
 	}
 	if res != nil {
+		inbuffer = true
 		res.Payload.Decompress()
 		return
 	}
 	wrec, e := readRecordAtPath(dc.path, offset)
 	if e != nil {
-		return nil, e
+		return nil, false, e
 	}
 	wrec.rec.Payload.Decompress()
-	return wrec.rec, nil
+	return wrec.rec, false, nil
 }
 
 func (dc *dataChunk) Truncate(size uint32) error {

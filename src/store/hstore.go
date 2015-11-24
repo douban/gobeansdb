@@ -363,11 +363,11 @@ func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 	return bkt.checkAndSet(ki, p)
 }
 
-func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, error) {
+func (store *HStore) GetRecordByKeyHash(ki *KeyInfo) (*Record, bool, error) {
 	ki.Prepare()
 	bkt := store.buckets[ki.BucketID]
 	if bkt.State != BUCKET_STAT_READY {
-		return nil, nil
+		return nil, false, nil
 	}
 	return bkt.GetRecordByKeyHash(ki)
 }
