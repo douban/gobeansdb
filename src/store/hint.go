@@ -391,9 +391,9 @@ func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
 		if splits[j].needDump() {
 			ck.rotate()
 			ck.lastTS = 0
+			h.dump(chunkID, j)
+			silence = 0
 		}
-		h.dump(chunkID, j)
-		silence = 0
 	} else {
 		silence = s
 	}
