@@ -234,7 +234,7 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 	}
 	wrec.decodeHeader()
 	if wrec.ksz > 250 || wrec.ksz <= 0 { // TODO
-		logger.Fatalf("bad key len %s %d %d %d", stream.fd.Name(), stream.offset, wrec.ksz, wrec.vsz)
+		logger.Errorf("bad key len %s %d %d %d", stream.fd.Name(), stream.offset, wrec.ksz, wrec.vsz)
 		return stream.nextValid()
 	}
 
