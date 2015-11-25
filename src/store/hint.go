@@ -515,7 +515,7 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) (ro
 func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) (rotated bool) {
 	rotated = h.chunks[chunkID].set(it, recSize)
 	if rotated {
-		if mergeChan != nil {
+		if mergeChan != nil && chunkID >= h.maxChunkID {
 			select {
 			case mergeChan <- 1:
 			default:
