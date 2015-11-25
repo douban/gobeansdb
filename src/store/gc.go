@@ -188,7 +188,6 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 	var newPos Position
 	var rec *Record
 	var r *DataStreamReader
-	mfs := uint32(conf.DataFileMax)
 
 	mgr.BeforeBucket(bkt, startChunkID, endChunkID)
 	defer mgr.AfterBucket(bkt)
@@ -278,7 +277,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 				continue
 			}
 
-			if recsize+dstchunk.writingHead > mfs {
+			if recsize+dstchunk.writingHead > uint32(conf.DataFileMax) {
 				dstchunk.endGCWriting()
 
 				gc.Dst++

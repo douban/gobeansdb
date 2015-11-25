@@ -206,7 +206,7 @@ func handleKeyhash(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ki := &store.KeyInfo{StringKey: path, Key: []byte(path), KeyIsPath: true}
-	rec, err := storage.hstore.GetRecordByKeyHash(ki)
+	rec, _, err := storage.hstore.GetRecordByKeyHash(ki)
 	if err != nil {
 		w.Write([]byte(err.Error()))
 		return

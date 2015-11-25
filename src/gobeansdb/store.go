@@ -117,7 +117,7 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 				return nil, fmt.Errorf("bad command line format") //FIXME: SERVER_ERROR
 			}
 			ki := s.prepare(key2, true)
-			rec, err := s.hstore.GetRecordByKeyHash(ki)
+			rec, _, err := s.hstore.GetRecordByKeyHash(ki)
 			if err != nil {
 				return nil, err
 			} else if rec == nil {
