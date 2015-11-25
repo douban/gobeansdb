@@ -81,7 +81,12 @@ func (mgr *GCMgr) UpdateCollision(bkt *Bucket, ki *KeyInfo, oldPos, newPos Posit
 
 func (mgr *GCMgr) UpdateHtreePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position) {
 	// TODO: should be a api of htree to be atomic
-	meta, pos, _ := bkt.htree.get(ki)
+	meta, pos, ok := bkt.htree.get(ki)
+	if !ok {
+		logger.Warnf("old key removed when updating pos bucket %d %s %#v %#v",
+			bkt.ID, ki.StringKey, meta, oldPos)
+		return
+	}
 	if pos != oldPos {
 		logger.Warnf("old key update when updating pos bucket %d %s %#v %#v",
 			bkt.ID, ki.StringKey, meta, oldPos)
