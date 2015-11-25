@@ -363,7 +363,7 @@ func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 	return nil
 }
 
-func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
+func (h *hintMgr) trydump(chunkID int, dumplast bool) (silence int64) {
 	ck := h.chunks[chunkID]
 	ck.Lock()
 	defer ck.Unlock()
@@ -379,7 +379,7 @@ func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
 		}
 	}
 
-	if !force && chunkID == h.maxChunkID {
+	if !dumplast && chunkID == h.maxChunkID {
 		return
 	}
 
@@ -387,7 +387,7 @@ func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
 		return
 	}
 	s := ck.silenceTime()
-	if force || s <= 0 {
+	if dumplast || s <= 0 {
 		if splits[j].needDump() {
 			ck.rotate()
 			ck.lastTS = 0
@@ -501,7 +501,7 @@ func (h *hintMgr) Merge(forGC bool) (err error) {
 	return
 }
 
-func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
+func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) (rotated bool) {
 	it := newHintItem(ki.KeyHash, meta.Ver, meta.ValueHash, Position{0, pos.Offset}, ki.StringKey)
 	_, ok := h.collisions.get(ki.KeyHash, ki.StringKey)
 	if ok {
@@ -509,11 +509,11 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
 		it2.Pos |= uint32(pos.ChunkID)
 		h.collisions.compareAndSet(&it2)
 	}
-	h.setItem(it, pos.ChunkID, recSize)
+	return h.setItem(it, pos.ChunkID, recSize)
 }
 
-func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
-	rotated := h.chunks[chunkID].set(it, recSize)
+func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) (rotated bool) {
+	rotated = h.chunks[chunkID].set(it, recSize)
 	if rotated {
 		if mergeChan != nil {
 			select {
@@ -533,6 +533,7 @@ func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
 		}
 		h.Unlock()
 	}
+	return
 }
 
 func (h *hintMgr) forceRotateSplit() {

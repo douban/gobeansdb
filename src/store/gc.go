@@ -313,7 +313,10 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 			} else {
 				mgr.UpdateHtreePos(bkt, ki, oldPos, newPos)
 			}
-			bkt.hints.set(ki, &meta, newPos, recsize)
+			rotated := bkt.hints.set(ki, &meta, newPos, recsize)
+			if rotated {
+				bkt.hints.trydump(gc.Dst, false)
+			}
 		}
 		bkt.hints.trydump(gc.Dst, true)
 
