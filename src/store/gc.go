@@ -163,8 +163,8 @@ func (bkt *Bucket) gcCheckRange(startChunkID, endChunkID, noGCDays int) (start, 
 	if end, err = bkt.gcCheckEnd(start, endChunkID, noGCDays); err != nil {
 		return
 	}
-	if end <= start {
-		err = fmt.Errorf("end %d <= start %d, nothing to gc", end, start)
+	if end < start {
+		err = fmt.Errorf("end %d < start %d, nothing to gc", end, start)
 	}
 	return
 }
