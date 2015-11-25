@@ -140,7 +140,7 @@ func (bkt *Bucket) gcCheckEnd(start, endChunkID, noGCDays int) (end int, err err
 		if err != nil {
 			return
 		}
-		if time.Now().Unix()-ts < int64(noGCDays)*86400 {
+		if time.Now().Unix()-ts > int64(noGCDays)*86400 {
 			for end = next - 1; end >= start; end-- {
 				if bkt.datas.chunks[end].size >= 0 {
 					return
@@ -152,10 +152,14 @@ func (bkt *Bucket) gcCheckEnd(start, endChunkID, noGCDays int) (end int, err err
 	return
 }
 
-func (bkt *Bucket) gcCheckStart(startChunkID int) (start int) {
+func (bkt *Bucket) gcCheckStart(startChunkID int) (start int, err error) {
 	if startChunkID < 0 {
 		start = bkt.NextGCChunk
+	} else if startChunkID > bkt.datas.newHead {
+		err = fmt.Errorf("startChunkID > bkt.datas.newHead ")
+		return
 	} else {
+
 		start = startChunkID
 	}
 	for ; start < bkt.datas.newHead; start++ {
@@ -167,7 +171,9 @@ func (bkt *Bucket) gcCheckStart(startChunkID int) (start int) {
 }
 
 func (bkt *Bucket) gcCheckRange(startChunkID, endChunkID, noGCDays int) (start, end int, err error) {
-	start = bkt.gcCheckStart(startChunkID)
+	if start, err = bkt.gcCheckStart(startChunkID); err != nil {
+		return
+	}
 	if end, err = bkt.gcCheckEnd(start, endChunkID, noGCDays); err != nil {
 		return
 	}
