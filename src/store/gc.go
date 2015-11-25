@@ -221,7 +221,10 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 		return
 	}
 	newPos.ChunkID = gc.Dst
-	defer dstchunk.endGCWriting()
+	defer func() {
+		dstchunk.endGCWriting()
+		bkt.hints.trydump(gc.Dst, true)
+	}()
 
 	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {
 		if bkt.datas.chunks[gc.Src].size <= 0 {
@@ -284,13 +287,14 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 			wrec := wrapRecord(rec)
 			recsize := wrec.rec.Payload.RecSize
 			fileState.addRecord(recsize, isNewest, isDeleted, sizeBroken)
-			// logger.Infof("%v %v %v %v", ki.StringKey, isNewest, isCollision, isDeleted)
+			// logger.Infof("%v %v %v %v", ki.StringKey, isNewest, isCoverdByCollision, isDeleted)
 			if !isNewest {
 				continue
 			}
 
 			if recsize+dstchunk.writingHead > uint32(conf.DataFileMax) {
 				dstchunk.endGCWriting()
+				bkt.hints.trydump(gc.Dst, true)
 
 				gc.Dst++
 				newPos.ChunkID = gc.Dst
@@ -307,7 +311,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 				logger.Errorf("gc failed: %s", err.Error())
 				return
 			}
-			// logger.Infof("%s %#v %#v", ki.StringKey, newPos, meta)
+			// logger.Infof("%s %v %v", ki.StringKey, newPos, meta)
 			if isCoverdByCollision {
 				mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
 			} else {
@@ -318,7 +322,6 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 				bkt.hints.trydump(gc.Dst, false)
 			}
 		}
-		bkt.hints.trydump(gc.Dst, true)
 
 		if gc.Src != gc.Dst {
 			bkt.datas.chunks[gc.Src].Clear()

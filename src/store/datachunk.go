@@ -171,9 +171,11 @@ func (dc *dataChunk) Truncate(size uint32) error {
 }
 
 func (dc *dataChunk) beginGCWriting(srcChunk int) (err error) {
+	logger.Infof("BeginGCWriting chunk %d from %d rewrite %v size %d wsize %d ", dc.chunkid, srcChunk, dc.rewriting, dc.size, dc.writingHead)
 	if dc.chunkid == srcChunk {
 		dc.rewriting = true
 		dc.writingHead = 0
+		logger.Infof("rewrite %s", dc.path)
 	} else {
 		dc.writingHead = dc.size
 	}
@@ -185,6 +187,7 @@ func (dc *dataChunk) beginGCWriting(srcChunk int) (err error) {
 }
 
 func (dc *dataChunk) endGCWriting() (err error) {
+	logger.Infof("endGCWriting chunk %d rewrite %v size %d wsize%d ", dc.chunkid, dc.rewriting, dc.size, dc.writingHead)
 	if dc.gcWriter != nil {
 		_, err = dc.flush(dc.gcWriter, true)
 		dc.gcWriter.Close()

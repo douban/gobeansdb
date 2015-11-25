@@ -415,11 +415,11 @@ func readHStore(t *testing.T, store *HStore, n, v int) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if payload2 == nil || payload2.Ver != 3 || (string(payload.Body) != string(payload2.Body)) {
+		if payload2 == nil || payload2.Ver != 2 || (string(payload.Body) != string(payload2.Body)) {
 			if payload2 != nil {
-				t.Errorf("%d: exp %s, got %s", i, string(payload.Body), string(payload2.Body))
+				t.Errorf("%d: exp %s, got %s %#v", i, string(payload.Body), string(payload2.Body), payload2.Meta)
 			}
-			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
+			t.Fatalf("%d: pos %#v", i, pos)
 		}
 		if payload2 != nil {
 			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
@@ -428,20 +428,31 @@ func readHStore(t *testing.T, store *HStore, n, v int) {
 }
 
 func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+	conf.BodyMax = 512
+	defer func() {
+		conf.BodyMax = 50 << 20
+	}()
 	gen := newKVGen(16)
 
 	var ki KeyInfo
 	N := numRecPerFile
 
-	for i := 0; i < N; i++ {
-		payload := gen.gen(&ki, i*(-1)-1, 0)
+	for i := 0; i < N/2; i++ {
+		payload := gen.gen(&ki, i*(-1)-N, 0)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
 	}
+	store.Close()
+	logger.Infof("closed")
+
+	store, err := NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
 
 	for i := 0; i < N; i++ {
-		payload := gen.gen(&ki, i, 0)
+		payload := gen.gen(&ki, i*(-1)-N*2, 0)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -478,11 +489,15 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if payload2 == nil || payload2.Ver != 3 || (string(payload.Body) != string(payload2.Body)) || (stop && pos != Position{1, uint32(PADDING * (i))}) {
+			pos2 := Position{1, uint32(PADDING * (i + N/2))}
+			if i >= N/2 {
+				pos2 = Position{2, uint32(PADDING * (i - N/2))}
+			}
+			if payload2 == nil || payload2.Ver != 2 || (string(payload.Body) != string(payload2.Body)) || (stop && pos != pos2) {
 				if payload2 != nil {
-					t.Errorf("%d: exp %s, got %s", i, string(payload.Body), string(payload2.Body))
+					t.Errorf("%d: exp %s, got %s %#v", i, string(payload.Body), string(payload2.Body), payload2.Meta)
 				}
-				t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
+				t.Fatalf("%d: exp %#v got %#v", i, pos2, pos)
 			}
 			if payload2 != nil {
 				cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
@@ -500,16 +515,20 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	readfunc()
 
 	n := 256 * numRecPerFile
-	checkDataSize(t, bkt.datas, []uint32{uint32(n), uint32(n), 0, 0, 256})
+	checkDataSize(t, bkt.datas, []uint32{uint32(n), uint32(n), uint32(n / 2), 0, 256})
 	dir := utils.NewDir()
 	dir.Set("000.data", int64(n))
 	dir.Set("000.000.idx.s", -1)
+	dir.Set("000.001.idx.s", -1)
 	dir.Set("001.data", int64(n))
 	dir.Set("001.000.idx.s", -1)
+	dir.Set("002.data", int64(n/2))
+	dir.Set("002.000.idx.s", -1)
 	dir.Set("004.data", 256)
 	dir.Set("004.000.idx.s", -1)
 	dir.Set("004.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
+	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{4, 0}
@@ -522,7 +541,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 
 	store.Close()
 	logger.Infof("closed")
-	store, err := NewHStore()
+	store, err = NewHStore()
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
