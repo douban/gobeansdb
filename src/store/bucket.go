@@ -545,7 +545,7 @@ func (bkt *Bucket) loadGCHistroy() (err error) {
 func (bkt *Bucket) dumpGCHistroy() {
 
 	p := bkt.getGCHistoryPath()
-	fd, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0644)
+	fd, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		logger.Errorf("%v", err)
 		return
