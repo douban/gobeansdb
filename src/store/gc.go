@@ -38,6 +38,8 @@ type GCFileState struct {
 	SizeReleased       uint32
 	SizeDeleted        uint32
 	SizeBroken         uint32
+
+	NumNotInHtree int
 }
 
 func (s *GCFileState) add(s2 *GCFileState) {
@@ -48,6 +50,7 @@ func (s *GCFileState) add(s2 *GCFileState) {
 	s.SizeBroken += s2.SizeBroken
 	s.SizeDeleted += s2.SizeDeleted
 	s.SizeReleased += s2.SizeReleased
+	s.NumNotInHtree += s2.NumNotInHtree
 }
 
 func (s *GCFileState) addRecord(size uint32, isNewest, isDeleted bool, sizeBroken uint32) {
@@ -262,11 +265,9 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 						}
 					}
 				}
-			} else { // should not happen
-				logger.Errorf("gc old key not found in htree bucket %d %#v %#v %#v",
-					bkt.ID, ki, meta, oldPos)
-				isNewest = true
-				meta.ValueHash = rec.Payload.Getvhash()
+			} else {
+				// deleted recs is removed from htree during start up
+				fileState.NumNotInHtree += 1
 			}
 
 			wrec := wrapRecord(rec)
