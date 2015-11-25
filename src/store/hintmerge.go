@@ -126,7 +126,7 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 	h := mergeHeap(hp)
 	heap.Init(&h)
 	for len(h) > 0 {
-		if *hintState&HintStateGC != 0 {
+		if *hintState&HintStateGC != 0 && !forGC {
 			err = fmt.Errorf("aborted by gc")
 			break
 		}

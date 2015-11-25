@@ -490,10 +490,10 @@ func (h *hintMgr) Merge(forGC bool) (err error) {
 	}
 	dst := h.getPath(maxid.Chunk, maxid.Split, true)
 	// since we DO NOT check collision in hint bufffer, merger even if only one idx.s
-	logger.Infof("to merge %s from %v", dst, names)
+	logger.Infof("to merge %s forGC=%v from %v", dst, forGC, names)
 	index, err := merge(readers, dst, h.collisions, &h.state, forGC)
 	if err != nil {
-		logger.Errorf("merge to %s fail: %v", dst, err)
+		logger.Errorf("merge to %s forGC=%v fail: %v", dst, forGC, err)
 		return
 	}
 	h.merged = index
