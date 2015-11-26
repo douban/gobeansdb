@@ -253,7 +253,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	}
 	store.flushdatas(true)
 	bkt := store.buckets[bucketID]
-	store.gcMgr.gc(bkt, 0, 0)
+	store.gcMgr.gc(bkt, 0, 0, true)
 
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
@@ -308,7 +308,7 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	store.flushdatas(true)
 
 	bkt := store.buckets[bucketID]
-	store.gcMgr.gc(bkt, 0, 0)
+	store.gcMgr.gc(bkt, 0, 0, true)
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
 		payload2, pos, err := store.Get(&ki, false)
@@ -371,7 +371,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	}
 	store.flushdatas(true)
 	bkt := store.buckets[bucketID]
-	store.gcMgr.gc(bkt, 0, 0)
+	store.gcMgr.gc(bkt, 0, 0, true)
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
 		payload2, pos, err := store.Get(&ki, false)
@@ -510,7 +510,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 			readHStore(t, store, N, 2)
 		}
 	}()
-	store.gcMgr.gc(bkt, 1, 3)
+	store.gcMgr.gc(bkt, 1, 3, true)
 	stop = true
 	readfunc()
 
@@ -607,7 +607,7 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 		t.Fatal(err)
 	}
 	store.flushdatas(true)
-	store.gcMgr.gc(bkt, 1, 1)
+	store.gcMgr.gc(bkt, 1, 1, true)
 	readfunc := func() {
 		for i := 0; i < N; i++ {
 			payload := gen.gen(&ki, i, 1)

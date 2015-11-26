@@ -240,15 +240,19 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer handleWebPanic(w)
+	var result string
 	var err error
 	var bucketID int64
 	var pretend bool
 	defer func() {
 		if err != nil {
-			w.Write([]byte(err.Error()))
-		} else if !pretend {
-			resp := fmt.Sprintf("ok, goto /bucket/%d", bucketID)
-			w.Write([]byte(resp))
+			w.Write([]byte("err :" + err.Error()))
+		} else {
+			if !pretend {
+				result2 := fmt.Sprintf(" <a href='/bucket/%d'> /bucket/%d </a> <p/>", bucketID, bucketID)
+				result = result2 + result
+			}
+			w.Write([]byte(result))
 		}
 	}()
 
@@ -272,8 +276,13 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 
 	s := r.FormValue("run")
 	pretend = (s != "true")
-	start, end, err = storage.hstore.GC(int(bucketID), start, end, noGCDays, pretend)
-	if err == nil && pretend {
-		w.Write([]byte(fmt.Sprintf("pretend bucket %d, start %d, end %d", bucketID, start, end)))
+
+	s = r.FormValue("merge")
+	merge := (s == "true")
+
+	start, end, err = storage.hstore.GC(int(bucketID), start, end, noGCDays, merge, pretend)
+	if err == nil {
+		result = fmt.Sprintf("<p/> bucket %d, start %d, end %d, merge %v, pretend %v <p/>",
+			bucketID, start, end, merge, pretend)
 	}
 }

@@ -95,7 +95,7 @@ func (mgr *GCMgr) UpdateHtreePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Positi
 	bkt.htree.set(ki, meta, newPos)
 }
 
-func (mgr *GCMgr) BeforeBucket(bkt *Bucket, startChunkID, endChunkID int) {
+func (mgr *GCMgr) BeforeBucket(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	bkt.hints.state |= HintStateGC // will about
 	for bkt.hints.state&HintStateMerge != 0 {
 		logger.Infof("gc wait for merge to stop")
@@ -107,10 +107,14 @@ func (mgr *GCMgr) BeforeBucket(bkt *Bucket, startChunkID, endChunkID int) {
 	// so will not wrongly GC a collision record. e.g.:
 	//   key1 and key2 have the same keyhash, key1 is set before gc, and key2 after that.
 	bkt.hints.maxDumpableChunkID = endChunkID - 1
-	bkt.hints.forceRotateSplit()
-	time.Sleep(time.Duration(SecsBeforeDump+1) * time.Second)
-	bkt.hints.dumpAndMerge(true) // TODO: should not dump idx.m!
-	bkt.hints.Merge(true)
+	if merge {
+		bkt.hints.forceRotateSplit()
+		time.Sleep(time.Duration(SecsBeforeDump+1) * time.Second)
+		bkt.hints.dumpAndMerge(true) // TODO: should not dump idx.m!
+		bkt.hints.Merge(true)
+	} else {
+		bkt.hints.RemoveMerged()
+	}
 
 	// remove hints
 	bkt.removeHtree()
@@ -183,7 +187,7 @@ func (bkt *Bucket) gcCheckRange(startChunkID, endChunkID, noGCDays int) (start, 
 	return
 }
 
-func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
+func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 
 	logger.Infof("begin GC bucket %d chunk [%d, %d]", bkt.ID, startChunkID, endChunkID)
 
@@ -203,7 +207,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int) {
 	var rec *Record
 	var r *DataStreamReader
 
-	mgr.BeforeBucket(bkt, startChunkID, endChunkID)
+	mgr.BeforeBucket(bkt, startChunkID, endChunkID, merge)
 	defer mgr.AfterBucket(bkt)
 
 	gc.Dst = startChunkID

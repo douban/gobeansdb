@@ -302,7 +302,7 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 	return store.ListUpper(ki)
 }
 
-func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, pretend bool) (begin, end int, err error) {
+func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge, pretend bool) (begin, end int, err error) {
 	if bucketID >= conf.NumBucket {
 		err = fmt.Errorf("bad bucket id: %d", bucketID)
 		return
@@ -323,7 +323,7 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, preten
 	if pretend {
 		return
 	}
-	go store.gcMgr.gc(bkt, begin, end)
+	go store.gcMgr.gc(bkt, begin, end, merge)
 	return
 }
 
