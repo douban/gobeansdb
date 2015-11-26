@@ -20,7 +20,7 @@ func randomValue(size int) []byte {
 }
 
 func checkFileSize(t *testing.T, chunkID int, size uint32) {
-	path := genPath(conf.Homes[0], chunkID)
+	path := genDataPath(conf.Homes[0], chunkID)
 	stat, err := os.Stat(path)
 	if size == 0 {
 		if err == nil {
@@ -107,7 +107,7 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 		// TODO: check pos
 		ds.flush(-1, true)
 		r = nil
-		r, err = ds.GetRecordByPos(pos)
+		r, _, err = ds.GetRecordByPos(pos)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
@@ -152,7 +152,7 @@ func TestDataBroken(t *testing.T) {
 	}
 	ds.flush(-1, true)
 
-	path := genPath(conf.Homes[0], 0)
+	path := genDataPath(conf.Homes[0], 0)
 	fd, err := os.OpenFile(path, os.O_WRONLY, 0664)
 	if err != nil {
 		t.Fatalf(err.Error())

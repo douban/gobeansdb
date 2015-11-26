@@ -11,7 +11,14 @@ import (
 )
 
 const (
-	SecsBeforeDumpDefault = int64(10)
+	SecsBeforeDumpDefault = int64(5)
+	HintStateIdle         = 0
+)
+
+const (
+	HintStateDump = 1 << iota
+	HintStateMerge
+	HintStateGC
 )
 
 var (
@@ -83,11 +90,11 @@ type HintStatus struct {
 }
 
 type hintBuffer struct {
-	maxoffset uint32
-	expsize   int
-	keys      map[string]int
-	keyhashs  map[uint64]bool
-	array     []*HintItem
+	maxoffset  uint32
+	index      map[uint64]int
+	collisions map[uint64]map[string]int
+	items      []*HintItem
+	num        int
 }
 
 type hintSplit struct {
@@ -97,8 +104,8 @@ type hintSplit struct {
 
 func newHintBuffer() *hintBuffer {
 	buf := &hintBuffer{}
-	buf.keys = make(map[string]int)
-	buf.keyhashs = make(map[uint64]bool)
+	buf.index = make(map[uint64]int)
+	buf.collisions = make(map[uint64]map[string]int)
 	return buf
 }
 
@@ -107,23 +114,40 @@ func newHintSplit() *hintSplit {
 }
 
 func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
-	if len(h.keys) == 0 {
-		h.array = make([]*HintItem, conf.SplitCap)
+	if len(h.index) == 0 {
+		h.items = make([]*HintItem, conf.SplitCap)
 	}
 
-	idx, found := h.keys[it.Key]
+	idx, found := h.index[it.Keyhash]
+	iscollision := false
+	if found && it.Key != h.items[idx].Key {
+		iscollision = true
+		var keys map[string]int
+		keys, found = h.collisions[it.Keyhash]
+		if found {
+			idx, found = keys[it.Key]
+		} else {
+			keys = make(map[string]int)
+			keys[h.items[idx].Key] = idx
+			h.collisions[it.Keyhash] = keys
+		}
+	}
 	if !found {
-		h.expsize += len(it.Key) + 8*4 // meta and at least 4 pointers
-		idx = len(h.keys)
-		if idx >= len(h.array) {
+		idx = h.num
+		if idx >= len(h.items) {
 			if it.Pos > h.maxoffset {
 				h.maxoffset = it.Pos
 			}
 			return false
 		}
-		h.keys[it.Key] = idx
+		h.num += 1
 	}
-	h.array[idx] = it
+	h.items[idx] = it
+	h.index[it.Keyhash] = idx
+	if iscollision {
+		h.collisions[it.Keyhash][it.Key] = idx
+	}
+
 	end := it.Pos + recSize
 	if end > h.maxoffset {
 		h.maxoffset = end
@@ -131,27 +155,37 @@ func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
 	return true
 }
 
-func (h *hintBuffer) get(key string) *HintItem {
-	idx, found := h.keys[key]
+func (h *hintBuffer) get(keyhash uint64, key string) (it *HintItem, iscollision bool) {
+	idx, found := h.index[keyhash]
 	if found {
-		return h.array[idx]
+		if key != h.items[idx].Key {
+			iscollision = true
+			var keys map[string]int
+			keys, found = h.collisions[keyhash]
+			if found {
+				idx, found = keys[key]
+			}
+		}
 	}
-	return nil
+	if found {
+		it = h.items[idx]
+	}
+	return
 }
 
 func (h *hintBuffer) dump(path string) (index *hintFileIndex, err error) {
-	n := len(h.keys)
+	n := h.num
 	arr := make([]int, n)
 	for i := 0; i < n; i++ {
 		arr[i] = i
 	}
-	sort.Sort(&byKeyHash{arr, h.array})
+	sort.Sort(&byKeyHash{arr, h.items})
 	w, err := newHintFileWriter(path, h.maxoffset, 1<<20)
 	if err != nil {
 		return
 	}
 	for _, idx := range arr {
-		err = w.writeItem(h.array[idx])
+		err = w.writeItem(h.items[idx])
 		if err != nil {
 			return
 		}
@@ -169,7 +203,7 @@ func (h *hintBuffer) dump(path string) (index *hintFileIndex, err error) {
 }
 
 func (h *hintSplit) needDump() bool {
-	return h.file == nil && h.buf.keys != nil && len(h.buf.keys) > 0
+	return h.file == nil && h.buf.num > 0
 }
 
 type hintChunk struct {
@@ -192,9 +226,8 @@ func (chunk *hintChunk) rotate() *hintSplit {
 	sp := newHintSplit()
 	n := len(chunk.splits)
 	chunk.splits = append(chunk.splits, sp)
-	if n > 1 {
+	if n > 0 {
 		logger.Infof("hint rotate split to %d, chunk %d", n, chunk.id)
-
 	}
 
 	return sp
@@ -219,7 +252,7 @@ func (chunk *hintChunk) getMemOnly(keyhash uint64, key string) (it *HintItem, sp
 	for sp = len(chunk.splits) - 1; sp >= 0; sp-- {
 		split := chunk.splits[sp]
 		if split.buf != nil {
-			if it = split.buf.get(key); it != nil {
+			if it, _ = split.buf.get(keyhash, key); it != nil {
 				return
 			}
 		} else {
@@ -277,8 +310,7 @@ type hintMgr struct {
 	mergeLock          sync.Mutex
 	maxDumpableChunkID int
 	merged             *hintFileIndex
-	dumpAndMergeState  int
-	mergeing           bool
+	state              int
 
 	collisions *CollisionTable
 }
@@ -302,7 +334,16 @@ type byKeyHash struct {
 func (by byKeyHash) Len() int      { return len(by.idx) }
 func (by byKeyHash) Swap(i, j int) { by.idx[i], by.idx[j] = by.idx[j], by.idx[i] }
 func (by byKeyHash) Less(i, j int) bool {
-	return by.data[by.idx[i]].Keyhash < by.data[by.idx[j]].Keyhash
+	a := by.data[by.idx[i]]
+	b := by.data[by.idx[j]]
+	if a.Keyhash < b.Keyhash {
+		return true
+	} else if a.Keyhash > b.Keyhash {
+		return false
+	} else {
+		return a.Key < b.Key
+	}
+	return false
 }
 
 func (h *hintMgr) dump(chunkID, splitID int) (err error) {
@@ -322,7 +363,7 @@ func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 	return nil
 }
 
-func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
+func (h *hintMgr) trydump(chunkID int, dumplast bool) (silence int64) {
 	ck := h.chunks[chunkID]
 	ck.Lock()
 	defer ck.Unlock()
@@ -338,7 +379,7 @@ func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
 		}
 	}
 
-	if !force && chunkID == h.maxChunkID {
+	if !dumplast && chunkID == h.maxChunkID {
 		return
 	}
 
@@ -346,13 +387,13 @@ func (h *hintMgr) trydump(chunkID int, force bool) (silence int64) {
 		return
 	}
 	s := ck.silenceTime()
-	if force || s <= 0 {
+	if dumplast || s <= 0 {
 		if splits[j].needDump() {
 			ck.rotate()
 			ck.lastTS = 0
+			h.dump(chunkID, j)
+			silence = 0
 		}
-		h.dump(chunkID, j)
-		silence = 0
 	} else {
 		silence = s
 	}
@@ -365,22 +406,19 @@ func (h *hintMgr) close() {
 	}
 }
 
-func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
+func (h *hintMgr) dumpAndMerge(forGC bool) (maxSilence int64) {
+	h.state |= HintStateDump
+	h.dumpLock.Lock()
 	defer func() {
+		h.state &= (^HintStateDump)
+		h.dumpLock.Unlock()
 		if e := recover(); e != nil {
 			logger.Errorf("dumpAndMerge panic(%#v), stack: %s", e, utils.GetStack(1000))
 		}
 	}()
 
-	h.dumpAndMergeState = HintStatetWorking
-	h.dumpLock.Lock()
-	defer func() {
-		h.dumpAndMergeState = HintStateIdle
-		h.dumpLock.Unlock()
-	}()
-
 	maxDumpableChunkID := h.maxDumpableChunkID
-	if force {
+	if forGC {
 		maxDumpableChunkID = MAX_CHUNK_ID
 	}
 
@@ -391,12 +429,12 @@ func (h *hintMgr) dumpAndMerge(force bool) (maxSilence int64) {
 		}
 	}
 
-	if h.maxDumpableChunkID < MAX_CHUNK_ID { // gcing
+	if h.state&HintStateDump != 0 { // gcing
 		return
 	}
-	if !h.mergeing && (h.maxChunkID-h.collisions.Chunk > conf.MergeInterval) {
+	if !(h.state&HintStateMerge != 0) && !forGC && (h.maxChunkID-h.collisions.Chunk > conf.MergeInterval) {
 		logger.Infof("start merge goroutine")
-		go h.Merge()
+		go h.Merge(false)
 	}
 	return
 }
@@ -409,7 +447,7 @@ func (h *hintMgr) RemoveMerged() {
 	h.merged = nil
 }
 
-func (h *hintMgr) Merge() (err error) {
+func (h *hintMgr) Merge(forGC bool) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			logger.Errorf("merge panic(%#v), stack: %s", e, utils.GetStack(1000))
@@ -418,10 +456,10 @@ func (h *hintMgr) Merge() (err error) {
 
 	oldchunk := h.collisions.Chunk
 	h.mergeLock.Lock()
-	h.mergeing = true
+	h.state |= HintStateMerge
 	st := time.Now()
 	defer func() {
-		h.mergeing = false
+		h.state &= ^HintStateMerge
 		h.mergeLock.Unlock()
 		logger.Infof("merged done, %#v, %s", h.collisions.HintID, time.Since(st))
 	}()
@@ -451,10 +489,11 @@ func (h *hintMgr) Merge() (err error) {
 		readers = append(readers, r)
 	}
 	dst := h.getPath(maxid.Chunk, maxid.Split, true)
-	logger.Infof("to merge %s from %v", dst, names)
-	index, err := merge(readers, dst, h.collisions, &h.dumpAndMergeState)
+	// since we DO NOT check collision in hint bufffer, merger even if only one idx.s
+	logger.Infof("to merge %s forGC=%v from %v", dst, forGC, names)
+	index, err := merge(readers, dst, h.collisions, &h.state, forGC)
 	if err != nil {
-		logger.Errorf("merge to %s fail: %s", dst, err.Error())
+		logger.Errorf("merge to %s forGC=%v fail: %v", dst, forGC, err)
 		return
 	}
 	h.merged = index
@@ -462,7 +501,7 @@ func (h *hintMgr) Merge() (err error) {
 	return
 }
 
-func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
+func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) (rotated bool) {
 	it := newHintItem(ki.KeyHash, meta.Ver, meta.ValueHash, Position{0, pos.Offset}, ki.StringKey)
 	_, ok := h.collisions.get(ki.KeyHash, ki.StringKey)
 	if ok {
@@ -470,13 +509,13 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) {
 		it2.Pos |= uint32(pos.ChunkID)
 		h.collisions.compareAndSet(&it2)
 	}
-	h.setItem(it, pos.ChunkID, recSize)
+	return h.setItem(it, pos.ChunkID, recSize)
 }
 
-func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
-	rotated := h.chunks[chunkID].set(it, recSize)
+func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) (rotated bool) {
+	rotated = h.chunks[chunkID].set(it, recSize)
 	if rotated {
-		if mergeChan != nil {
+		if mergeChan != nil && chunkID >= h.maxChunkID {
 			select {
 			case mergeChan <- 1:
 			default:
@@ -494,6 +533,7 @@ func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) {
 		}
 		h.Unlock()
 	}
+	return
 }
 
 func (h *hintMgr) forceRotateSplit() {
@@ -558,12 +598,9 @@ func (chunk *hintChunk) getItemCollision(keyhash uint64, key string) (it *HintIt
 			stop = true
 			return
 		} else {
-			if it = split.buf.get(key); it != nil {
-				collision = true
+			if it, collision = split.buf.get(keyhash, key); it != nil {
 				it.Pos |= uint32(chunk.id)
 				return
-			} else if !collision {
-				_, collision = split.buf.keyhashs[keyhash]
 			}
 		}
 	}
@@ -635,17 +672,44 @@ func (hm *hintMgr) loadHintsByChunk(chunkID int) (datasize uint32) {
 			logger.Errorf("fail to load hint: hintpath=%s", p)
 			utils.Remove(p)
 		} else {
+			logger.Infof("load hint %s datasize = %d", p, sp.file.datasize)
+			if sp.file.datasize < datasize {
+				logger.Errorf("later hint has smaller datasize %p %d < %d", p, sp.file.datasize, datasize)
+			} else {
+				datasize = sp.file.datasize
+			}
 			l := len(ck.splits)
+
 			bufsp := ck.splits[l-1]
 			ck.splits[l-1] = sp
 			ck.splits = append(ck.splits, bufsp)
 		}
 	}
-	return ck.splits[len(ck.splits)-2].file.datasize
+	if len(ck.splits) < 2 {
+		return 0
+	}
+	return
 }
 func (h *hintMgr) ClearChunks(min, max int) {
 	for i := min; i <= max; i++ {
 		h.chunks[i] = newHintChunk(i)
 		h.RemoveHintfilesByChunk(i)
 	}
+}
+
+// e.g. get A
+// merged | hint buffer
+// A B    |              =>  it, true
+// A      | B            => nil, true
+//        | A B          =>  it, true
+//        | A            =>  it, false
+// A/B    |              => nil, false
+//        | B            => nil, true // should not happen when used in gc
+func (h *hintMgr) getCollisionGC(ki *KeyInfo) (it *HintItem, collision bool) {
+	it, collision = h.collisions.get(ki.KeyHash, ki.StringKey)
+	if !collision {
+		// only in mem, in new hints buffers after gc begin
+		it, collision = h.getItemCollision(ki.KeyHash, ki.StringKey)
+	}
+	return
 }

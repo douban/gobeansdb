@@ -6,9 +6,7 @@ import (
 	"fmt"
 	mc "memcache"
 	"store"
-	"strconv"
 	"sync"
-	"time"
 )
 
 var (
@@ -119,7 +117,7 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 				return nil, fmt.Errorf("bad command line format") //FIXME: SERVER_ERROR
 			}
 			ki := s.prepare(key2, true)
-			rec, err := s.hstore.GetRecordByKeyHash(ki)
+			rec, _, err := s.hstore.GetRecordByKeyHash(ki)
 			if err != nil {
 				return nil, err
 			} else if rec == nil {
@@ -214,11 +212,7 @@ func (s *StorageClient) Delete(key string) (bool, error) {
 		return false, nil
 	}
 	ki := s.prepare(key, false)
-	payload := &store.Payload{}
-	payload.Flag = 0
-	payload.Body = nil
-	payload.Ver = -1
-	payload.TS = uint32(time.Now().Unix()) // TODO:
+	payload := store.GetPayloadForDelete()
 
 	err := s.hstore.Set(ki, payload)
 	if err != nil {
@@ -241,40 +235,6 @@ func (s *StorageClient) Process(cmd string, args []string) (status string, msg s
 	msg = "bad command line format"
 
 	switch cmd {
-
-	case "gc":
-		l := len(args)
-		if !(l == 2 || l == 3) || args[0][0] != '@' {
-			return
-		}
-
-		bucket, err := strconv.ParseUint(args[0][1:], 16, 32)
-		if err != nil || bucket < 0 {
-			return
-		}
-
-		start, err := strconv.Atoi(args[1])
-		if err != nil {
-			return
-		}
-
-		end := -1
-		if l == 3 {
-			end, err = strconv.Atoi(args[2])
-			if err != nil {
-				return
-			}
-		}
-
-		err = s.hstore.GC(int(bucket), start, end)
-		if err != nil {
-			status = "ERROR"
-			msg = err.Error()
-		} else {
-			status = "OK"
-			msg = ""
-		}
-
 	case "optimize_stat":
 		msg = ""
 		bucketid, gcstat := s.hstore.GCStat()

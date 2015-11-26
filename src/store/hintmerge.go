@@ -6,12 +6,6 @@ import (
 	"utils"
 )
 
-const (
-	HintStateIdle = iota
-	HintStatetWorking
-	HintStateStopping
-)
-
 type mergeReader struct {
 	r    *hintFileReader
 	curr *HintItem
@@ -98,7 +92,7 @@ func (h *mergeHeap) Pop() interface{} {
 	return x
 }
 
-func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int) (idx *hintFileIndex, err error) {
+func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int, forGC bool) (idx *hintFileIndex, err error) {
 	n := len(src)
 	datasize := uint32(0)
 	hp := make([]*mergeReader, n)
@@ -120,7 +114,7 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 		}
 	}
 	var w *hintFileWriter
-	if !conf.NoMerged {
+	if !conf.NoMerged && !forGC {
 		w, err = newHintFileWriter(dst, datasize, 1<<20)
 		if err != nil {
 			logger.Errorf("%s", err.Error())
@@ -132,8 +126,8 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 	h := mergeHeap(hp)
 	heap.Init(&h)
 	for len(h) > 0 {
-		if *hintState == HintStateStopping {
-			err = fmt.Errorf("aborted")
+		if *hintState&HintStateGC != 0 && !forGC {
+			err = fmt.Errorf("aborted by gc")
 			break
 		}
 		mr := heap.Pop(&h).(*mergeReader)

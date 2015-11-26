@@ -9,6 +9,7 @@ hstore:
   data:
     flush_interval: 0
     flush_wake_str: 0
+    no_gc_days: 0
   local:
     homes:
     - ./testdb

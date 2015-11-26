@@ -36,6 +36,7 @@ type DataConfig struct {
 	DataFileMax   int64 `yaml:"-"`                        // data rotate when reach the size
 	CheckVHash    bool  `yaml:"check_vhash,omitempty"`    // not really set if vhash is the same
 	FlushInterval int   `yaml:"flush_interval,omitempty"` // the flush go routine run at this interval
+	NoGCDays      int   `yaml:"no_gc_days,omitempty"`     // not data files whose mtime in recent NoGCDays days
 
 	FlushMaxStr    string `yaml:"flush_max_str"`
 	FlushWakeStr   string `yaml:"flush_wake_str"` //

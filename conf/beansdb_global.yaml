@@ -1,4 +1,4 @@
-# for doubansdb
+# for doubandb
 server:
   zk: "NO"
   listen: 0.0.0.0
@@ -20,6 +20,7 @@ hstore:
     flush_wake_str: 10M
     datafile_max_str: 4000M
     check_vhash: true
+    no_gc_days: 7
   hint:
     hint_no_merged: true
     hint_split_cap_str: 1M

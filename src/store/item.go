@@ -45,17 +45,19 @@ type HTreeItem struct {
 	ver     int32
 	vhash   uint16
 }
-
-type HintItem struct {
+type HintItemMeta struct {
 	Keyhash uint64
 	Pos     uint32
 	Ver     int32
 	Vhash   uint16
-	Key     string
+}
+type HintItem struct {
+	HintItemMeta
+	Key string
 }
 
 func newHintItem(khash uint64, ver int32, vhash uint16, pos Position, key string) *HintItem {
-	return &HintItem{khash, pos.encode(), ver, vhash, key}
+	return &HintItem{HintItemMeta{khash, pos.encode(), ver, vhash}, key}
 }
 
 type Payload struct {
@@ -156,6 +158,19 @@ func (p *Payload) Decompress() (err error) {
 	p.CArray = arr
 	p.Flag -= FLAG_COMPRESS
 	return
+}
+
+func (p *Payload) Getvhash() uint16 {
+	if p.Ver < 0 {
+		return 0
+	}
+	if p.Flag&FLAG_COMPRESS == 0 {
+		return Getvhash(p.Body)
+	}
+	arr, _ := quicklz.CDecompressSafe(p.Body)
+	vhash := Getvhash(arr.Body)
+	arr.Free()
+	return vhash
 }
 
 type Position struct {

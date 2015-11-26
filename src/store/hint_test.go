@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"loghub"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -94,11 +92,13 @@ func genSortedHintItems(n int) []*HintItem {
 	for i := 0; i < n; i++ {
 		base := i * 3
 		it := &HintItem{
-			Keyhash: uint64(i),
-			Key:     genKey(i),
-			Pos:     uint32(base) * 256,
-			Ver:     int32(base + 1),
-			Vhash:   uint16(base + 2),
+			HintItemMeta{
+				Keyhash: uint64(i),
+				Pos:     uint32(base) * 256,
+				Ver:     int32(base + 1),
+				Vhash:   uint16(base + 2),
+			},
+			genKey(i),
 		}
 		items[i] = it
 	}
@@ -141,9 +141,9 @@ func testMerge(t *testing.T, nsrc int) {
 	}
 	dst := fmt.Sprintf("%s/dst.hint.s", dir)
 	utils.Remove(dst)
-	state := HintStatetWorking
+	state := HintStateDump
 	ct := newCollisionTable()
-	merge(srcp, dst, ct, &state)
+	merge(srcp, dst, ct, &state, false)
 	defer utils.Remove(dst)
 	readHintAndCheck(t, dst, items)
 }
@@ -164,7 +164,7 @@ func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *HintItem) {
 	if !buf.set(it, 0) {
 		t.Fatalf("%#v set return false", it)
 	}
-	r := buf.get(it.Key)
+	r, _ := buf.get(it.Keyhash, it.Key)
 	if r == nil || *r != *it {
 		t.Fatalf("%#v != %#v", r, it)
 	}
@@ -241,35 +241,20 @@ func setAndCheckMgr(t *testing.T, hm *hintMgr, it *HintItem, chunkID int) {
 	checkMgr(t, hm, it, chunkID)
 }
 
-func checkFiles(t *testing.T, dir string, paths map[string]bool) {
-	f, err := os.Open(dir)
-	defer f.Close()
-	names, err2 := f.Readdirnames(-1)
-	if err != nil || err2 != nil {
-		t.Fatal(names, dir, err, err2)
-	}
-	if len(paths) != len(names) {
-		t.Fatalf("%s != %v", names, paths)
-	}
-	for _, name := range names {
-		if _, found := paths[name]; !found {
-			t.Fatalf("%s != %v", names, paths)
-		}
-	}
-	for name, _ := range paths {
-		if _, err = os.Stat(filepath.Join(dir, name)); err != nil {
-			t.Fatalf("%s != %v", names, paths)
-		}
+func checkFiles(t *testing.T, dir string, files *utils.Dir) {
+	diskfiles, df1, df2, err := files.CheckPath(dir)
+	if err != nil || df1 != nil || df2 != nil {
+		t.Fatal(files.ToSlice(), diskfiles.ToSlice(), df1, df2, err)
 	}
 }
 
-func fillChunk(t *testing.T, dir string, hm *hintMgr, items []*HintItem, chunkID int, files map[string]bool) {
+func fillChunk(t *testing.T, dir string, hm *hintMgr, items []*HintItem, chunkID int, files *utils.Dir) {
 	logger.Infof("fill %d", chunkID)
 	n := len(items)
 	setAndCheckMgr(t, hm, items[0], chunkID)
 	time.Sleep(time.Second * 4)
 	hm.dumpAndMerge(false)
-	hm.Merge()
+	hm.Merge(false)
 	logger.Infof("check %d", chunkID)
 	checkFiles(t, dir, files)
 
@@ -301,29 +286,14 @@ func TestHintMgr(t *testing.T) {
 	for i := 0; i < n; i++ {
 		setAndCheckMgr(t, hm, items[i], chunkID)
 	}
-	files := make(map[string]bool)
-	addfiles := func(fs ...string) {
-		for _, f := range fs {
-			files[f] = true
-		}
-	}
-	rmfiles := func(fs ...string) {
-		for _, f := range fs {
-			delete(files, f)
-		}
-	}
-
-	_ = rmfiles
-	addfiles("003.000.idx.s", "003.001.idx.s")
-	addfiles("003.001.idx.m")
+	files := utils.NewDir()
+	files.SetMultiNoSize("003.000.idx.s", "003.001.idx.s", "003.001.idx.m")
 	fillChunk(t, dir, hm, items, 4, files)
-	addfiles("004.000.idx.s", "004.001.idx.s")
-	addfiles("004.001.idx.m")
-	rmfiles("003.001.idx.m")
+	files.SetMultiNoSize("004.000.idx.s", "004.001.idx.s", "004.001.idx.m")
+	files.Delete("003.001.idx.m")
 	fillChunk(t, dir, hm, items, 5, files)
-	addfiles("005.000.idx.s", "005.001.idx.s")
-	addfiles("005.001.idx.m")
-	rmfiles("004.001.idx.m")
+	files.SetMultiNoSize("005.000.idx.s", "005.001.idx.s", "005.001.idx.m")
+	files.Delete("004.001.idx.m")
 	fillChunk(t, dir, hm, items, 6, files)
 
 	setAndCheckMgr(t, hm, items[0], 7)

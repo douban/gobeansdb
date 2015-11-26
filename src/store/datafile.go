@@ -101,7 +101,7 @@ func decodeHeader(wrec *WriteRecord, h []byte) (err error) {
 func readRecordAtPath(path string, offset uint32) (*WriteRecord, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		logger.Infof(err.Error())
+		logger.Errorf("fail to open: %s: %v", path, err)
 		return nil, err
 	}
 	defer f.Close()
@@ -234,7 +234,7 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 	}
 	wrec.decodeHeader()
 	if wrec.ksz > 250 || wrec.ksz <= 0 { // TODO
-		logger.Fatalf("bad key len %s %d %d %d", stream.fd.Name(), stream.offset, wrec.ksz, wrec.vsz)
+		logger.Errorf("bad key len %s %d %d %d", stream.fd.Name(), stream.offset, wrec.ksz, wrec.vsz)
 		return stream.nextValid()
 	}
 
@@ -277,7 +277,7 @@ func (stream *DataStreamReader) Close() error {
 }
 
 type DataStreamWriter struct {
-	ds   *dataStore
+	path string
 	fd   *os.File
 	wbuf *bufio.Writer
 

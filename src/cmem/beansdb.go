@@ -8,14 +8,6 @@ func init() {
 	DBRL.ResetAll()
 }
 
-func (dbrl *BeansdbRL) ResetAll() {
-	dbrl.FlushData.reset()
-	dbrl.SetData.reset()
-	dbrl.GetData.reset()
-	dbrl.AllocRL = &AllocRL
-	AllocRL.reset()
-}
-
 type BeansdbRL struct {
 	AllocRL *ResourceLimiter
 
@@ -24,4 +16,16 @@ type BeansdbRL struct {
 	FlushData ResourceLimiter
 
 	//SetBigData   ResourceLimiter
+}
+
+func (dbrl *BeansdbRL) ResetAll() {
+	dbrl.FlushData.reset()
+	dbrl.SetData.reset()
+	dbrl.GetData.reset()
+	dbrl.AllocRL = &AllocRL
+	AllocRL.reset()
+}
+
+func (dbrl *BeansdbRL) IsZero() bool {
+	return dbrl.FlushData.IsZero() && dbrl.SetData.IsZero() && dbrl.GetData.IsZero() && dbrl.AllocRL.IsZero()
 }
