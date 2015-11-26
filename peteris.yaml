@@ -19,6 +19,6 @@
           make pytest
     publishers:
       - junit:
-          results: unittest.xml
+          results: src/github.intra.douban.com/coresys/gobeansdb/unittest.xml
       - email:
           recipients: yangxiufeng@douban.com,zhuzhaolong@douban.com
