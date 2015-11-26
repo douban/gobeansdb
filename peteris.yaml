@@ -7,11 +7,14 @@
           branches:
             - master
           skip-tag: True
+          basedir: src/github.intra.douban.com/coresys/gobeansdb/
           url: http://github.intra.douban.com/coresys/gobeansdb.git
     triggers:
       - pollscm: '* * * * *'
     builders:
       - shell: |
+          cd src/github.intra.douban.com/coresys/gobeansdb/
+          pwd
           make test
           make pytest
     publishers:

@@ -14,6 +14,10 @@ import unittest
 from tests.dbclient import MCStore
 from tests.utils import mkdir_p
 
+
+GOBEANSDB_CMD = '../../../../bin/gobeansdb'
+
+
 def gethttp(addr, path):
     url = "http://%s/%s" % (addr, path)
     response = urllib2.urlopen(url)
@@ -105,7 +109,7 @@ class BeansdbInstance(object):
     '''
     def __init__(self):
         self.popen = None
-        self.cmd = "./bin/gobeansdb -confdir conf"
+        self.cmd = "%s -confdir conf" % GOBEANSDB_CMD
         self.addr, self.webaddr = get_server_addr()
 
         self.db_homes = get_db_homes()
@@ -149,4 +153,3 @@ if __name__ == '__main__':
     db = BeansdbInstance()
     db.start()
     db.clean()
-    
