@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 
 	"github.intra.douban.com/coresys/gobeansdb/utils"
 
@@ -86,11 +87,13 @@ func (c *DBConfig) Load(confdir string) {
 
 		//local
 		path = fmt.Sprintf("%s/%s", confdir, "local.yaml")
-		err = loadYamlConfig(c, path)
-		if err != nil {
-			log.Fatalf("bad config %s: %s", path, err.Error())
+		if _, e := os.Stat(path); e == nil {
+			err = loadYamlConfig(c, path)
+			if err != nil {
+				log.Fatalf("bad config %s: %s", path, err.Error())
+			}
+			c.checkEmptyConfig(path)
 		}
-		c.checkEmptyConfig(path)
 
 		// route
 		route, err := LoadRouteTable(fmt.Sprintf("%s/%s", confdir, "route.yaml"), c.ZK)
