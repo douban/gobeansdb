@@ -46,12 +46,19 @@ func handleSignals() {
 }
 
 func main() {
+	var version = flag.Bool("version", false, "print version of gobeansdb")
 	var confdir = flag.String("confdir", "", "path of server config dir")
-	var dumpconf = flag.Bool("dumpconf", false, "")
+	var dumpconf = flag.Bool("dumpconf", false, "print configuration")
 	var buildhint = flag.String("buildhint", "", "a data file OR a bucket dir")
 
 	flag.Parse()
-	log.Printf("version %s", config.Version)
+
+	if *version {
+		fmt.Println("gobeansdb version", config.Version)
+		return
+	} else {
+		log.Printf("version %s", config.Version)
+	}
 
 	if *confdir != "" {
 		log.Printf("use confdir %s", *confdir)
