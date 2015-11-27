@@ -19,8 +19,6 @@ test:
 	go test github.intra.douban.com/coresys/gobeansdb/quicklz
 	go test github.intra.douban.com/coresys/gobeansdb/store
 
-# Only for local test now.
-# Need start a gobeansdb server on port 7900
 pytest:install
 	./tests/run_test.sh
 
