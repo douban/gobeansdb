@@ -1,1 +1,1 @@
-# gobeansdb
+# GoBeansDB [![Build Status](http://qa-ci.intra.douban.com/job/peteris-coresys_gobeansdb-master-unittest/badge/icon)](http://qa-ci.intra.douban.com/job/peteris-coresys_gobeansdb-master-unittest/)
