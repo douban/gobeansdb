@@ -64,7 +64,7 @@ func main() {
 		if *confdir != "" {
 			initWeb()
 		} else {
-			conf.HintConfig.SplitCap = (5 << 20) // cost maxrss about 1.5G
+			conf.HintConfig.SplitCap = (3 << 20) // cost maxrss about 900M
 		}
 		store.DataToHint(*buildhint)
 		return
