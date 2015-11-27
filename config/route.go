@@ -3,20 +3,42 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"strconv"
 
 	yaml "gopkg.in/yaml.v2"
 )
 
+type Server struct {
+	Addr       string
+	Buckets    []int    `yaml:"-"`
+	BucketsHex []string `yaml:"buckets,flow"`
+}
+
+func (s *Server) Decode() error {
+	s.Buckets = make([]int, len(s.BucketsHex))
+	for i, str := range s.BucketsHex {
+		i64, err := strconv.ParseInt(str, 16, 16)
+		if err != nil {
+			return err
+		}
+		s.Buckets[i] = int(i64)
+	}
+	return nil
+}
+
 type RouteTable struct {
-	NumBucket int                     `yaml:num",omitempty"`
-	Buckets   map[int][]string        `yaml:",omitempty"`
-	Nodes     map[string]map[int]bool `yaml:"-"`
+	NumBucket int
+	Main      []Server
+	Backup    []string
+
+	Buckets map[int]map[string]bool `yaml:"-"`
+	Servers map[string]map[int]bool `yaml:"-"`
 }
 
 func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig, err error) {
 	r = DBRouteConfig{NumBucket: rt.NumBucket}
 	r.Buckets = make([]int, rt.NumBucket)
-	buckets, found := rt.Nodes[addr]
+	buckets, found := rt.Servers[addr]
 	if !found {
 		err = fmt.Errorf("can not find self in route table")
 		return
@@ -31,15 +53,29 @@ func (rt *RouteTable) LoadFromYaml(data []byte) error {
 	if err := yaml.Unmarshal(data, &rt); err != nil {
 		return err
 	}
-	rt.Nodes = make(map[string]map[int]bool)
-	for i, nodes := range rt.Buckets {
-		for _, node := range nodes {
-			if _, found := rt.Nodes[node]; !found {
-				rt.Nodes[node] = make(map[int]bool)
-			}
-			rt.Nodes[node][i] = true
+	rt.Servers = make(map[string]map[int]bool)
+	rt.Buckets = make(map[int]map[string]bool)
+
+	for i := 0; i < rt.NumBucket; i++ {
+		rt.Buckets[i] = make(map[string]bool)
+	}
+	for _, server := range rt.Main {
+		server.Decode()
+		addr := server.Addr
+		rt.Servers[addr] = make(map[int]bool)
+		for _, bucket := range server.Buckets {
+			rt.Servers[addr][bucket] = true
+			rt.Buckets[bucket][addr] = true
 		}
 	}
+	for _, addr := range rt.Backup {
+		rt.Servers[addr] = make(map[int]bool)
+		for bucket := 0; bucket < rt.NumBucket; bucket++ {
+			rt.Servers[addr][bucket] = false
+			rt.Buckets[bucket][addr] = false
+		}
+	}
+
 	return nil
 }
 

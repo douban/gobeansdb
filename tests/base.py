@@ -69,8 +69,8 @@ def stop_cmd(popen):
 
 ### parse config
 
-SERVER_LOCAL = 'beansdb_local.yaml'
-SERVER_GLOBAL = 'beansdb_global.yaml'
+SERVER_LOCAL = 'local.yaml'
+SERVER_GLOBAL = 'global.yaml'
 CONF_DIR = './conf'
 
 

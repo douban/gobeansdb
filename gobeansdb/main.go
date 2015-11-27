@@ -3,10 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/config"
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
-	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
-	"github.intra.douban.com/coresys/gobeansdb/store"
 	"log"
 	"os"
 	"os/signal"
@@ -14,6 +10,11 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.intra.douban.com/coresys/gobeansdb/loghub"
+	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
+	"github.intra.douban.com/coresys/gobeansdb/store"
 )
 
 var (
@@ -51,6 +52,9 @@ func main() {
 
 	flag.Parse()
 
+	if *confdir != "" {
+		log.Printf("use confdir %s", *confdir)
+	}
 	conf.Load(*confdir)
 	runtime.GOMAXPROCS(conf.Threads)
 	if *dumpconf {
@@ -67,7 +71,8 @@ func main() {
 	}
 
 	initLog()
-	logger.Infof("gorivendb version %s starting at %d, config: %#v", config.Version, conf.Port, conf)
+	logger.Infof("gorivendb version %s starting at %d, config: %#v",
+		config.Version, conf.Port, conf)
 	logger.Infof("route table: %#v", config.Route)
 
 	initWeb()
