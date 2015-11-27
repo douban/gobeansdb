@@ -3,7 +3,7 @@ server:
   zk: "NO"
   listen: 0.0.0.0
   port: 7900
-  webport: 7908
+  webport: 7903
   threads: 4
   logdir: /var/log/gobeansdb
   hostname: 127.0.0.1 # 线上必须在local文件里改掉
@@ -25,8 +25,7 @@ hstore:
     hint_no_merged: true
     hint_split_cap_str: 1M
     hint_index_interval_str: 32K
-    hint_no_merge: true
-    hint_merge_interval: 2
+    hint_merge_interval: 5
   htree:
     tree_height: 7
   local:
