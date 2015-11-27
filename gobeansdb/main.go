@@ -51,6 +51,7 @@ func main() {
 	var buildhint = flag.String("buildhint", "", "a data file OR a bucket dir")
 
 	flag.Parse()
+	log.Printf("version %s", config.Version)
 
 	if *confdir != "" {
 		log.Printf("use confdir %s", *confdir)
