@@ -77,7 +77,7 @@ func (c *DBConfig) Load(confdir string) {
 
 	if confdir != "" {
 		// global
-		path := fmt.Sprintf("%s/%s", confdir, "beansdb_global.yaml")
+		path := fmt.Sprintf("%s/%s", confdir, "global.yaml")
 		err := loadYamlConfig(c, path)
 		if err != nil {
 			log.Fatalf("bad config %s: %s", path, err.Error())
@@ -85,7 +85,7 @@ func (c *DBConfig) Load(confdir string) {
 		c.checkEmptyConfig(path)
 
 		//local
-		path = fmt.Sprintf("%s/%s", confdir, "beansdb_local.yaml")
+		path = fmt.Sprintf("%s/%s", confdir, "local.yaml")
 		err = loadYamlConfig(c, path)
 		if err != nil {
 			log.Fatalf("bad config %s: %s", path, err.Error())
