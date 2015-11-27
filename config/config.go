@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"io/ioutil"
 	"log"
+
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -16,7 +17,7 @@ const (
 var (
 	DB    DBConfig
 	Proxy ProxyConfig
-	Route RouteTable
+	Route *RouteTable
 )
 
 type ProxyConfig struct {
@@ -92,14 +93,15 @@ func (c *DBConfig) Load(confdir string) {
 		c.checkEmptyConfig(path)
 
 		// route
-		Route, err := LoadRouteTable(fmt.Sprintf("%s/%s", confdir, "route.yaml"), c.ZK)
+		route, err := LoadRouteTable(fmt.Sprintf("%s/%s", confdir, "route.yaml"), c.ZK)
 		if err != nil {
 			log.Fatalf("fail to load route table: %s", err.Error())
 		}
-		c.DBRouteConfig, err = Route.GetDBRouteConfig(c.Addr())
+		c.DBRouteConfig, err = route.GetDBRouteConfig(c.Addr())
 		if err != nil {
 			log.Fatalf("bad config in %s %s", confdir, err.Error())
 		}
+		Route = route
 	}
 	utils.InitSizesPointer(c)
 	err := c.HStoreConfig.init()
