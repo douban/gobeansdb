@@ -3,17 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
-	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
-	"github.intra.douban.com/coresys/gobeansdb/store"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"net/http"
 	_ "net/http/pprof"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"syscall"
+
+	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/loghub"
+	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
+	"github.intra.douban.com/coresys/gobeansdb/store"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -39,6 +40,7 @@ func init() {
 	http.HandleFunc("/logbuf", handleLogBuffer)
 	http.HandleFunc("/logbufall", handleLogBufferALL)
 	http.HandleFunc("/loglast", handleLogLast)
+	http.HandleFunc("/du", handleDU)
 
 	// dir
 	http.HandleFunc("/gc/", handleGC)
@@ -46,6 +48,7 @@ func init() {
 	http.HandleFunc("/collision/", handleCollision)
 
 	http.HandleFunc("/hash/", handleKeyhash)
+
 }
 
 func initWeb() {
@@ -77,6 +80,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
     <a href='/logbuf'> /logbuf </a> <p/>
     <a href='/logbufall'> /logbufall </a> <p/>
     <a href='/loglast'> /loglast </a> <p/>
+    <a href='/du'> /du </a> <p/>
 
     <hr/>
 
@@ -285,4 +289,12 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 		result = fmt.Sprintf("<p/> bucket %d, start %d, end %d, merge %v, pretend %v <p/>",
 			bucketID, start, end, merge, pretend)
 	}
+}
+
+func handleDU(w http.ResponseWriter, r *http.Request) {
+	if storage == nil {
+		return
+	}
+	defer handleWebPanic(w)
+	handleYaml(w, storage.hstore.GetDU())
 }

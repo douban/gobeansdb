@@ -1,9 +1,14 @@
 package utils
 
 import (
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
+	"syscall"
+
+	"github.intra.douban.com/coresys/gobeansdb/loghub"
 )
 
 func Remove(path string) error {
@@ -126,6 +131,56 @@ func (d *Dir) Diff(d2 *Dir) (r1, r2 []File) {
 			i += 1
 			j += 1
 		}
+	}
+	return
+}
+
+type DiskStatus struct {
+	Root string
+	All  int64
+	Used int64
+	Free int64
+}
+
+func DiskUsage(path string) (disk DiskStatus, err error) {
+	abspath, err := filepath.Abs(path)
+	if err != nil {
+		return
+	}
+	realpath, err := filepath.EvalSymlinks(abspath)
+	if err != nil {
+		return
+	}
+	realpath = filepath.Clean(realpath)
+
+	fs := syscall.Statfs_t{}
+	err = syscall.Statfs(realpath, &fs)
+	if err != nil {
+		return
+	}
+	parts := strings.Split(realpath, "/")
+	if len(parts) < 2 {
+		err = fmt.Errorf("bad path <%s>", path)
+		return
+	}
+	disk.Root = parts[1]
+	disk.All = int64(fs.Blocks) * int64(fs.Bsize)
+	disk.Free = int64(fs.Bfree) * int64(fs.Bsize)
+	disk.Used = disk.All - disk.Free
+	return
+}
+
+func DirUsage(path string) (size int64, err error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	fis, err := f.Readdir(-1)
+	if err != nil {
+		return
+	}
+	for _, fi := range fis {
+		size += fi.Size()
 	}
 	return
 }
