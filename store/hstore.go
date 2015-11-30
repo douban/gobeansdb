@@ -3,14 +3,16 @@ package store
 import (
 	"bytes"
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/config"
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.intra.douban.com/coresys/gobeansdb/loghub"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 var (
@@ -413,4 +415,45 @@ func GetPayloadForDelete() *Payload {
 	payload.Ver = -1
 	payload.TS = uint32(time.Now().Unix())
 	return payload
+}
+
+type DU struct {
+	Disks   map[string]utils.DiskStatus
+	Buckets map[int]int64
+	Errs    []string
+}
+
+func NewDU() (du *DU) {
+	du = &DU{}
+	du.Disks = make(map[string]utils.DiskStatus)
+	du.Buckets = make(map[int]int64)
+	return
+}
+
+func (store *HStore) GetDU() (du *DU) {
+	du = NewDU()
+	for i, bkt := range store.buckets {
+		if bkt.State == BUCKET_STAT_READY {
+			fsu, e := utils.DiskUsage(bkt.Home)
+			if e != nil {
+				du.Errs = append(du.Errs, e.Error())
+			} else {
+				old, ok := du.Disks[fsu.Root]
+				if ok {
+					fsu.Buckets = append(old.Buckets, i)
+				} else {
+					fsu.Buckets = []int{i}
+				}
+				du.Disks[fsu.Root] = fsu
+			}
+
+			diru, e := utils.DirUsage(bkt.Home)
+			if e != nil {
+				du.Errs = append(du.Errs, e.Error())
+			} else {
+				du.Buckets[i] = diru
+			}
+		}
+	}
+	return
 }
