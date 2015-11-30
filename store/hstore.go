@@ -438,6 +438,12 @@ func (store *HStore) GetDU() (du *DU) {
 			if e != nil {
 				du.Errs = append(du.Errs, e.Error())
 			} else {
+				old, ok := du.Disks[fsu.Root]
+				if ok {
+					fsu.Buckets = append(old.Buckets, i)
+				} else {
+					fsu.Buckets = []int{i}
+				}
 				du.Disks[fsu.Root] = fsu
 			}
 

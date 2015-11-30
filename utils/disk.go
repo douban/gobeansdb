@@ -136,10 +136,11 @@ func (d *Dir) Diff(d2 *Dir) (r1, r2 []File) {
 }
 
 type DiskStatus struct {
-	Root string
-	All  int64
-	Used int64
-	Free int64
+	Root    string
+	All     int64
+	Used    int64
+	Free    int64
+	Buckets []int `yaml:",flow"`
 }
 
 func DiskUsage(path string) (disk DiskStatus, err error) {
@@ -163,7 +164,7 @@ func DiskUsage(path string) (disk DiskStatus, err error) {
 		err = fmt.Errorf("bad path <%s>", path)
 		return
 	}
-	disk.Root = parts[1]
+	disk.Root = "/" + parts[1]
 	disk.All = int64(fs.Blocks) * int64(fs.Bsize)
 	disk.Free = int64(fs.Bfree) * int64(fs.Bsize)
 	disk.Used = disk.All - disk.Free
