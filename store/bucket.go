@@ -340,7 +340,7 @@ func (bkt *Bucket) set(ki *KeyInfo, v *Payload) error {
 		return err
 	}
 	bkt.htree.set(ki, &v.Meta, pos)
-	bkt.hints.set(ki, &v.Meta, pos, v.RecSize, "get")
+	bkt.hints.set(ki, &v.Meta, pos, v.RecSize, "set")
 	return nil
 }
 

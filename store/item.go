@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"fmt"
+
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
 	"github.intra.douban.com/coresys/gobeansdb/quicklz"
 )
@@ -224,4 +225,11 @@ func (rec *Record) Dumps() []byte {
 
 func isValidKVSzie(ksz, vsz uint32) bool {
 	return ksz <= uint32(conf.MaxKeyLen) && vsz <= uint32(conf.BodyMax)
+}
+
+func posForCompare(pos uint32) int64 {
+	return (int64(pos&0xff) << 32) | int64(pos)
+}
+func comparePos(oldPos, newPos uint32) int64 {
+	return posForCompare(oldPos) - posForCompare(newPos)
 }

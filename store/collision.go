@@ -40,7 +40,7 @@ func (table *CollisionTable) compareAndSet(it *HintItem, reason string) {
 	items, ok := table.Items[it.Keyhash]
 	if ok {
 		old, ok := items[it.Key]
-		if !ok || reason == "gc" || (old.Pos&0xff) < (it.Pos&0xff) || ((old.Pos&0xff) == (it.Pos&0xff) && (old.Pos < it.Pos)) {
+		if !ok || reason == "gc" || comparePos(it.Pos, old.Pos) >= 0 {
 			items[it.Key] = *it
 		}
 
