@@ -310,6 +310,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	dir.Set("001.000.idx.s", -1)
 	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
+	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{1, 0}
@@ -365,6 +366,7 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	dir.Set("001.000.idx.s", -1)
 	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
+	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{1, 0}
@@ -428,6 +430,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	dir.Set("001.000.idx.s", -1)
 	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
+	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{1, 0}

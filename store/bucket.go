@@ -3,8 +3,6 @@ package store
 import (
 	"bytes"
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 const (
@@ -64,18 +65,6 @@ type Bucket struct {
 
 func (bkt *Bucket) getHtreePath(chunkID, SplitID int) string {
 	return getIndexPath(bkt.Home, chunkID, SplitID, "hash")
-}
-
-func (bkt *Bucket) getCollisionPath() string {
-	return fmt.Sprintf("%s/collision.yaml", bkt.Home)
-}
-
-func (bkt *Bucket) dumpCollisions() {
-	bkt.hints.collisions.dump(bkt.getCollisionPath())
-}
-
-func (bkt *Bucket) loadCollisions() {
-	bkt.hints.collisions.load(bkt.getCollisionPath())
 }
 
 func (bkt *Bucket) buildHintFromData(chunkID int, start uint32) (err error) {
@@ -162,7 +151,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	bkt.Home = home
 	bkt.datas = NewdataStore(bucketID, home)
 	bkt.hints = newHintMgr(bucketID, home)
-	bkt.loadCollisions()
+	bkt.hints.loadCollisions()
 	bkt.htree = newHTree(conf.TreeDepth, bucketID, conf.TreeHeight)
 	bkt.TreeID = HintID{0, -1}
 
@@ -244,7 +233,7 @@ func (bkt *Bucket) close() {
 		return
 	}
 
-	bkt.dumpCollisions()
+	bkt.hints.dumpCollisions()
 	bkt.hints.close()
 	bkt.dumpHtree()
 }

@@ -2,12 +2,13 @@ package store
 
 import (
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 const (
@@ -498,6 +499,7 @@ func (h *hintMgr) Merge(forGC bool) (err error) {
 	}
 	h.merged = index
 	h.collisions.HintID = maxid
+	h.dumpCollisions()
 	return
 }
 
@@ -712,4 +714,16 @@ func (h *hintMgr) getCollisionGC(ki *KeyInfo) (it *HintItem, collision bool) {
 		it, collision = h.getItemCollision(ki.KeyHash, ki.StringKey)
 	}
 	return
+}
+
+func (h *hintMgr) getCollisionPath() string {
+	return fmt.Sprintf("%s/collision.yaml", h.home)
+}
+
+func (h *hintMgr) dumpCollisions() {
+	h.collisions.dump(h.getCollisionPath())
+}
+
+func (h *hintMgr) loadCollisions() {
+	h.collisions.load(h.getCollisionPath())
 }
