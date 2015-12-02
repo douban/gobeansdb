@@ -33,14 +33,14 @@ func (table *CollisionTable) get(keyhash uint64, key string) (item *HintItem, ok
 }
 
 // gc should not use this func
-func (table *CollisionTable) compareAndSet(it *HintItem) {
-	logger.Infof("set collision %#v", it)
+func (table *CollisionTable) compareAndSet(it *HintItem, reason string) {
+	logger.Infof("%s, set collision %#v", reason, it)
 	table.Lock()
 	defer table.Unlock()
 	items, ok := table.Items[it.Keyhash]
 	if ok {
 		old, ok := items[it.Key]
-		if !ok || (old.Pos&0xff) < (it.Pos&0xff) || ((old.Pos&0xff) == (it.Pos&0xff) && (old.Pos < it.Pos)) {
+		if !ok || reason == "gc" || (old.Pos&0xff) < (it.Pos&0xff) || ((old.Pos&0xff) == (it.Pos&0xff) && (old.Pos < it.Pos)) {
 			items[it.Key] = *it
 		}
 

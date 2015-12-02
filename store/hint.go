@@ -503,13 +503,13 @@ func (h *hintMgr) Merge(forGC bool) (err error) {
 	return
 }
 
-func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) (rotated bool) {
+func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32, reason string) (rotated bool) {
 	it := newHintItem(ki.KeyHash, meta.Ver, meta.ValueHash, Position{0, pos.Offset}, ki.StringKey)
 	_, ok := h.collisions.get(ki.KeyHash, ki.StringKey)
 	if ok {
 		it2 := *it
 		it2.Pos |= uint32(pos.ChunkID)
-		h.collisions.compareAndSet(&it2)
+		h.collisions.compareAndSet(&it2, reason)
 	}
 	return h.setItem(it, pos.ChunkID, recSize)
 }
