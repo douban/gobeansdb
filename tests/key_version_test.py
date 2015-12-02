@@ -135,9 +135,13 @@ class KeyVersionTest(BaseTest):
 
         self.checkCounterZero()
 
-    def test_collison(self):
+    def test_collision(self):
         # keyhash = "c80f795945b78f6b"
         store = MCStore(self.db.addr)
+        # key1 and key2 have the same keyhash "c80f795945b78f6b"
+        # key_other and key_other2 is in bucket c too
+        # key_other is used to test with key1, key2 for get/set/gc...
+        # key_other2 is used to make it possible to gc [0, 1]
         key1 = "processed_log_backup_text_20140912102821_1020_13301733"
         key2 = "/subject/10460967/props"
         key_other = "/ark/p/385242854/"
