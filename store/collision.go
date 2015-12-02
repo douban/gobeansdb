@@ -85,4 +85,5 @@ func (table *CollisionTable) load(path string) {
 		logger.Errorf("unmarshal yaml faild %s %s", path, err.Error())
 	}
 	table.Unlock()
+	logger.Infof("load collisoin %s: %s", path, table.dumps())
 }
