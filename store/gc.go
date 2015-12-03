@@ -81,14 +81,9 @@ func (mgr *GCMgr) UpdateCollision(bkt *Bucket, ki *KeyInfo, oldPos, newPos Posit
 
 func (mgr *GCMgr) UpdateHtreePos(bkt *Bucket, ki *KeyInfo, oldPos, newPos Position) {
 	// TODO: should be a api of htree to be atomic
-	meta, pos, ok := bkt.htree.get(ki)
+	meta, _, ok := bkt.htree.get(ki)
 	if !ok {
 		logger.Warnf("old key removed when updating pos bucket %d %s %#v %#v",
-			bkt.ID, ki.StringKey, meta, oldPos)
-		return
-	}
-	if pos != oldPos {
-		logger.Warnf("old key update when updating pos bucket %d %s %#v %#v",
 			bkt.ID, ki.StringKey, meta, oldPos)
 		return
 	}
@@ -318,10 +313,10 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 			// logger.Infof("%s %v %v", ki.StringKey, newPos, meta)
 			if isCoverdByCollision {
 				mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
-			} else {
-				mgr.UpdateHtreePos(bkt, ki, oldPos, newPos)
 			}
-			rotated := bkt.hints.set(ki, &meta, newPos, recsize)
+			mgr.UpdateHtreePos(bkt, ki, oldPos, newPos)
+
+			rotated := bkt.hints.set(ki, &meta, newPos, recsize, "gc")
 			if rotated {
 				bkt.hints.trydump(gc.Dst, false)
 			}

@@ -3,6 +3,7 @@ package store
 import (
 	"container/heap"
 	"fmt"
+
 	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
@@ -53,7 +54,7 @@ func (mw *mergeWriter) write(it *HintItem) {
 func (mw *mergeWriter) flush() {
 	if mw.num > 1 {
 		for i := 0; i < mw.num; i++ {
-			mw.ct.compareAndSet(mw.buf[i])
+			mw.ct.compareAndSet(mw.buf[i], "merge")
 		}
 	}
 	if mw.w != nil {

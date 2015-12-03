@@ -3,13 +3,14 @@ package memcache
 import (
 	"bufio"
 	"errors"
-	"github.intra.douban.com/coresys/gobeansdb/config"
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"io"
 	"net"
 	"sync"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.intra.douban.com/coresys/gobeansdb/loghub"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 var (
@@ -208,7 +209,7 @@ func (s *Server) Serve() (e error) {
 		s.Unlock()
 		time.Sleep(1e8)
 	}
-	logger.Infof("mc server shutdown ", s.addr, "\n")
+	logger.Infof("mc server %s shutdown ", s.addr)
 	return nil
 }
 

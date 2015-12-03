@@ -3,7 +3,8 @@
 import string
 import zlib
 import unittest
-from tests.base import BeansdbInstance, BaseTest
+import time
+from tests.base import BaseTest
 from tests.dbclient import MCStore
 from tests.utils import random_string
 
@@ -134,6 +135,59 @@ class KeyVersionTest(BaseTest):
 
         self.checkCounterZero()
 
+    def test_collision(self):
+        # keyhash = "c80f795945b78f6b"
+        store = MCStore(self.db.addr)
+        # key1 and key2 have the same keyhash "c80f795945b78f6b"
+        # key_other and key_other2 is in bucket c too
+        # key_other is used to test with key1, key2 for get/set/gc...
+        # key_other2 is used to make it possible to gc [0, 1]
+        key1 = "processed_log_backup_text_20140912102821_1020_13301733"
+        key2 = "/subject/10460967/props"
+        key_other = "/ark/p/385242854/"
+        key_other2 = "/doumail/849134123/source"
+        keys = [key1, key2, key_other]
+        for k in keys:
+            self.assertTrue(store.set(k, k))
+            self.assertEqual(store.get(k), k)
+
+        for i, k in enumerate(keys):
+            self.assertEqual(store.get(k), k)
+            ver = 2 if i == 1 else 1
+            self.assertEqual(self.get_meta(store, k), (ver, 0, i *256))
+
+        self.db.stop()
+        self.db.start()
+        store = MCStore(self.db.addr)
+        for k in keys:
+            self.assertEqual(store.get(k), k)
+
+        for k in keys:
+            self.assertTrue(store.set(k, k + k))
+
+        for i, k in enumerate(keys):
+            self.assertEqual(store.get(k), k + k)
+            ver = 3 if i == 1 else 2
+            self.assertEqual(self.get_meta(store, k), (ver, 1, i * 256))
+
+        self.db.stop()
+        self.db.start()
+        store = MCStore(self.db.addr)
+        self.assertTrue(store.set(key_other2, 1))
+
+        self.db.stop()
+        self.db.start()
+        store = MCStore(self.db.addr)
+
+        self.gc(12)
+        time.sleep(1)
+
+        for i, k in enumerate(keys):
+            self.assertEqual(store.get(k), k + k)
+            ver = 3 if i == 1 else 2
+            self.assertEqual(self.get_meta(store, k), (ver, 0, i * 256))
+
 
 if __name__ == '__main__':
     unittest.main()
+

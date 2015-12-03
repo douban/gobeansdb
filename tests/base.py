@@ -35,7 +35,7 @@ class BaseTest(unittest.TestCase):
         # time.sleep(100)
 
     def checkCounterZero(self):
-        time.sleep(0.1)
+        time.sleep(0.5)
         content = gethttp(self.db.webaddr, '/buffers')
         buffers = json.loads(content)[0]
         self.assertEqual(len(buffers), 4)
@@ -43,6 +43,10 @@ class BaseTest(unittest.TestCase):
             self.assertEqual(v['Count'], 0, content)
             self.assertEqual(v['Size'], 0, content)
 
+    def gc(self, bucket, start=0):
+        content = gethttp(self.db.webaddr, "/gc/%x?start=%d&run=true" % (bucket, start))
+        print "gc response", content
+        time.sleep(1)
 
 ### start/stop cmd in subprocess
 
@@ -128,7 +132,7 @@ class BeansdbInstance(object):
                 return
             except IOError:
                 try_times += 1
-                if try_times > 10:
+                if try_times > 20:
                     raise Exception('connect error for addr: %s', self.addr)
                 time.sleep(0.5)
 

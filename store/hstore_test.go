@@ -3,13 +3,16 @@ package store
 import (
 	"flag"
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 var (
@@ -106,30 +109,74 @@ func (g *KVGen) gen(ki *KeyInfo, i, ver int) (payload *Payload) {
 	return
 }
 
-func TestHStoreMem(t *testing.T) {
-	testHStore(t, 0, 1)
+func GetFunctionName(i interface{}) string {
+	name := runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+	parts := strings.Split(name, ".")
+	return parts[len(parts)-1]
 }
 
-func TestHStoreFlush(t *testing.T) {
-	testHStore(t, 1, 1)
+type KeyHasherMaker func(depth uint, bucket int) HashFuncType
+
+func makeKeyHasherFixBucet(depth uint, bucket int) HashFuncType {
+	return func(key []byte) uint64 {
+		shift := depth * 4
+		return (getKeyHashDefalut(key) >> shift) | (uint64(bucket) << (64 - shift))
+	}
+}
+
+func makeKeyHasherParseKey(depth uint, bucket int) HashFuncType {
+	return func(key []byte) uint64 {
+		s := string(key)
+		parts := strings.Split(s, "_")
+		bkt, _ := strconv.ParseUint(parts[1], 16, 32)
+		hash, _ := strconv.ParseUint(parts[2], 16, 32)
+		h := (bkt << (4 * (16 - depth))) + hash
+		return h
+	}
+}
+
+func makeKeyHasherTrival(depth uint, bucket int) HashFuncType {
+	return func(key []byte) uint64 {
+		shift := depth * 4
+		return (uint64(bucket) << (64 - shift))
+	}
+}
+
+func TestHStoreMem0(t *testing.T) {
+	testHStore(t, 0, 1, makeKeyHasherParseKey)
+}
+
+func TestHStoreFlush0(t *testing.T) {
+	testHStore(t, 1, 1, makeKeyHasherParseKey)
 }
 
 func TestHStoreRestart0(t *testing.T) {
-	testHStore(t, 2, 1)
+	testHStore(t, 2, 1, makeKeyHasherParseKey)
+}
+
+func TestHStoreMem1(t *testing.T) {
+	testHStore(t, 2, 16, makeKeyHasherParseKey)
+}
+
+func TestHStoreFlush1(t *testing.T) {
+	testHStore(t, 2, 16, makeKeyHasherParseKey)
 }
 
 func TestHStoreRestart1(t *testing.T) {
-	testHStore(t, 2, 16)
+	testHStore(t, 2, 16, makeKeyHasherParseKey)
 }
 
-func testHStore(t *testing.T, op, numbucket int) {
+func testHStore(t *testing.T, op, numbucket int, hashMaker KeyHasherMaker) {
 	conf.InitDefault()
-
-	setupTest(fmt.Sprintf("testHStore_%d_%d", op, numbucket), 1)
+	funcname := GetFunctionName(hashMaker)
+	home := fmt.Sprintf("testHStore_%d_%d_%v", op, numbucket, funcname)
+	setupTest(home, 1)
 	defer clearTest()
+
+	bkt := numbucket - 1
 	conf.NumBucket = numbucket
 	conf.Buckets = make([]int, numbucket)
-	conf.Buckets[numbucket-1] = 1
+	conf.Buckets[bkt] = 1
 	conf.TreeHeight = 3
 	conf.Init()
 
@@ -137,7 +184,7 @@ func testHStore(t *testing.T, op, numbucket int) {
 	os.Mkdir(bucketDir, 0777)
 
 	gen := newKVGen(numbucket)
-	getKeyHash = makeKeyHasherParse(gen.depth)
+	getKeyHash = hashMaker(gen.depth, bkt)
 	defer func() {
 		getKeyHash = getKeyHashDefalut
 	}()
@@ -153,6 +200,7 @@ func testHStore(t *testing.T, op, numbucket int) {
 	var ki KeyInfo
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
+		logger.Infof("%v %v %#v %s", ki.StringKey, ki.KeyHash, payload.Meta, payload.Body)
 
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
@@ -178,24 +226,6 @@ func testHStore(t *testing.T, op, numbucket int) {
 		if payload2 == nil || (string(payload.Body) != string(payload2.Body)) || (pos != Position{0, uint32(PADDING * i)}) {
 			t.Fatalf("%d: %#v %#v", i, payload2, pos)
 		}
-	}
-}
-
-func makeKeyHasherFixBucet(bucket, depth uint) HashFuncType {
-	return func(key []byte) uint64 {
-		shift := depth * 4
-		return (getKeyHashDefalut(key) >> shift) | (uint64(bucket) << (64 - shift))
-	}
-}
-
-func makeKeyHasherParse(depth uint) HashFuncType {
-	return func(key []byte) uint64 {
-		s := string(key)
-		parts := strings.Split(s, "_")
-		bkt, _ := strconv.ParseUint(parts[1], 16, 32)
-		hash, _ := strconv.ParseUint(parts[2], 16, 32)
-		h := (bkt << (4 * (16 - depth))) + hash
-		return h
 	}
 }
 
@@ -280,6 +310,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	dir.Set("001.000.idx.s", -1)
 	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
+	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{1, 0}
@@ -335,6 +366,7 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	dir.Set("001.000.idx.s", -1)
 	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
+	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{1, 0}
@@ -398,6 +430,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	dir.Set("001.000.idx.s", -1)
 	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
+	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{1, 0}
@@ -701,7 +734,7 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 	conf.Buckets = make([]int, numbucket)
 	conf.Buckets[bkt] = 1
 	conf.TreeHeight = 3
-	getKeyHash = makeKeyHasherFixBucet(uint(bkt), 1)
+	getKeyHash = makeKeyHasherFixBucet(1, bkt)
 	defer func() {
 		getKeyHash = getKeyHashDefalut
 	}()
@@ -803,4 +836,10 @@ func checkAllDataWithHints(dir string) error {
 		}
 	}
 	return nil
+}
+
+func TestHStoreCollision(t *testing.T) {
+	testHStore(t, 0, 16, makeKeyHasherTrival)
+	testHStore(t, 1, 16, makeKeyHasherTrival)
+	testHStore(t, 2, 16, makeKeyHasherTrival)
 }

@@ -2,12 +2,13 @@ package store
 
 import (
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"math/rand"
 	"runtime"
 	"testing"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/loghub"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 func init() {
@@ -287,6 +288,7 @@ func TestHintMgr(t *testing.T) {
 		setAndCheckMgr(t, hm, items[i], chunkID)
 	}
 	files := utils.NewDir()
+	files.Set("collision.yaml", -1)
 	files.SetMultiNoSize("003.000.idx.s", "003.001.idx.s", "003.001.idx.m")
 	fillChunk(t, dir, hm, items, 4, files)
 	files.SetMultiNoSize("004.000.idx.s", "004.001.idx.s", "004.001.idx.m")

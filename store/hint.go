@@ -2,12 +2,13 @@ package store
 
 import (
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 const (
@@ -498,16 +499,17 @@ func (h *hintMgr) Merge(forGC bool) (err error) {
 	}
 	h.merged = index
 	h.collisions.HintID = maxid
+	h.dumpCollisions()
 	return
 }
 
-func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32) (rotated bool) {
+func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32, reason string) (rotated bool) {
 	it := newHintItem(ki.KeyHash, meta.Ver, meta.ValueHash, Position{0, pos.Offset}, ki.StringKey)
 	_, ok := h.collisions.get(ki.KeyHash, ki.StringKey)
 	if ok {
 		it2 := *it
 		it2.Pos |= uint32(pos.ChunkID)
-		h.collisions.compareAndSet(&it2)
+		h.collisions.compareAndSet(&it2, reason)
 	}
 	return h.setItem(it, pos.ChunkID, recSize)
 }
@@ -712,4 +714,16 @@ func (h *hintMgr) getCollisionGC(ki *KeyInfo) (it *HintItem, collision bool) {
 		it, collision = h.getItemCollision(ki.KeyHash, ki.StringKey)
 	}
 	return
+}
+
+func (h *hintMgr) getCollisionPath() string {
+	return fmt.Sprintf("%s/collision.yaml", h.home)
+}
+
+func (h *hintMgr) dumpCollisions() {
+	h.collisions.dump(h.getCollisionPath())
+}
+
+func (h *hintMgr) loadCollisions() {
+	h.collisions.load(h.getCollisionPath())
 }
