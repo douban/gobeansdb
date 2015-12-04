@@ -95,7 +95,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 func handleWebPanic(w http.ResponseWriter) {
 	r := recover()
 	if r != nil {
-		stack := utils.GetStack(1000)
+		stack := utils.GetStack(2000)
 		logger.Errorf("web req panic:%#v, stack:%s", r, stack)
 		fmt.Fprintf(w, "\npanic:%#v, stack:%s", r, stack)
 	}

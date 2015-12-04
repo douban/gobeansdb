@@ -414,7 +414,7 @@ func (h *hintMgr) dumpAndMerge(forGC bool) (maxSilence int64) {
 		h.state &= (^HintStateDump)
 		h.dumpLock.Unlock()
 		if e := recover(); e != nil {
-			logger.Errorf("dumpAndMerge panic(%#v), stack: %s", e, utils.GetStack(1000))
+			logger.Errorf("dumpAndMerge panic(%#v), stack: %s", e, utils.GetStack(2000))
 		}
 	}()
 
