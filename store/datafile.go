@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/quicklz"
 	"io"
 	"os"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/quicklz"
 )
 
 const (
@@ -65,7 +66,9 @@ func (wrec *WriteRecord) decode(data []byte) (err error) {
 func (wrec *WriteRecord) getCRC() uint32 {
 	hasher := newCrc32()
 	hasher.write(wrec.header[4:])
-	hasher.write(wrec.rec.Key)
+	if len(wrec.rec.Key) > 0 {
+		hasher.write(wrec.rec.Key)
+	}
 	if len(wrec.rec.Payload.Body) > 0 {
 		hasher.write(wrec.rec.Payload.Body)
 	}
