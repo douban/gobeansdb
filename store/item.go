@@ -224,7 +224,7 @@ func (rec *Record) Dumps() []byte {
 }
 
 func isValidKVSzie(ksz, vsz uint32) bool {
-	return ksz <= uint32(conf.MaxKeyLen) && vsz <= uint32(conf.BodyMax)
+	return ksz != 0 && ksz <= uint32(conf.MaxKeyLen) && vsz <= uint32(conf.BodyMax)
 }
 
 func posForCompare(pos uint32) int64 {
