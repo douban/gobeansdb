@@ -149,7 +149,7 @@ type Server struct {
 	sync.Mutex
 	addr  string
 	l     net.Listener
-	store StorageClient
+	store Storage
 	conns map[string]*ServerConn
 	stats *Stats
 	stop  bool
@@ -157,7 +157,7 @@ type Server struct {
 
 func NewServer(store Storage) *Server {
 	s := new(Server)
-	s.store = store.Client()
+	s.store = store
 	s.conns = make(map[string]*ServerConn, 1024)
 	s.stats = NewStats()
 	return s
@@ -191,7 +191,7 @@ func (s *Server) Serve() (e error) {
 			s.stats.total_connections++
 			s.Unlock()
 
-			c.Serve(s.store, s.stats)
+			c.Serve(s.store.Client(), s.stats)
 
 			s.Lock()
 			s.stats.curr_connections--
