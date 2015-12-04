@@ -180,7 +180,7 @@ type Position struct {
 }
 
 func (pos *Position) encode() uint32 {
-	return uint32(pos.ChunkID) + pos.Offset
+	return uint32(pos.ChunkID) | pos.Offset
 }
 
 func decodePos(pos uint32) Position {

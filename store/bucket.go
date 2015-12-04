@@ -119,7 +119,7 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 		ki.Prepare()
 		meta.ValueHash = item.Vhash
 		meta.Ver = item.Ver
-		pos.Offset = item.Pos
+		pos.Offset = item.Pos & 0xffffff00
 		if item.Ver > 0 {
 			pos.ChunkID = chunkID
 			tree.set(ki, &meta, pos)
