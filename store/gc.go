@@ -263,10 +263,11 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 					isNewest = true
 				} else {
 					isDeleted = treeMeta.Ver < 0
-					hintit, isCoverdByCollision := bkt.hints.getCollisionGC(ki)
+					hintit, hintchunkid, isCoverdByCollision := bkt.hints.getCollisionGC(ki)
 					if isCoverdByCollision {
 						if hintit != nil {
-							if decodePos(hintit.Pos) == oldPos {
+							p := Position{hintchunkid, (hintit.Pos & 0xffffff00)}
+							if p == oldPos {
 								isNewest = true
 								meta.ValueHash = hintit.Vhash
 							} else {
