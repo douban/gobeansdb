@@ -88,7 +88,7 @@ func (c *DBConfig) Load(confdir string) {
 	if confdir != "" {
 		// global
 		path := fmt.Sprintf("%s/%s", confdir, "global.yaml")
-		err := loadYamlConfig(c, path)
+		err := LoadYamlConfig(c, path)
 		if err != nil {
 			log.Fatalf("bad config %s: %s", path, err.Error())
 		}
@@ -97,7 +97,7 @@ func (c *DBConfig) Load(confdir string) {
 		//local
 		path = fmt.Sprintf("%s/%s", confdir, "local.yaml")
 		if _, e := os.Stat(path); e == nil {
-			err = loadYamlConfig(c, path)
+			err = LoadYamlConfig(c, path)
 			if err != nil {
 				log.Fatalf("bad config %s: %s", path, err.Error())
 			}
