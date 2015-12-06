@@ -59,12 +59,21 @@ type MCConfig struct {
 	BodyInCStr string `yaml:"body_c_str,omitempty"`
 }
 
-func loadYamlConfig(config interface{}, path string) error {
+func LoadYamlConfig(config interface{}, path string) error {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
 	return yaml.Unmarshal(content, config)
+}
+
+func DumpConfig(config interface{}) {
+	b, err := yaml.Marshal(config)
+	if err != nil {
+		log.Fatalf("%s", err)
+	} else {
+		fmt.Println(string(b))
+	}
 }
 
 func (c *DBConfig) checkEmptyConfig(path string) {
@@ -118,17 +127,4 @@ func (c *DBConfig) InitDefault() {
 	c.MCConfig = DefaultMCConfig
 	c.HStoreConfig.InitDefault()
 	utils.InitSizesPointer(c)
-}
-
-func (c *ProxyConfig) Load(confdir string) {
-	// TODO:
-}
-
-func DumpConfig(config interface{}) {
-	b, err := yaml.Marshal(config)
-	if err != nil {
-		log.Fatalf("%s", err)
-	} else {
-		fmt.Println(string(b))
-	}
 }
