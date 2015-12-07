@@ -467,9 +467,12 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	}()
 	gen := newKVGen(16)
 
+	conf.DataFileMax = 256 * int64(numRecPerFile)
+
 	var ki KeyInfo
 	N := numRecPerFile
 
+	// 000.data
 	for i := 0; i < N/2; i++ {
 		payload := gen.gen(&ki, i*(-1)-N, 0)
 		if err := store.Set(&ki, payload); err != nil {
@@ -484,12 +487,14 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 		t.Fatalf("%v", err)
 	}
 
+	// 001.data
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i*(-1)-N*2, 0)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
 	}
+	// 002.data
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
 		if err := store.Set(&ki, payload); err != nil {
@@ -497,15 +502,16 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 		}
 	}
 
+	// 003.data
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 2)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
 	}
-
 	store.flushdatas(true)
 
+	// 004.data
 	payload := gen.gen(&ki, -1, 0) // rotate
 	if err := store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
@@ -543,6 +549,18 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 			readHStore(t, store, N, 2)
 		}
 	}()
+
+	// 000: [-n  ,  -3n/2)
+	// 001: [-2n        ,         -3n)
+	// 002: [0          ,           n)
+	// 003: [0          ,           n]
+	// 004: -1
+	// gc =>
+	// 000: [-n   , 3n/2) [-2n, -5n/2)
+	// 001: [-5n/2,  -3n) [0  ,   n/2)
+	// 002: [n/2  ,    n)
+	// 004: -1
+
 	store.gcMgr.gc(bkt, 1, 3, true)
 	stop = true
 	readfunc()

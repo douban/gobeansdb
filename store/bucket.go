@@ -510,7 +510,7 @@ func (bkt *Bucket) getGCHistoryPath() string {
 func (bkt *Bucket) loadGCHistroy() (err error) {
 	fd, err := os.Open(bkt.getGCHistoryPath())
 	if err != nil {
-		logger.Warnf("%v", err)
+		logger.Infof("%v", err)
 		return
 	}
 	defer fd.Close()

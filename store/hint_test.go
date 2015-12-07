@@ -200,7 +200,7 @@ func checkChunk(t *testing.T, ck *hintChunk, it *HintItem) {
 }
 
 func setAndCheckChunk(t *testing.T, ck *hintChunk, it *HintItem, rotate bool) {
-	if rotate != ck.set(it, 0) {
+	if rotate != ck.setItem(it, 0) {
 		t.Fatalf("%#v not %v", it, rotate)
 	}
 	checkChunk(t, ck, it)

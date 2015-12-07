@@ -72,20 +72,3 @@ class AbnormalCmdTest(BaseTest):
         cmd = 'get ?%s' % self.invalid_key
         self.run_cmd_by_telnet(cmd, 'END')
         self.checkCounterZero()
-
-    @unittest.skip("we will check gc completely in another pr")
-    def test_gc(self):
-        cmd = 'gc @ 0 0'
-        self.run_cmd_by_telnet(cmd, 'CLIENT_ERROR bad command line format')
-
-        cmd = 'gc @0 -1 0'
-        self.run_cmd_by_telnet(cmd, 'CLIENT_ERROR bad command line format')
-
-        cmd = 'gc @0 0 -1'
-        self.run_cmd_by_telnet(cmd, 'CLIENT_ERROR bad command line format')
-
-        cmd = 'gc @0 2 0'
-        self.run_cmd_by_telnet(cmd, 'CLIENT_ERROR start_fid bigger than end_fid')
-
-        cmd = 'gc @0 0 0'
-        self.run_cmd_by_telnet(cmd, 'OK')

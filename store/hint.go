@@ -234,7 +234,7 @@ func (chunk *hintChunk) rotate() *hintSplit {
 	return sp
 }
 
-func (chunk *hintChunk) set(it *HintItem, recSize uint32) (rotated bool) {
+func (chunk *hintChunk) setItem(it *HintItem, recSize uint32) (rotated bool) {
 	chunk.Lock()
 	l := len(chunk.splits)
 	sp := chunk.splits[l-1]
@@ -355,7 +355,7 @@ func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 	defer ck.Lock()
 
 	path := h.getPath(chunkID, splitID, false)
-	logger.Warnf("dump %s", path)
+	logger.Infof("dump %s", path)
 	sp.file, err = sp.buf.dump(path)
 	if err == nil {
 		h.maxDumpedHintID.setIfLarger(chunkID, splitID)
@@ -515,7 +515,7 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32, rea
 }
 
 func (h *hintMgr) setItem(it *HintItem, chunkID int, recSize uint32) (rotated bool) {
-	rotated = h.chunks[chunkID].set(it, recSize)
+	rotated = h.chunks[chunkID].setItem(it, recSize)
 	if rotated {
 		if mergeChan != nil && chunkID >= h.maxChunkID {
 			select {
@@ -575,7 +575,7 @@ func (h *hintMgr) getItem(keyhash uint64, key string, memOnly bool) (it *HintIte
 			} else if it != nil {
 				logger.Infof("hint get hit merged %#v", it)
 				chunkID = int(it.Pos & 0xff)
-				it.Pos -= uint32(chunkID)
+				it.Pos &= 0xffffff00
 			}
 			return
 		}
@@ -591,7 +591,7 @@ func (h *hintMgr) getItem(keyhash uint64, key string, memOnly bool) (it *HintIte
 	return
 }
 
-func (chunk *hintChunk) getItemCollision(keyhash uint64, key string) (it *HintItem, collision, stop bool) {
+func (chunk *hintChunk) getItemCollision(keyhash uint64, key string) (it *HintItem, ChunkID int, collision, stop bool) {
 	chunk.Lock()
 	defer chunk.Unlock()
 	for sp := len(chunk.splits) - 1; sp >= 0; sp-- {
@@ -601,7 +601,7 @@ func (chunk *hintChunk) getItemCollision(keyhash uint64, key string) (it *HintIt
 			return
 		} else {
 			if it, collision = split.buf.get(keyhash, key); it != nil {
-				it.Pos |= uint32(chunk.id)
+				ChunkID = chunk.id
 				return
 			}
 		}
@@ -609,10 +609,10 @@ func (chunk *hintChunk) getItemCollision(keyhash uint64, key string) (it *HintIt
 	return
 }
 
-func (h *hintMgr) getItemCollision(keyhash uint64, key string) (it *HintItem, collision bool) {
+func (h *hintMgr) getItemCollision(keyhash uint64, key string) (it *HintItem, ChunkID int, collision bool) {
 	for ck := h.maxChunkID; ck >= 0; ck-- {
 		var stop bool
-		it, collision, stop = h.chunks[ck].getItemCollision(keyhash, key)
+		it, ChunkID, collision, stop = h.chunks[ck].getItemCollision(keyhash, key)
 		if collision || stop {
 			return
 		}
@@ -707,11 +707,13 @@ func (h *hintMgr) ClearChunks(min, max int) {
 //        | A            =>  it, false
 // A/B    |              => nil, false
 //        | B            => nil, true // should not happen when used in gc
-func (h *hintMgr) getCollisionGC(ki *KeyInfo) (it *HintItem, collision bool) {
+func (h *hintMgr) getCollisionGC(ki *KeyInfo) (it *HintItem, ChunkID int, collision bool) {
 	it, collision = h.collisions.get(ki.KeyHash, ki.StringKey)
 	if !collision {
 		// only in mem, in new hints buffers after gc begin
-		it, collision = h.getItemCollision(ki.KeyHash, ki.StringKey)
+		it, ChunkID, collision = h.getItemCollision(ki.KeyHash, ki.StringKey)
+	} else {
+		ChunkID = int(it.Pos & 0xff)
 	}
 	return
 }
