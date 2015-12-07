@@ -355,7 +355,7 @@ func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 	defer ck.Lock()
 
 	path := h.getPath(chunkID, splitID, false)
-	logger.Warnf("dump %s", path)
+	logger.Infof("dump %s", path)
 	sp.file, err = sp.buf.dump(path)
 	if err == nil {
 		h.maxDumpedHintID.setIfLarger(chunkID, splitID)
