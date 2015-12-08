@@ -150,7 +150,7 @@ func TestRequest(t *testing.T) {
 		e := req.Read(bufio.NewReader(buf))
 		var resp *Response
 		if e != nil {
-			resp = &Response{status: "CLIENT_ERROR", msg: e.Error()}
+			resp = &Response{Status: "CLIENT_ERROR", Msg: e.Error()}
 		} else {
 			resp, _ = req.Process(store, stats)
 		}

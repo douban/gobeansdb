@@ -278,20 +278,20 @@ func (req *Request) Read(b *bufio.Reader) error {
 }
 
 type Response struct {
-	status  string
-	msg     string
-	cas     bool
-	noreply bool
-	items   map[string]*Item
+	Status  string
+	Msg     string
+	Cas     bool
+	Noreply bool
+	Items   map[string]*Item
 }
 
 func (resp *Response) String() (s string) {
 	return fmt.Sprintf("Response(Status:%s, msg:%s, Items:%v)",
-		resp.status, resp.msg, resp.items)
+		resp.Status, resp.Msg, resp.Items)
 }
 
 func (resp *Response) Read(b *bufio.Reader) error {
-	resp.items = make(map[string]*Item, 1)
+	resp.Items = make(map[string]*Item, 1)
 	for {
 		s, e := b.ReadString('\n')
 		if e != nil {
@@ -303,8 +303,8 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			return errors.New("invalid response")
 		}
 
-		resp.status = parts[0]
-		switch resp.status {
+		resp.Status = parts[0]
+		switch resp.Status {
 
 		case "VALUE":
 			if len(parts) < 4 {
@@ -344,7 +344,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			}
 			b.ReadByte() // \r
 			b.ReadByte() // \n
-			resp.items[key] = item
+			resp.Items[key] = item
 			continue
 
 		case "STAT":
@@ -353,7 +353,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			}
 			var item Item
 			item.Body = []byte(parts[2])
-			resp.items[parts[1]] = &item
+			resp.Items[parts[1]] = &item
 			continue
 
 		case "END":
@@ -362,20 +362,20 @@ func (resp *Response) Read(b *bufio.Reader) error {
 
 		case "ERROR", "SERVER_ERROR", "CLIENT_ERROR":
 			if len(parts) > 1 {
-				resp.msg = parts[1]
+				resp.Msg = parts[1]
 			}
 			logger.Errorf("error:", resp)
 
 		default:
 			// try to convert to int
-			_, err := strconv.Atoi(resp.status)
+			_, err := strconv.Atoi(resp.Status)
 			if err == nil {
 				// response from incr,decr
-				resp.msg = resp.status
-				resp.status = "INCR"
+				resp.Msg = resp.Status
+				resp.Status = "INCR"
 			} else {
-				logger.Errorf("unknown status:", s, resp.status)
-				return errors.New("unknown response:" + resp.status)
+				logger.Errorf("unknown status:", s, resp.Status)
+				return errors.New("unknown response:" + resp.Status)
 			}
 		}
 		break
@@ -384,14 +384,14 @@ func (resp *Response) Read(b *bufio.Reader) error {
 }
 
 func (resp *Response) Write(w io.Writer) error {
-	if resp.noreply {
+	if resp.Noreply {
 		return nil
 	}
 
-	switch resp.status {
+	switch resp.Status {
 	case "VALUE":
-		for key, item := range resp.items {
-			if resp.cas {
+		for key, item := range resp.Items {
+			if resp.Cas {
 				fmt.Fprintf(w, "VALUE %s %d %d %d\r\n", key, item.Flag,
 					len(item.Body), item.Cas)
 			} else {
@@ -407,17 +407,17 @@ func (resp *Response) Write(w io.Writer) error {
 		io.WriteString(w, "END\r\n")
 
 	case "STAT":
-		io.WriteString(w, resp.msg)
+		io.WriteString(w, resp.Msg)
 		io.WriteString(w, "END\r\n")
 
 	case "INCR", "DECR":
-		fmt.Fprintf(w, resp.msg)
+		fmt.Fprintf(w, resp.Msg)
 		fmt.Fprintf(w, "\r\n")
 
 	default:
-		io.WriteString(w, resp.status)
-		if resp.msg != "" {
-			io.WriteString(w, " "+resp.msg)
+		io.WriteString(w, resp.Status)
+		if resp.Msg != "" {
+			io.WriteString(w, " "+resp.Msg)
 		}
 		io.WriteString(w, "\r\n")
 	}
@@ -425,13 +425,13 @@ func (resp *Response) Write(w io.Writer) error {
 }
 
 func (resp *Response) CleanBuffer() {
-	for key, item := range resp.items {
+	for key, item := range resp.Items {
 		if key[0] != '@' && key[0] != '?' {
 			cmem.DBRL.GetData.SubSize(int64(len(key) + len(item.Body)))
 		}
 		item.CArray.Free()
 	}
-	resp.items = nil
+	resp.Items = nil
 }
 
 func writeLine(w io.Writer, s string) {
@@ -441,7 +441,7 @@ func writeLine(w io.Writer, s string) {
 
 func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, err error) {
 	resp = new(Response)
-	resp.noreply = req.NoReply
+	resp.Noreply = req.NoReply
 
 	//var err error
 	switch req.Cmd {
@@ -449,27 +449,27 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 	case "get", "gets":
 		for _, k := range req.Keys {
 			if len(k) > MaxKeyLength {
-				resp.status = "CLIENT_ERROR"
-				resp.msg = "key too long"
+				resp.Status = "CLIENT_ERROR"
+				resp.Msg = "key too long"
 				return
 			}
 		}
 
-		resp.status = "VALUE"
-		resp.cas = req.Cmd == "gets"
+		resp.Status = "VALUE"
+		resp.Cas = req.Cmd == "gets"
 		if len(req.Keys) > 1 {
-			resp.items, err = store.GetMulti(req.Keys)
+			resp.Items, err = store.GetMulti(req.Keys)
 			if err != nil {
-				resp.status = "SERVER_ERROR"
-				resp.msg = err.Error()
+				resp.Status = "SERVER_ERROR"
+				resp.Msg = err.Error()
 				return
 			}
 			atomic.AddInt64(&stat.cmd_get, int64(len(req.Keys)))
-			atomic.AddInt64(&stat.get_hits, int64(len(resp.items)))
-			atomic.AddInt64(&stat.get_misses, int64(len(req.Keys)-len(resp.items)))
+			atomic.AddInt64(&stat.get_hits, int64(len(resp.Items)))
+			atomic.AddInt64(&stat.get_misses, int64(len(req.Keys)-len(resp.Items)))
 
 			bytes := int64(0)
-			for _, item := range resp.items {
+			for _, item := range resp.Items {
 				bytes += int64(len(item.Body))
 			}
 			stat.bytes_written += bytes
@@ -479,15 +479,15 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			var item *Item
 			item, err = store.Get(key)
 			if err != nil {
-				resp.status = "SERVER_ERROR"
-				resp.msg = err.Error()
+				resp.Status = "SERVER_ERROR"
+				resp.Msg = err.Error()
 				return
 			}
 			if item == nil {
 				atomic.AddInt64(&stat.get_misses, 1)
 			} else {
-				resp.items = make(map[string]*Item, 1)
-				resp.items[key] = item
+				resp.Items = make(map[string]*Item, 1)
+				resp.Items[key] = item
 				atomic.AddInt64(&stat.get_hits, 1)
 				stat.bytes_written += int64(len(item.Body))
 			}
@@ -498,17 +498,17 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 		var suc bool
 		suc, err = store.Set(key, req.Item, req.NoReply)
 		if err != nil {
-			resp.status = "SERVER_ERROR"
-			resp.msg = err.Error()
+			resp.Status = "SERVER_ERROR"
+			resp.Msg = err.Error()
 			break
 		}
 
 		atomic.AddInt64(&stat.cmd_set, 1)
 		stat.bytes_read += int64(len(req.Item.Body))
 		if suc {
-			resp.status = "STORED"
+			resp.Status = "STORED"
 		} else {
-			resp.status = "NOT_STORED"
+			resp.Status = "NOT_STORED"
 		}
 
 	case "append":
@@ -516,54 +516,54 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 		var suc bool
 		suc, err = store.Append(key, req.Item.Body)
 		if err != nil {
-			resp.status = "SERVER_ERROR"
-			resp.msg = err.Error()
+			resp.Status = "SERVER_ERROR"
+			resp.Msg = err.Error()
 			return
 		}
 
 		atomic.AddInt64(&stat.cmd_set, 1)
 		stat.bytes_read += int64(len(req.Item.Body))
 		if suc {
-			resp.status = "STORED"
+			resp.Status = "STORED"
 		} else {
-			resp.status = "NOT_STORED"
+			resp.Status = "NOT_STORED"
 		}
 
 	case "incr":
 		atomic.AddInt64(&stat.cmd_set, 1)
 		stat.bytes_read += int64(len(req.Item.Body))
-		resp.noreply = req.NoReply
+		resp.Noreply = req.NoReply
 		key := req.Keys[0]
 		add, err := strconv.Atoi(string(req.Item.Body))
 		if err != nil {
-			resp.status = "CLIENT_ERROR"
-			resp.msg = "invalid number"
+			resp.Status = "CLIENT_ERROR"
+			resp.Msg = "invalid number"
 			break
 		}
 		var result int
 		result, err = store.Incr(key, add)
 		if err != nil {
-			resp.status = "SERVER_ERROR"
-			resp.msg = err.Error()
+			resp.Status = "SERVER_ERROR"
+			resp.Msg = err.Error()
 			break
 		}
 
-		resp.status = "INCR"
-		resp.msg = strconv.Itoa(result)
+		resp.Status = "INCR"
+		resp.Msg = strconv.Itoa(result)
 
 	case "delete":
 		key := req.Keys[0]
 		var suc bool
 		suc, err = store.Delete(key)
 		if err != nil {
-			resp.status = "SERVER_ERROR"
-			resp.msg = err.Error()
+			resp.Status = "SERVER_ERROR"
+			resp.Msg = err.Error()
 			break
 		}
 		if suc {
-			resp.status = "DELETED"
+			resp.Status = "DELETED"
 		} else {
-			resp.status = "NOT_FOUND"
+			resp.Status = "NOT_FOUND"
 		}
 		stat.cmd_delete++
 
@@ -572,7 +572,7 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 		n := int64(store.Len())
 		st["curr_items"] = n
 		st["total_items"] = n
-		resp.status = "STAT"
+		resp.Status = "STAT"
 		var ss []string
 		if len(req.Keys) > 0 {
 			ss = make([]string, len(req.Keys))
@@ -580,7 +580,7 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 				v, _ := st[k]
 				ss[i] = fmt.Sprintf("STAT %s %d\r\n", k, v)
 			}
-			resp.msg = strings.Join(ss, "")
+			resp.Msg = strings.Join(ss, "")
 		} else {
 			ss = make([]string, len(st)+1)
 			cnt := 0
@@ -590,14 +590,14 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			}
 			ss[cnt] = fmt.Sprintf("STAT version %s\r\n", config.Version)
 		}
-		resp.msg = strings.Join(ss, "")
+		resp.Msg = strings.Join(ss, "")
 
 	case "version":
-		resp.status = "VERSION"
-		resp.msg = config.Version
+		resp.Status = "VERSION"
+		resp.Msg = config.Version
 
 	case "verbosity", "flush_all":
-		resp.status = "OK"
+		resp.Status = "OK"
 
 	case "quit":
 		resp = nil
@@ -622,8 +622,8 @@ func contain(vs []string, v string) bool {
 func (req *Request) Check(resp *Response) error {
 	switch req.Cmd {
 	case "get", "gets":
-		if resp.items != nil {
-			for key, _ := range resp.items {
+		if resp.Items != nil {
+			for key, _ := range resp.Items {
 				if !contain(req.Keys, key) {
 					logger.Errorf("unexpected key in response: ", key)
 					return errors.New("unexpected key in response: " + key)
@@ -632,14 +632,14 @@ func (req *Request) Check(resp *Response) error {
 		}
 
 	case "incr", "decr":
-		if !contain([]string{"INCR", "DECR", "NOT_FOUND"}, resp.status) {
-			return errors.New("unexpected status: " + resp.status)
+		if !contain([]string{"INCR", "DECR", "NOT_FOUND"}, resp.Status) {
+			return errors.New("unexpected status: " + resp.Status)
 		}
 
 	case "set", "add", "replace", "append", "prepend":
 		if !contain([]string{"STORED", "NOT_STORED", "EXISTS", "NOT_FOUND"},
-			resp.status) {
-			return errors.New("unexpected status: " + resp.status)
+			resp.Status) {
+			return errors.New("unexpected status: " + resp.Status)
 		}
 	}
 	return nil

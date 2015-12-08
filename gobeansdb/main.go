@@ -79,7 +79,7 @@ func main() {
 	}
 
 	initLog()
-	logger.Infof("gorivendb version %s starting at %d, config: %#v",
+	logger.Infof("gobeansdb version %s starting at %d, config: %#v",
 		config.Version, conf.Port, conf)
 	logger.Infof("route table: %#v", config.Route)
 
