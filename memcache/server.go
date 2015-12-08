@@ -94,18 +94,18 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			// process non memcache commands, e.g. 'gc', 'optimize_stat'.
 			status, msg := storageClient.Process(req.Cmd, req.Keys)
 			resp = new(Response)
-			resp.status = status
-			resp.msg = msg
+			resp.Status = status
+			resp.Msg = msg
 			err = nil
 		} else if err == ErrOOM {
 			resp = new(Response)
-			resp.status = "NOT_STORED"
+			resp.Status = "NOT_STORED"
 			err = nil
 		} else {
 			// process client command format related error
 			resp = new(Response)
-			resp.status = "CLIENT_ERROR"
-			resp.msg = err.Error()
+			resp.Status = "CLIENT_ERROR"
+			resp.Msg = err.Error()
 			err = nil
 		}
 	} else {
@@ -122,7 +122,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 		}
 	}
 
-	if !resp.noreply {
+	if !resp.Noreply {
 		if err = resp.Write(c.wbuf); err != nil {
 			return
 		}
