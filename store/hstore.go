@@ -255,6 +255,7 @@ func (store *HStore) updateNodesUpper(level, offset int) (node *Node) {
 			cnode := store.updateNodesUpper(level+1, offset*16+i)
 			node.hash *= 97
 			node.hash += cnode.hash
+			node.count += cnode.count
 		}
 	} else {
 		bkt := store.buckets[offset]
