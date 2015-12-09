@@ -6,6 +6,7 @@ import (
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
 	"github.intra.douban.com/coresys/gobeansdb/quicklz"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 const (
@@ -85,11 +86,11 @@ func Getvhash(value []byte) uint16 {
 	l := len(value)
 	hash := uint32(l) * 97
 	if l <= 1024 {
-		hash += Fnv1a(value)
+		hash += utils.Fnv1a(value)
 	} else {
-		hash += Fnv1a(value[:512])
+		hash += utils.Fnv1a(value[:512])
 		hash *= 97
-		hash += Fnv1a(value[l-512 : l])
+		hash += utils.Fnv1a(value[l-512 : l])
 	}
 	return uint16(hash)
 }

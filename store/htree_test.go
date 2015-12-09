@@ -11,10 +11,12 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 func TestHash(t *testing.T) {
-	h := Fnv1a([]byte("test"))
+	h := utils.Fnv1a([]byte("test"))
 	if h != uint32(2949673445) {
 		t.Error("hash error", h)
 	}
