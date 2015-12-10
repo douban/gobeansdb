@@ -53,6 +53,7 @@ type BucketInfo struct {
 	MaxDumpedHintID HintID
 	DU              int64
 	NumSameVhash    int64
+	SizeSameVhash   int64
 }
 
 type Bucket struct {
@@ -322,6 +323,7 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 				return nil
 			}
 			atomic.AddInt64(&bkt.NumSameVhash, 1)
+			atomic.AddInt64(&bkt.SizeSameVhash, int64(len(payload.Body)))
 		}
 	}
 
