@@ -15,8 +15,6 @@ import (
 	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
 	"github.intra.douban.com/coresys/gobeansdb/store"
 	"github.intra.douban.com/coresys/gobeansdb/utils"
-
-	yaml "gopkg.in/yaml.v2"
 )
 
 // TODO:
@@ -101,19 +99,9 @@ func handleWebPanic(w http.ResponseWriter) {
 	}
 }
 
-func handleJson(w http.ResponseWriter, v ...interface{}) {
+func handleJson(w http.ResponseWriter, v interface{}) {
 	defer handleWebPanic(w)
 	b, err := json.Marshal(v)
-	if err != nil {
-		w.Write([]byte(err.Error()))
-	} else {
-		w.Write(b)
-	}
-}
-
-func handleYaml(w http.ResponseWriter, v ...interface{}) {
-	defer handleWebPanic(w)
-	b, err := yaml.Marshal(v)
 	if err != nil {
 		w.Write([]byte(err.Error()))
 	} else {
@@ -186,6 +174,14 @@ func handleReload(w http.ResponseWriter, r *http.Request) {
 	// reload route config
 }
 
+func showBucket(w http.ResponseWriter, path string) {
+	for _, bkt := range conf.BucketsHex {
+		line := fmt.Sprintf("<a href='/%s/%s'> %s </a> <p/>", path, bkt, bkt)
+		w.Write([]byte(line))
+	}
+	return
+}
+
 func handleBucket(w http.ResponseWriter, r *http.Request) {
 	if storage == nil {
 		return
@@ -193,8 +189,21 @@ func handleBucket(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
 	var err error
 	var bucketID int64
+	s := filepath.Base(r.URL.Path)
+	if s == "all" {
+		all := make([]*store.BucketInfo, 0)
+		for i, s := range conf.BucketsStat {
+			if s > 0 {
+				all = append(all, storage.hstore.GetBucketInfo(i))
+			}
+		}
+		handleJson(w, all)
+		return
+	}
 	bucketID, err = getBucket(r)
 	if err != nil {
+		w.Write([]byte("<a href='/bucket/all'> all </a> <p/>"))
+		showBucket(w, "bucket")
 		return
 	}
 	handleJson(w, storage.hstore.GetBucketInfo(int(bucketID)))
@@ -250,7 +259,9 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	var pretend bool
 	defer func() {
 		if err != nil {
-			w.Write([]byte("err :" + err.Error()))
+			e := fmt.Sprintf("<p> err : %s </p>", err.Error())
+			w.Write([]byte(e))
+			showBucket(w, "gc")
 		} else {
 			if !pretend {
 				result2 := fmt.Sprintf(" <a href='/bucket/%d'> /bucket/%d </a> <p/>", bucketID, bucketID)
@@ -296,5 +307,5 @@ func handleDU(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer handleWebPanic(w)
-	handleYaml(w, storage.hstore.GetDU())
+	handleJson(w, storage.hstore.GetDU())
 }

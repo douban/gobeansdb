@@ -16,8 +16,9 @@ type HStoreConfig struct {
 }
 
 type DBRouteConfig struct {
-	NumBucket int
-	Buckets   []int
+	NumBucket   int
+	BucketsStat []int `json:"Buckets"` // TODO: `json:"-"`
+	BucketsHex  []string
 }
 
 type HtreeDerivedConfig struct {
@@ -82,5 +83,6 @@ func (c *HStoreConfig) init() error {
 	c.TreeKeyHashLen = KHASH_LENS[c.TreeDepth+c.TreeHeight-1]
 	shift := 64 - uint32(c.TreeKeyHashLen)*8
 	c.TreeKeyHashMask = (uint64(0xffffffffffffffff) << shift) >> shift
+
 	return nil
 }
