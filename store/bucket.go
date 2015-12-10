@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
@@ -51,6 +52,7 @@ type BucketInfo struct {
 	HintState       int
 	MaxDumpedHintID HintID
 	DU              int64
+	NumSameVhash    int64
 }
 
 type Bucket struct {
@@ -311,14 +313,15 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 
 	if payload != nil {
 		oldv = payload.Ver
-		if conf.CheckVHash && oldv > 0 {
-			if v.ValueHash == payload.ValueHash {
+		if oldv > 0 && v.ValueHash == payload.ValueHash {
+			if conf.CheckVHash {
 				if v.Ver != 0 {
 					// sync script would be here, e.g. set_raw(k, v, rev=xxx)
 					bkt.htree.set(ki, &v.Meta, pos)
 				}
 				return nil
 			}
+			atomic.AddInt64(&bkt.NumSameVhash, 1)
 		}
 	}
 
