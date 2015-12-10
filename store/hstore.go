@@ -419,15 +419,17 @@ func GetPayloadForDelete() *Payload {
 }
 
 type DU struct {
-	Disks   map[string]utils.DiskStatus
-	Buckets map[int]int64
-	Errs    []string
+	Disks      map[string]utils.DiskStatus
+	BucketsHex map[string]int64
+	Buckets    map[int]int64 `json:"-"`
+	Errs       []string
 }
 
 func NewDU() (du *DU) {
 	du = &DU{}
 	du.Disks = make(map[string]utils.DiskStatus)
 	du.Buckets = make(map[int]int64)
+	du.BucketsHex = make(map[string]int64)
 	return
 }
 
@@ -453,6 +455,7 @@ func (store *HStore) GetDU() (du *DU) {
 				du.Errs = append(du.Errs, e.Error())
 			} else {
 				du.Buckets[i] = diru
+				du.BucketsHex[config.BucketIDHex(i, conf.NumBucket)] = diru
 			}
 		}
 	}

@@ -172,8 +172,10 @@ func DiskUsage(path string) (disk DiskStatus, err error) {
 }
 
 func DirUsage(path string) (size int64, err error) {
+	size = 0
 	f, err := os.Open(path)
 	if err != nil {
+		size = -1
 		return
 	}
 	fis, err := f.Readdir(-1)

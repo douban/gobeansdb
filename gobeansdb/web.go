@@ -307,5 +307,5 @@ func handleDU(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer handleWebPanic(w)
-	handleYaml(w, storage.hstore.GetDU())
+	handleJson(w, storage.hstore.GetDU())
 }
