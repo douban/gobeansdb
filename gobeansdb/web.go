@@ -186,6 +186,14 @@ func handleReload(w http.ResponseWriter, r *http.Request) {
 	// reload route config
 }
 
+func showBucket(w http.ResponseWriter, path string) {
+	for _, bkt := range conf.BucketsHex {
+		line := fmt.Sprintf("<a href='/%s/%s'> %s </a> <p/>", path, bkt, bkt)
+		w.Write([]byte(line))
+	}
+	return
+}
+
 func handleBucket(w http.ResponseWriter, r *http.Request) {
 	if storage == nil {
 		return
@@ -195,6 +203,7 @@ func handleBucket(w http.ResponseWriter, r *http.Request) {
 	var bucketID int64
 	bucketID, err = getBucket(r)
 	if err != nil {
+		showBucket(w, "bucket")
 		return
 	}
 	handleJson(w, storage.hstore.GetBucketInfo(int(bucketID)))
@@ -250,7 +259,9 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	var pretend bool
 	defer func() {
 		if err != nil {
-			w.Write([]byte("err :" + err.Error()))
+			e := fmt.Sprintf("<p> err : %s </p>", err.Error())
+			w.Write([]byte(e))
+			showBucket(w, "gc")
 		} else {
 			if !pretend {
 				result2 := fmt.Sprintf(" <a href='/bucket/%d'> /bucket/%d </a> <p/>", bucketID, bucketID)
