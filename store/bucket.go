@@ -50,6 +50,7 @@ type BucketInfo struct {
 	LastGC          *GCState
 	HintState       int
 	MaxDumpedHintID HintID
+	DU              int64
 }
 
 type Bucket struct {
@@ -492,6 +493,7 @@ func (bkt *Bucket) getInfo() *BucketInfo {
 	if n > 0 {
 		bkt.LastGC = &bkt.GCHistory[n-1]
 	}
+	bkt.DU, _ = utils.DirUsage(bkt.Home)
 	return &bkt.BucketInfo
 }
 
