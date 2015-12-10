@@ -17,7 +17,7 @@ type HStoreConfig struct {
 
 type DBRouteConfig struct {
 	NumBucket   int
-	BucketsStat []int // TODO: `json:"-"`
+	BucketsStat []int `json:"Buckets"` // TODO: `json:"-"`
 	BucketsHex  []string
 }
 
