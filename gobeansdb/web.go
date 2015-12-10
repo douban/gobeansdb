@@ -15,8 +15,6 @@ import (
 	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
 	"github.intra.douban.com/coresys/gobeansdb/store"
 	"github.intra.douban.com/coresys/gobeansdb/utils"
-
-	yaml "gopkg.in/yaml.v2"
 )
 
 // TODO:
@@ -101,19 +99,9 @@ func handleWebPanic(w http.ResponseWriter) {
 	}
 }
 
-func handleJson(w http.ResponseWriter, v ...interface{}) {
+func handleJson(w http.ResponseWriter, v interface{}) {
 	defer handleWebPanic(w)
 	b, err := json.Marshal(v)
-	if err != nil {
-		w.Write([]byte(err.Error()))
-	} else {
-		w.Write(b)
-	}
-}
-
-func handleYaml(w http.ResponseWriter, v ...interface{}) {
-	defer handleWebPanic(w)
-	b, err := yaml.Marshal(v)
 	if err != nil {
 		w.Write([]byte(err.Error()))
 	} else {

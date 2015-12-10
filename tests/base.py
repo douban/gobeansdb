@@ -37,7 +37,7 @@ class BaseTest(unittest.TestCase):
     def checkCounterZero(self):
         time.sleep(0.5)
         content = gethttp(self.db.webaddr, '/buffers')
-        buffers = json.loads(content)[0]
+        buffers = json.loads(content)
         self.assertEqual(len(buffers), 4)
         for _, v in buffers.items():
             self.assertEqual(v['Count'], 0, content)
