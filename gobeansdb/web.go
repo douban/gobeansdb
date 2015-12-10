@@ -201,8 +201,20 @@ func handleBucket(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
 	var err error
 	var bucketID int64
+	s := filepath.Base(r.URL.Path)
+	if s == "all" {
+		all := make([]*store.BucketInfo, 0)
+		for i, s := range conf.BucketsStat {
+			if s > 0 {
+				all = append(all, storage.hstore.GetBucketInfo(i))
+			}
+		}
+		handleJson(w, all)
+		return
+	}
 	bucketID, err = getBucket(r)
 	if err != nil {
+		w.Write([]byte("<a href='/bucket/all'> all </a> <p/>"))
 		showBucket(w, "bucket")
 		return
 	}
