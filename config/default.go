@@ -64,12 +64,13 @@ var (
 	}
 
 	//DefaultRouteConfig = route.RouteConfig{NumBucket: 256, Buckets: make([]int, 256)}
-	DefaultRouteConfig = DBRouteConfig{NumBucket: 16, Buckets: make([]int, 16)}
+	DefaultRouteConfig = DBRouteConfig{NumBucket: 16, BucketsStat: make([]int, 16)}
 )
 
 func init() {
 	for i := 0; i < DefaultRouteConfig.NumBucket; i++ {
-		DefaultRouteConfig.Buckets[i] = 1
+		DefaultRouteConfig.BucketsStat[i] = 1
+		DefaultRouteConfig.BucketsHex = append(DefaultRouteConfig.BucketsHex, BucketIDHex(i, DefaultRouteConfig.NumBucket))
 	}
 }
 

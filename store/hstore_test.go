@@ -175,8 +175,8 @@ func testHStore(t *testing.T, op, numbucket int, hashMaker KeyHasherMaker) {
 
 	bkt := numbucket - 1
 	conf.NumBucket = numbucket
-	conf.Buckets = make([]int, numbucket)
-	conf.Buckets[bkt] = 1
+	conf.BucketsStat = make([]int, numbucket)
+	conf.BucketsStat[bkt] = 1
 	conf.TreeHeight = 3
 	conf.Init()
 
@@ -749,8 +749,8 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 	numbucket := 16
 	bkt := numbucket - 1
 	conf.NumBucket = numbucket
-	conf.Buckets = make([]int, numbucket)
-	conf.Buckets[bkt] = 1
+	conf.BucketsStat = make([]int, numbucket)
+	conf.BucketsStat[bkt] = 1
 	conf.TreeHeight = 3
 	getKeyHash = makeKeyHasherFixBucet(1, bkt)
 	defer func() {

@@ -128,3 +128,12 @@ func (c *DBConfig) InitDefault() {
 	c.HStoreConfig.InitDefault()
 	utils.InitSizesPointer(c)
 }
+
+func BucketIDHex(id, numBucket int) string {
+	if numBucket == 16 {
+		return fmt.Sprintf("%x", id)
+	} else if numBucket == 256 {
+		return fmt.Sprintf("%2x", id)
+	}
+	return "0"
+}

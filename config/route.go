@@ -37,14 +37,16 @@ type RouteTable struct {
 
 func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig, err error) {
 	r = DBRouteConfig{NumBucket: rt.NumBucket}
-	r.Buckets = make([]int, rt.NumBucket)
+	r.BucketsStat = make([]int, rt.NumBucket)
 	buckets, found := rt.Servers[addr]
 	if !found {
 		err = fmt.Errorf("can not find self in route table")
 		return
 	}
+	r.BucketsHex = make([]string, 0)
 	for b, _ := range buckets {
-		r.Buckets[b] = 1
+		r.BucketsStat[b] = 1
+		r.BucketsHex = append(r.BucketsHex, BucketIDHex(b, rt.NumBucket))
 	}
 	return r, nil
 }

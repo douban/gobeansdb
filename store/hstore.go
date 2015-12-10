@@ -173,7 +173,7 @@ func NewHStore() (store *HStore, err error) {
 	}
 
 	for i := 0; i < conf.NumBucket; i++ {
-		need := conf.Buckets[i] > 0
+		need := conf.BucketsStat[i] > 0
 		found := (store.buckets[i].State >= BUCKET_STAT_NOT_EMPTY)
 		if need {
 			if !found {
@@ -194,7 +194,7 @@ func NewHStore() (store *HStore, err error) {
 	n := 0
 	for i := 0; i < conf.NumBucket; i++ {
 		bkt := store.buckets[i]
-		if conf.Buckets[i] > 0 {
+		if conf.BucketsStat[i] > 0 {
 			err = bkt.open(i, store.getBucketPath(bkt.HomeID, i))
 			if err != nil {
 				return
