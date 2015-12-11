@@ -335,7 +335,7 @@ func (store *HStore) GCStat() (int, *GCState) {
 }
 
 func (store *HStore) GetBucketInfo(bucketID int) *BucketInfo {
-	if bucketID < 0 || bucketID > len(store.buckets) {
+	if bucketID < 0 || bucketID >= len(store.buckets) {
 		return nil
 	}
 	bkt := store.buckets[bucketID]
