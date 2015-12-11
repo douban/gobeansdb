@@ -190,9 +190,10 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	gc := &bkt.GCHistory[len(bkt.GCHistory)-1]
 	mgr.stat = gc
 	gc.Running = true
+	gc.BeginTS = time.Now()
 	defer func() {
 		gc.Running = false
-
+		gc.EndTS = time.Now()
 	}()
 	gc.Begin = startChunkID
 	gc.End = endChunkID
