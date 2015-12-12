@@ -177,7 +177,7 @@ func (s *Server) Serve() (e error) {
 	for {
 		rw, e := s.l.Accept()
 		if e != nil {
-			logger.Infof("Accept failed: ", e)
+			logger.Infof("Accept failed: %s", e)
 			return e
 		}
 		if s.stop {
@@ -187,6 +187,7 @@ func (s *Server) Serve() (e error) {
 		go func() {
 			s.Lock()
 			s.conns[c.RemoteAddr] = c
+
 			s.stats.curr_connections++
 			s.stats.total_connections++
 			s.Unlock()
