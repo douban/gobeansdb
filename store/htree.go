@@ -138,13 +138,18 @@ func (tree *HTree) load(path string) (err error) {
 }
 
 func (tree *HTree) dump(path string) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	tmp := path + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		logger.Errorf("fail to dump htree %s", err.Error())
 		return
 	}
-	defer f.Close()
-	tmp := path + ".tmp"
+	defer func() {
+		if f != nil {
+			f.Close()
+		}
+	}()
+
 	logger.Infof("dumping htree %s", tmp)
 	tree.ListTop()
 
@@ -185,6 +190,8 @@ func (tree *HTree) dump(path string) {
 		logger.Errorf("flush htree fail %s %s", path, err.Error())
 		return
 	}
+	f.Close()
+	f = nil
 	os.Rename(tmp, path)
 	logger.Infof("htree dumped %s, min leaf %d, max leaf %d", path, minleaf, maxleaf)
 }
