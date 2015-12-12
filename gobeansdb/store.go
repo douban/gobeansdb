@@ -3,10 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sync"
+
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
 	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
 	"github.intra.douban.com/coresys/gobeansdb/store"
-	"sync"
 )
 
 var (
@@ -125,6 +126,7 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 			}
 			item := new(mc.Item) // TODO: avoid alloc?
 			item.Body = rec.Dumps()
+			cmem.DBRL.GetData.SubSize(rec.Payload.AccountingSize)
 			rec.Payload.Free()
 			item.Flag = 0
 			return item, nil
