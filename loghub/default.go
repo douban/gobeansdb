@@ -28,7 +28,7 @@ func SetDefault(path string, level int, bufferSize int) {
 	hub := &DefaultHub{}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatalf("fai to to open log %s", path)
+		log.Fatalf("fail to to open log %s", path)
 	}
 	hub.logger = log.New(f, "", log.LstdFlags|log.Lmicroseconds)
 	Default.hub = hub

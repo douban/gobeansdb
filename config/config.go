@@ -33,13 +33,14 @@ type DBConfig struct {
 }
 
 type ServerConfig struct {
-	Hostname string `yaml:",omitempty"`
-	ZK       string `yaml:",omitempty"` // e.g. "zk1:2100"
-	Listen   string `yaml:",omitempty"` // ip
-	Port     int    `yaml:",omitempty"`
-	WebPort  int    `yaml:",omitempty"`
-	Threads  int    `yaml:",omitempty"` // NumCPU
-	LogDir   string `yaml:",omitempty"`
+	Hostname  string `yaml:",omitempty"`
+	ZK        string `yaml:",omitempty"` // e.g. "zk1:2100"
+	Listen    string `yaml:",omitempty"` // ip
+	Port      int    `yaml:",omitempty"`
+	WebPort   int    `yaml:",omitempty"`
+	Threads   int    `yaml:",omitempty"` // NumCPU
+	LogDir    string `yaml:",omitempty"`
+	StaticDir string `yaml:",omitempty"` // directory for static files, e.g. *.html
 }
 
 func (c *ServerConfig) Addr() string {
