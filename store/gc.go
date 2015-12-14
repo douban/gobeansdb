@@ -31,15 +31,14 @@ type GCState struct {
 }
 
 type GCFileState struct {
-	NumBefore          int
-	NumReleased        int
-	NumReleasedDeleted int
-	SizeBefore         uint32
-	SizeReleased       uint32
-	SizeDeleted        uint32
-	SizeBroken         uint32
-
-	NumNotInHtree int
+	NumBefore          int64
+	NumReleased        int64
+	NumReleasedDeleted int64
+	SizeBefore         int64
+	SizeReleased       int64
+	SizeDeleted        int64
+	SizeBroken         int64
+	NumNotInHtree      int64
 }
 
 func (s *GCFileState) add(s2 *GCFileState) {
@@ -56,15 +55,15 @@ func (s *GCFileState) add(s2 *GCFileState) {
 func (s *GCFileState) addRecord(size uint32, isNewest, isDeleted bool, sizeBroken uint32) {
 	if !isNewest {
 		s.NumReleased += 1
-		s.SizeReleased += size
+		s.SizeReleased += int64(size)
 		if isDeleted {
 			s.NumReleasedDeleted += 1
-			s.SizeDeleted += size
+			s.SizeDeleted += int64(size)
 		}
 	}
-	s.SizeReleased += sizeBroken
-	s.SizeBroken += sizeBroken
-	s.SizeBefore += (size + sizeBroken)
+	s.SizeReleased += int64(sizeBroken)
+	s.SizeBroken += int64(sizeBroken)
+	s.SizeBefore += int64(size + sizeBroken)
 	s.NumBefore += 1
 }
 
