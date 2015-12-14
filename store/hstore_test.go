@@ -308,13 +308,12 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	dir.Set("000.000.idx.s", -1)
 	dir.Set("001.data", 256)
 	dir.Set("001.000.idx.s", -1)
-	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
 	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{1, 0}
-	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+	if bkt.hints.maxDumpedHintID != treeID {
 		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
 	}
 }
@@ -364,13 +363,12 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	dir.Set("000.000.idx.s", -1)
 	dir.Set("001.data", 256)
 	dir.Set("001.000.idx.s", -1)
-	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
 	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{1, 0}
-	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+	if bkt.hints.maxDumpedHintID != treeID {
 		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
 	}
 }
@@ -428,13 +426,12 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	dir.Set("000.000.idx.s", -1)
 	dir.Set("001.data", 256)
 	dir.Set("001.000.idx.s", -1)
-	dir.Set("001.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
 	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{1, 0}
-	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+	if bkt.hints.maxDumpedHintID != treeID {
 		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
 	}
 }
@@ -577,13 +574,13 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	dir.Set("002.000.idx.s", -1)
 	dir.Set("004.data", 256)
 	dir.Set("004.000.idx.s", -1)
-	dir.Set("004.000.idx.hash", -1)
+	// Last
 	dir.Set("nextgc.txt", 1)
 	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{4, 0}
-	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+	if bkt.hints.maxDumpedHintID != treeID {
 		t.Fatalf("wrong treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
 	}
 	if bkt.hints.state != HintStateIdle {
@@ -598,6 +595,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	}
 	bkt = store.buckets[bucketID]
 	dir.Set("collision.yaml", -1)
+	dir.Set("004.000.idx.hash", -1)
 	checkFiles(t, bkt.Home, dir)
 	readfunc()
 
@@ -687,13 +685,12 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	dir.Set("000.001.idx.s", -1)
 	dir.Set("002.data", 256)
 	dir.Set("002.000.idx.s", -1)
-	dir.Set("002.000.idx.hash", -1)
 	dir.Set("nextgc.txt", 1)
 	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
 	treeID := HintID{2, 0}
-	if bkt.TreeID != treeID || bkt.hints.maxDumpedHintID != treeID {
+	if bkt.hints.maxDumpedHintID != treeID {
 		t.Fatalf("bad treeID %v %v", bkt.TreeID, bkt.hints.maxDumpedHintID)
 	}
 

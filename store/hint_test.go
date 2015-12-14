@@ -244,8 +244,9 @@ func setAndCheckMgr(t *testing.T, hm *hintMgr, it *HintItem, chunkID int) {
 
 func checkFiles(t *testing.T, dir string, files *utils.Dir) {
 	diskfiles, df1, df2, err := files.CheckPath(dir)
+	_, file, line, _ := runtime.Caller(1)
 	if err != nil || df1 != nil || df2 != nil {
-		t.Fatal(files.ToSlice(), diskfiles.ToSlice(), df1, df2, err)
+		t.Fatal(file, line, files.ToSlice(), diskfiles.ToSlice(), df1, df2, err)
 	}
 }
 
