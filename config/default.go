@@ -30,13 +30,14 @@ var (
 	}
 
 	DefaultServerConfig = ServerConfig{
-		Hostname: "127.0.0.1",
-		Listen:   "0.0.0.0",
-		Port:     7900,
-		WebPort:  7903,
-		Threads:  4,
-		ZK:       "NO",
-		LogDir:   "./",
+		Hostname:  "127.0.0.1",
+		Listen:    "0.0.0.0",
+		Port:      7900,
+		WebPort:   7903,
+		Threads:   4,
+		ZK:        "NO",
+		LogDir:    "./",
+		StaticDir: "./",
 	}
 
 	DefaultHintConfig = HintConfig{
