@@ -101,8 +101,8 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 			payload.Ver, vhash, payload.Flag, len(payload.Body), payload.TS, pos.ChunkID, pos.Offset)
 
 	} else {
-		body = fmt.Sprintf("%d %d %d %d",
-			payload.Ver, vhash, payload.Flag, payload.TS)
+		body = fmt.Sprintf("%d %d %d %d %d",
+			payload.Ver, vhash, payload.Flag, len(payload.Body), payload.TS)
 	}
 	item := new(mc.Item)
 	item.Body = []byte(body)
