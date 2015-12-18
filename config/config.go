@@ -39,7 +39,8 @@ type ServerConfig struct {
 	Port      int    `yaml:",omitempty"`
 	WebPort   int    `yaml:",omitempty"`
 	Threads   int    `yaml:",omitempty"` // NumCPU
-	LogDir    string `yaml:",omitempty"`
+	ErrLog    string `yaml:",omitempty"`
+	AccessLog string `yaml:",omitempty"`
 	StaticDir string `yaml:",omitempty"` // directory for static files, e.g. *.html
 }
 

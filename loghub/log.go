@@ -1,13 +1,10 @@
 package loghub
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"runtime"
 	"sync"
-	"time"
 )
 
 const (
@@ -36,23 +33,24 @@ var (
 
 type LogHub interface {
 	Log(name string, level int, file string, line int, msg string)
+	GetLastLog() []byte
+	DumpBuffer(all bool, out io.Writer)
+	Reopen(path string) error
 }
 
 type Logger struct {
 	mu       sync.Mutex
 	name     string
 	minLevel int
-	hub      LogHub
-	BufferLog
+	Hub      LogHub
 }
 
 func (l *Logger) SetLevel(level int) {
 	l.minLevel = level
 }
 
-func New(name string, hub LogHub, minLevel, buffersize int) *Logger {
-	l := &Logger{name: name, hub: hub, minLevel: minLevel}
-	l.InitBuffer(buffersize)
+func NewLogger(name string, hub LogHub, minLevel int) *Logger {
+	l := &Logger{name: name, Hub: hub, minLevel: minLevel}
 	return l
 }
 
@@ -95,86 +93,5 @@ func (l *Logger) Logf(level int, format string, v ...interface{}) {
 		file = short
 	}
 	msg := fmt.Sprintf(format, v...)
-	l.hub.Log(l.name, level, file, line, msg)
-
-	bufline := &BufferLine{time.Now(), level, file, line, msg}
-	l.Add(bufline)
-	l.Last[level] = bufline
-	if level == FATAL {
-		os.Exit(1)
-	}
-}
-
-type BufferLine struct {
-	TS    time.Time
-	Level int
-	File  string
-	Line  int
-	Msg   string
-}
-
-type queue struct {
-	head   int
-	Buffer []*BufferLine
-}
-
-func (q *queue) Add(line *BufferLine) {
-	q.Buffer[q.head] = line
-	q.head += 1
-	if q.head >= len(q.Buffer) {
-		q.head = 0
-	}
-}
-
-func (q *queue) DumpBuffer(out io.Writer) {
-	i := q.head
-	for j := 0; j < len(q.Buffer); j++ {
-		line := q.Buffer[i]
-		if line != nil {
-			out.Write([]byte(fmt.Sprintf("%v\n", line)))
-		}
-		i += 1
-		if i >= len(q.Buffer) {
-			i = 0
-		}
-	}
-}
-
-type BufferLog struct {
-	sync.Mutex
-	head   int
-	Buffer []*BufferLine
-
-	all  queue
-	warn queue
-	Last [FATAL + 1]*BufferLine
-}
-
-func (l *BufferLog) InitBuffer(size int) {
-	l.all.Buffer = make([]*BufferLine, size)
-	l.warn.Buffer = make([]*BufferLine, size)
-}
-
-func (l *BufferLog) DumpBuffer(all bool, out io.Writer) {
-	l.Lock()
-	defer l.Unlock()
-	if all {
-		l.all.DumpBuffer(out)
-	} else {
-		l.warn.DumpBuffer(out)
-	}
-}
-
-func (l *BufferLog) Add(line *BufferLine) {
-	l.Lock()
-	defer l.Unlock()
-	l.all.Add(line)
-	if line.Level >= WARN {
-		l.warn.Add(line)
-	}
-}
-
-func (l *BufferLog) GetLast() []byte {
-	b, _ := json.Marshal(l.Last[:])
-	return b
+	l.Hub.Log(l.name, level, file, line, msg)
 }

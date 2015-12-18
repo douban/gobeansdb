@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -21,14 +20,14 @@ var (
 	server  *mc.Server
 	storage *Storage
 	conf    = &config.DB
-	logger  = loghub.Default
+	logger  = loghub.ErrorLog
 )
 
 func initLog() {
-	if conf.LogDir != "" {
-		logpath := filepath.Join(conf.LogDir, "gobeansdb.log")
-		logger.Infof("loggging to %s", logpath)
-		loghub.SetDefault(logpath, loghub.INFO, 200)
+	if conf.ErrLog != "" {
+		logpath := conf.ErrLog
+		log.Printf("loggging to %s", logpath)
+		loghub.InitErrorLog(conf.ErrLog, loghub.INFO, 200)
 	}
 }
 

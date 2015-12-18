@@ -16,7 +16,7 @@ import (
 var (
 	SlowCmdTime = time.Millisecond * 100 // 100ms
 	RL          *ReqLimiter
-	logger      = loghub.Default
+	logger      = loghub.ErrorLog
 	conf        = &config.DB
 )
 
@@ -174,6 +174,7 @@ func (s *Server) Serve() (e error) {
 	if s.l == nil {
 		return errors.New("no listener")
 	}
+
 	for {
 		rw, e := s.l.Accept()
 		if e != nil {

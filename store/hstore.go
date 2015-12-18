@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	logger                 = loghub.Default
+	logger                 = loghub.ErrorLog
 	bucketPattern []string = []string{"0", "%x", "%02x", "%03x"}
 	mergeChan     chan int
 
