@@ -853,6 +853,87 @@ func checkAllDataWithHints(dir string) error {
 	return nil
 }
 
+func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+	gen := newKVGen(16)
+	var ki KeyInfo
+	logger.Infof("test gc all updated in the same file")
+
+	payload := gen.gen(&ki, 0, 0)
+	if err := store.Set(&ki, payload); err != nil {
+		t.Fatal(err)
+	}
+
+	store.Close()
+	store, err := NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	p := GetPayloadForDelete()
+	if err := store.Set(&ki, p); err != nil {
+		t.Fatal(err)
+	}
+
+	store.Close()
+	store, err = NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	payload = gen.gen(&ki, 1, 0) // rotate
+	if err = store.Set(&ki, payload); err != nil {
+		t.Fatal(err)
+	}
+	store.flushdatas(true)
+
+	bkt := store.buckets[bucketID]
+	store.gcMgr.gc(bkt, 1, 1, true)
+
+	gen.gen(&ki, 0, 0)
+	payload2, _, err := store.Get(&ki, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload2 == nil {
+		t.Fatalf("nil")
+	}
+	if payload2.Ver != -2 {
+		t.Fatalf("bad ver %#v", payload2)
+	}
+	cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+
+	store.Close()
+	utils.Remove(bkt.Home + "/002.000.idx.hash")
+	store, err = NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	payload2, _, err = store.Get(&ki, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload2 != nil {
+		t.Fatalf("nil %#v", payload2)
+	}
+
+	checkDataSize(t, bkt.datas, []uint32{256, 256, 256})
+	dir := utils.NewDir()
+	dir.Set("000.data", 256)
+	dir.Set("000.000.idx.s", -1)
+	dir.Set("001.data", 256)
+	dir.Set("001.000.idx.s", -1)
+	dir.Set("002.data", 256)
+	dir.Set("002.000.idx.s", -1)
+	dir.Set("nextgc.txt", 1)
+	dir.Set("collision.yaml", -1)
+
+	checkFiles(t, bkt.Home, dir)
+}
+
+func TestGCReserveDelete(t *testing.T) {
+	testGC(t, testGCReserveDelete, "reserve_deletes", 100)
+}
 func TestHStoreCollision(t *testing.T) {
 	testHStore(t, 0, 16, makeKeyHasherTrival)
 	testHStore(t, 1, 16, makeKeyHasherTrival)
