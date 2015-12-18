@@ -146,6 +146,7 @@ func (bkt *Bucket) gcCheckEnd(start, endChunkID, noGCDays int) (end int, err err
 			return
 		}
 	}
+	err = fmt.Errorf("no file to gc within %d days, start = %d", noGCDays, start)
 	return
 }
 
