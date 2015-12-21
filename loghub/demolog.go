@@ -1,6 +1,9 @@
 package loghub
 
-import "log"
+import (
+	"io"
+	"log"
+)
 
 type DemoHubConfig struct {
 	logger *log.Logger
@@ -22,4 +25,16 @@ func (l *DemoHub) Log(name string, level int, file string, line int, msg string)
 
 func (l *DemoHub) Bind(name string, config *DemoHubConfig) {
 	l.configs[name] = config
+}
+
+func (l *DemoHub) Reopen(path string) (bool, error) {
+	return false, nil
+}
+
+func (l *DemoHub) GetLastLog() []byte {
+	return nil
+}
+
+func (l *DemoHub) DumpBuffer(all bool, out io.Writer) {
+	return
 }
