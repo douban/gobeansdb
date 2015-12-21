@@ -2,11 +2,12 @@ package store
 
 import (
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"os"
 	"sort"
 	"sync"
+
+	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 var (
@@ -29,6 +30,12 @@ type dataChunk struct {
 	gcWriter  *DataStreamWriter
 }
 
+func (dc *dataChunk) GoString() string {
+	return fmt.Sprintf("(lock %v size %d writingHead %d rewriting %v len(wbuf) %d wbuf[0].pos %v wbuf[-1].pos %v)",
+		dc.Mutex, dc.size, dc.writingHead, dc.rewriting, len(dc.wbuf),
+		dc.wbuf[0].pos, dc.wbuf[len(dc.wbuf)-1].pos)
+}
+
 func (dc *dataChunk) Clear() error {
 	dc.wbuf = nil
 	dc.size = 0
@@ -41,14 +48,18 @@ func (dc *dataChunk) Clear() error {
 }
 
 func (dc *dataChunk) AppendRecord(wrec *WriteRecord) {
+	dc.Lock()
 	dc.wbuf = append(dc.wbuf, wrec)
+
 	size := wrec.rec.Payload.RecSize
 
 	dc.writingHead += size
 	dc.size = dc.writingHead
+	dc.Unlock()
 }
 
 func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error) {
+	dc.Lock()
 	wrec.pos.ChunkID = dc.chunkid
 	offset = dc.writingHead
 	wrec.pos.Offset = offset
@@ -59,6 +70,7 @@ func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error
 	if dc.writingHead >= dc.size {
 		dc.size = dc.writingHead
 	}
+	dc.Unlock()
 
 	dc.gcbufsize += size
 	if dc.gcbufsize > GCWriteBufferSize {
