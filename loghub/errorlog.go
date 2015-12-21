@@ -7,7 +7,9 @@ import (
 	"log"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 var (
@@ -30,11 +32,9 @@ func init() {
 }
 
 func InitErrorLog(path string, level int, bufferSize int) (err error) {
-	if accesslog, accessFile, err := openLog(path, ErrorLogFlag); err == nil {
-		hub := &ErrorLogHub{logger: accesslog}
+	if errorLog, errorFd, err := openLog(path, ErrorLogFlag); err == nil {
+		hub := &ErrorLogHub{logger: errorLog, logFd: errorFd}
 		hub.InitBuffer(bufferSize)
-		hub.logFd = accessFile
-
 		ErrorLog.Hub = hub
 		ErrorLog.SetLevel(level)
 	} else {
@@ -64,8 +64,20 @@ func (hub *ErrorLogHub) Log(name string, level int, file string, line int, msg s
 	}
 }
 
-func (hub *ErrorLogHub) Reopen(path string) (err error) {
-	return nil
+func (hub *ErrorLogHub) Reopen(path string) (success bool, err error) {
+	// start swap exist logger and new logger, and Close the older fd in later
+	errorLog, errorFd, err := openLog(path, ErrorLogFlag)
+	if err == nil {
+		success = true
+		errorLog = (*log.Logger)(atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&hub.logger)), unsafe.Pointer(errorLog)))
+		errorFd = (*os.File)(atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&hub.logFd)), unsafe.Pointer(errorFd)))
+		if e := errorFd.Close(); e != nil {
+			log.Println("close the old errorlog fd failure with, ", e)
+		}
+	} else {
+		log.Printf("open %s failed: %s", path, err.Error())
+	}
+	return
 }
 
 // Buffer

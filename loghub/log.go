@@ -33,9 +33,9 @@ var (
 
 type LogHub interface {
 	Log(name string, level int, file string, line int, msg string)
+	Reopen(path string) (bool, error)
 	GetLastLog() []byte
 	DumpBuffer(all bool, out io.Writer)
-	Reopen(path string) error
 }
 
 type Logger struct {

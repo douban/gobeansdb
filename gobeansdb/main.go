@@ -38,8 +38,13 @@ func handleSignals() {
 	go func(ch <-chan os.Signal) {
 		for {
 			sig := <-ch
-			logger.Infof("signal recieved " + sig.String())
-			server.Shutdown()
+			// CTRL + C
+			if sig == syscall.SIGINT {
+				logger.Hub.Reopen(conf.ErrLog)
+			} else {
+				logger.Infof("signal recieved " + sig.String())
+				server.Shutdown()
+			}
 		}
 	}(sch)
 }
