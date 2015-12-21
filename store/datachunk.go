@@ -2,11 +2,12 @@ package store
 
 import (
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"os"
 	"sort"
 	"sync"
+
+	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 var (
@@ -41,14 +42,18 @@ func (dc *dataChunk) Clear() error {
 }
 
 func (dc *dataChunk) AppendRecord(wrec *WriteRecord) {
+	dc.Lock()
 	dc.wbuf = append(dc.wbuf, wrec)
+
 	size := wrec.rec.Payload.RecSize
 
 	dc.writingHead += size
 	dc.size = dc.writingHead
+	dc.Unlock()
 }
 
 func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error) {
+	dc.Lock()
 	wrec.pos.ChunkID = dc.chunkid
 	offset = dc.writingHead
 	wrec.pos.Offset = offset
@@ -59,6 +64,7 @@ func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error
 	if dc.writingHead >= dc.size {
 		dc.size = dc.writingHead
 	}
+	dc.Unlock()
 
 	dc.gcbufsize += size
 	if dc.gcbufsize > GCWriteBufferSize {
