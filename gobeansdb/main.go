@@ -24,10 +24,10 @@ var (
 )
 
 func initLog() {
-	if conf.ErrLog != "" {
-		logpath := conf.ErrLog
+	if conf.ErrorLog != "" {
+		logpath := conf.ErrorLog
 		log.Printf("loggging to %s", logpath)
-		loghub.InitErrorLog(conf.ErrLog, loghub.INFO, 200)
+		loghub.InitErrorLog(conf.ErrorLog, loghub.INFO, 200)
 	}
 }
 
@@ -40,7 +40,7 @@ func handleSignals() {
 			sig := <-ch
 			// CTRL + C
 			if sig == syscall.SIGINT {
-				logger.Hub.Reopen(conf.ErrLog)
+				logger.Hub.Reopen(conf.ErrorLog)
 			} else {
 				logger.Infof("signal recieved " + sig.String())
 				server.Shutdown()

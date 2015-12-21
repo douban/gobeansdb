@@ -5,8 +5,8 @@ server:
   port: 7900
   webport: 7903
   threads: 4
-  errlog: /var/log/gobeansdb/gobeansdb.log
-  accesslog: /var/log/gobeansdb/accesslog.log
+  errorlog: /var/log/gobeansdb/gobeansdb.log
+  accesslog: /var/log/gobeansdb/access.log
   hostname: 127.0.0.1 # 线上必须在local文件里改掉
   staticdir: /var/lib/gobeansdb
 mc:

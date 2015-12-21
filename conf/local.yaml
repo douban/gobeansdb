@@ -4,10 +4,11 @@ mc:
 server:
   port: 7980
   webport: 7988
-  logdir: ./
+  errorlog: ./gobeansdb.log
+  accesslog: ./access.log
 hstore:
   data:
-    flush_interval: 10
+    flush_interval: 0
     flush_wake_str: 0
     no_gc_days: 0
   local:

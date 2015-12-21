@@ -36,7 +36,7 @@ var (
 		WebPort:   7903,
 		Threads:   4,
 		ZK:        "NO",
-		ErrLog:    "./gobeansdb.log",
+		ErrorLog:  "./gobeansdb.log",
 		AccessLog: "./access.log",
 		StaticDir: "./",
 	}
