@@ -30,6 +30,12 @@ type dataChunk struct {
 	gcWriter  *DataStreamWriter
 }
 
+func (dc *dataChunk) GoString() string {
+	return fmt.Sprintf("(lock %v size %d writingHead %d rewriting %v len(wbuf) %d wbuf[0].pos %v wbuf[-1].pos %v)",
+		dc.Mutex, dc.size, dc.writingHead, dc.rewriting, len(dc.wbuf),
+		dc.wbuf[0].pos, dc.wbuf[len(dc.wbuf)-1].pos)
+}
+
 func (dc *dataChunk) Clear() error {
 	dc.wbuf = nil
 	dc.size = 0

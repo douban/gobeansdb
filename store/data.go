@@ -3,10 +3,11 @@ package store
 import (
 	"bufio"
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
 	"os"
 	"sync"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/cmem"
 )
 
 const (
@@ -100,7 +101,8 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		ds.Unlock()
 		return nil
 	}
-	if !force && (time.Since(ds.lastFlushTime) < time.Duration(conf.FlushInterval)*time.Second) && (ds.wbufSize < (1 << 20)) {
+	if !force && (time.Since(ds.lastFlushTime) < time.Duration(conf.FlushInterval)*time.Second) &&
+		(ds.wbufSize < (1 << 20)) {
 		ds.Unlock()
 		return nil
 	}
@@ -120,7 +122,8 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 
 	filessize := ds.chunks[chunk].getDiskFileSize()
 	if w.offset != filessize {
-		logger.Fatalf("wrong data file size, exp %d, got %d, %s", filessize, w.offset, ds.genPath(chunk))
+		logger.Fatalf("wrong data file size, exp %d, got %d, %s, dataChunk %#v",
+			filessize, w.offset, ds.genPath(chunk), &ds.chunks[chunk])
 	}
 	nflushed, err := ds.chunks[chunk].flush(w, false)
 	ds.wbufSize -= nflushed
