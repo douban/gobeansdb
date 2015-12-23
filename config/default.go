@@ -37,7 +37,7 @@ var (
 		Threads:   4,
 		ZK:        "NO",
 		ErrorLog:  "./gobeansdb.log",
-		AccessLog: "./access.log",
+		AccessLog: "",
 		StaticDir: "./",
 	}
 

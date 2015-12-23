@@ -17,17 +17,23 @@ import (
 )
 
 var (
-	server  *mc.Server
-	storage *Storage
-	conf    = &config.DB
-	logger  = loghub.ErrorLog
+	server       *mc.Server
+	storage      *Storage
+	conf         = &config.DB
+	logger       = loghub.ErrorLog
+	accessLogger = loghub.AccessLog
 )
 
 func initLog() {
 	if conf.ErrorLog != "" {
 		logpath := conf.ErrorLog
-		log.Printf("loggging to %s", logpath)
+		log.Printf("log to errorlog %s", logpath)
 		loghub.InitErrorLog(conf.ErrorLog, loghub.INFO, 200)
+	}
+	if conf.AccessLog != "" {
+		logpath := conf.AccessLog
+		log.Printf("open accesslog %s", logpath)
+		loghub.InitAccessLog(conf.AccessLog, loghub.INFO)
 	}
 }
 
@@ -41,6 +47,9 @@ func handleSignals() {
 			// CTRL + C
 			if sig == syscall.SIGINT {
 				logger.Hub.Reopen(conf.ErrorLog)
+				if accessLogger.Hub != nil {
+					accessLogger.Hub.Reopen(conf.AccessLog)
+				}
 			} else {
 				logger.Infof("signal recieved " + sig.String())
 				server.Shutdown()

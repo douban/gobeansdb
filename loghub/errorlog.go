@@ -43,17 +43,6 @@ func InitErrorLog(path string, level int, bufferSize int) (err error) {
 	return
 }
 
-func openLogWithFd(fd *os.File, logFlag int) *log.Logger {
-	return log.New(fd, "", logFlag)
-}
-
-func openLog(path string, logFlag int) (logger *log.Logger, fd *os.File, err error) {
-	if fd, err = os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
-		logger = openLogWithFd(fd, logFlag)
-	}
-	return
-}
-
 func (hub *ErrorLogHub) Log(name string, level int, file string, line int, msg string) {
 	hub.logger.Printf(ErrorLogFormat, levelString[level], file, line, msg)
 	bufline := &BufferLine{time.Now(), level, file, line, msg}
