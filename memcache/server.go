@@ -192,8 +192,9 @@ func (c *ServerConn) writeAccessLog(resp *Response, processErr error, dt time.Du
 	host_str := strings.Join(hosts, ",")
 	keys := strings.Join(req.Keys, " ")
 
-	accessLogger.Infof("%s %s %s %s %s %d %s",
-		c.RemoteAddr, strings.ToUpper(cmd), stat, size_str, host_str, dt.Nanoseconds()/1e3, keys)
+	accessLogger.Infof("%s %s %s %s %s %s %d %s",
+		config.AccessLogVersion, c.RemoteAddr, strings.ToUpper(cmd),
+		stat, size_str, host_str, dt.Nanoseconds()/1e3, keys)
 }
 
 func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) {

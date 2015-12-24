@@ -27,8 +27,8 @@ func (l *DemoHub) Bind(name string, config *DemoHubConfig) {
 	l.configs[name] = config
 }
 
-func (l *DemoHub) Reopen(path string) (bool, error) {
-	return false, nil
+func (l *DemoHub) Reopen(path string) error {
+	return nil
 }
 
 func (l *DemoHub) GetLastLog() []byte {

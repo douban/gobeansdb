@@ -4,8 +4,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"sync/atomic"
-	"unsafe"
 )
 
 var (
@@ -41,20 +39,8 @@ func (hub *AccessLogHub) Log(name string, level int, file string, line int, msg 
 	}
 }
 
-func (hub *AccessLogHub) Reopen(path string) (success bool, err error) {
-	// start swap exist logger and new logger, and Close the older fd in later
-	accessLog, accessFd, err := openLog(path, AccessLogFlag)
-	if err == nil {
-		success = true
-		accessLog = (*log.Logger)(atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&hub.logger)), unsafe.Pointer(accessLog)))
-		accessFd = (*os.File)(atomic.SwapPointer((*unsafe.Pointer)(unsafe.Pointer(&hub.logFd)), unsafe.Pointer(accessFd)))
-		if e := accessFd.Close(); e != nil {
-			log.Println("close the old accesslog fd failure with, ", e)
-		}
-	} else {
-		log.Printf("open accesslog %s failed: %s", path, err.Error())
-	}
-	return
+func (hub *AccessLogHub) Reopen(path string) (err error) {
+	return reopenLogger(&hub.logger, &hub.logFd, path, AccessLogFlag)
 }
 
 func (hub *AccessLogHub) GetLastLog() []byte {

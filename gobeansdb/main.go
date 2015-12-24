@@ -46,9 +46,13 @@ func handleSignals() {
 			sig := <-ch
 			// CTRL + C
 			if sig == syscall.SIGINT {
+				// logger.Hub is always inited, so we call Reopen without check it.
 				logger.Hub.Reopen(conf.ErrorLog)
+
 				if accessLogger.Hub != nil {
-					accessLogger.Hub.Reopen(conf.AccessLog)
+					if err := accessLogger.Hub.Reopen(conf.AccessLog); err != nil {
+						logger.Warnf("open %s failed: %s", conf.AccessLog, err.Error())
+					}
 				}
 			} else {
 				logger.Infof("signal recieved " + sig.String())
