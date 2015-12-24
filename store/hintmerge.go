@@ -78,7 +78,7 @@ func (h mergeHeap) Less(i, j int) bool {
 			return a.Key < b.Key
 		}
 	}
-	return a.Pos < b.Pos
+	return a.Pos.toInt64() < b.Pos.toInt64()
 }
 
 func (h *mergeHeap) Push(x interface{}) {
@@ -105,7 +105,7 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 		}
 		hp[i] = &mergeReader{src[i], nil}
 		hp[i].curr, err = src[i].next()
-		hp[i].curr.Pos |= uint32(src[i].chunkID)
+		hp[i].curr.Pos.ChunkID = src[i].chunkID
 		if err != nil {
 			logger.Errorf("%s", err.Error())
 			return nil, err
@@ -139,7 +139,7 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 			break
 		}
 		if mr.curr != nil {
-			mr.curr.Pos |= uint32(mr.r.chunkID)
+			mr.curr.Pos.ChunkID = mr.r.chunkID
 			heap.Push(&h, mr)
 		}
 	}

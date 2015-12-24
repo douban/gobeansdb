@@ -266,7 +266,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 					hintit, hintchunkid, isCoverdByCollision := bkt.hints.getCollisionGC(ki)
 					if isCoverdByCollision {
 						if hintit != nil {
-							p := Position{hintchunkid, (hintit.Pos & 0xffffff00)}
+							p := Position{hintchunkid, hintit.Pos.Offset}
 							if p == oldPos {
 								isNewest = true
 								meta.ValueHash = hintit.Vhash

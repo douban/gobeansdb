@@ -802,7 +802,7 @@ func checkDataWithHints(dir string, chunk int) error {
 				}
 				rec.Payload.Decompress()
 				rec.Payload.CalcValueHash()
-				dm[string(rec.Key)] = &HintItemMeta{getKeyHash(rec.Key), offset, rec.Payload.Ver, rec.Payload.ValueHash}
+				dm[string(rec.Key)] = &HintItemMeta{getKeyHash(rec.Key), Position{0, offset}, rec.Payload.Ver, rec.Payload.ValueHash}
 			}
 			hm := make(map[string]*HintItemMeta)
 			for _, hp := range hpaths {

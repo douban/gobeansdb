@@ -283,7 +283,7 @@ func (tree *HTree) set(ki *KeyInfo, meta *Meta, pos Position) {
 	req.ki = ki
 	req.Meta = *meta
 	req.Position = pos
-	req.item = HTreeItem{ki.KeyHash, pos.encode(), meta.Ver, meta.ValueHash}
+	req.item = HTreeItem{ki.KeyHash, pos, meta.Ver, meta.ValueHash}
 	tree.setReq(&req)
 }
 
@@ -309,7 +309,7 @@ func (tree *HTree) get(ki *KeyInfo) (meta *Meta, pos Position, found bool) {
 	req.ki = ki
 	found = tree.getReq(&req)
 	meta = &Meta{0, 0, req.item.ver, req.item.vhash, 0, 0}
-	pos = decodePos(req.item.pos)
+	pos = req.item.pos
 	return
 }
 

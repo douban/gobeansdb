@@ -38,18 +38,18 @@ type HTreeReq struct {
 }
 
 func (req *HTreeReq) encode() {
-	req.item = HTreeItem{req.ki.KeyHash, req.Position.encode(), req.Ver, req.ValueHash}
+	req.item = HTreeItem{req.ki.KeyHash, req.Position, req.Ver, req.ValueHash}
 }
 
 type HTreeItem struct {
 	keyhash uint64
-	pos     uint32
+	pos     Position
 	ver     int32
 	vhash   uint16
 }
 type HintItemMeta struct {
 	Keyhash uint64
-	Pos     uint32
+	Pos     Position
 	Ver     int32
 	Vhash   uint16
 }
@@ -59,7 +59,7 @@ type HintItem struct {
 }
 
 func newHintItem(khash uint64, ver int32, vhash uint16, pos Position, key string) *HintItem {
-	return &HintItem{HintItemMeta{khash, pos.encode(), ver, vhash}, key}
+	return &HintItem{HintItemMeta{khash, pos, ver, vhash}, key}
 }
 
 type Payload struct {
@@ -180,12 +180,8 @@ type Position struct {
 	Offset  uint32
 }
 
-func (pos *Position) encode() uint32 {
-	return uint32(pos.ChunkID) | pos.Offset
-}
-
-func decodePos(pos uint32) Position {
-	return Position{ChunkID: int(pos & 0xff), Offset: pos & 0xffffff00}
+func (pos *Position) toInt64() int64 {
+	return (int64(pos.ChunkID) << 32) + int64(pos.Offset)
 }
 
 type Record struct {

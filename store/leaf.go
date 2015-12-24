@@ -23,6 +23,7 @@ import (
 )
 
 const LEN_USE_C_FIND = 100
+const TREE_ITEM_HEAD_SIZE = 10
 
 // BlockArrayLeaf
 
@@ -50,15 +51,23 @@ func getNodeKhash(path []int) uint32 {
 }
 
 func bytesToItem(b []byte, item *HTreeItem) {
-	item.pos = binary.LittleEndian.Uint32(b)
-	item.ver = int32(binary.LittleEndian.Uint32(b[4:]))
-	item.vhash = binary.LittleEndian.Uint16(b[8:])
+	item.ver = int32(binary.LittleEndian.Uint32(b))
+	item.vhash = binary.LittleEndian.Uint16(b[4:])
+	item.pos.Offset = (uint32(b[6])<<8 | uint32(b[7])<<16 | uint32(b[8])<<24)
+	item.pos.ChunkID = int(uint32(b[9]))
+	//item.pos.ChunkID = int(uint32(b[9]) | uint32(b[10])<<8)
 }
 
 func itemToBytes(b []byte, item *HTreeItem) {
-	binary.LittleEndian.PutUint32(b, item.pos)
-	binary.LittleEndian.PutUint32(b[4:], uint32(item.ver))
-	binary.LittleEndian.PutUint16(b[8:], item.vhash)
+	binary.LittleEndian.PutUint32(b, uint32(item.ver))
+	binary.LittleEndian.PutUint16(b[4:], item.vhash)
+	v := item.pos.Offset
+	b[6] = byte(v >> 8)
+	b[7] = byte(v >> 16)
+	b[8] = byte(v >> 24)
+	v = uint32(item.pos.ChunkID)
+	b[9] = byte(v)
+	// b[10] = byte(v >> 8)
 }
 
 func khashToBytes(b []byte, khash uint64) {
@@ -71,7 +80,7 @@ func bytesToKhash(b []byte) (khash uint64) {
 
 func findInBytes(leaf []byte, keyhash uint64) int {
 	lenKHash := conf.TreeKeyHashLen
-	lenItem := lenKHash + 10
+	lenItem := lenKHash + TREE_ITEM_HEAD_SIZE
 	size := len(leaf)
 	var khashBytes [8]byte
 	khashToBytes(khashBytes[0:], keyhash)
@@ -112,7 +121,7 @@ func (sh *SliceHeader) Set(req *HTreeReq) (oldm HTreeItem, exist bool) {
 		bytesToItem(leaf[idx+lenKHash:], &oldm)
 		dst = leaf[idx:]
 	} else {
-		newSize := len(leaf) + lenKHash + 10
+		newSize := len(leaf) + lenKHash + TREE_ITEM_HEAD_SIZE
 		sh.enlarge(newSize)
 		dst = sh.ToBytes()[len(leaf):]
 	}
@@ -124,11 +133,11 @@ func (sh *SliceHeader) Set(req *HTreeReq) (oldm HTreeItem, exist bool) {
 func (sh *SliceHeader) Remove(ki *KeyInfo, oldPos Position) (oldm HTreeItem, removed bool) {
 	leaf := sh.ToBytes()
 	lenKHash := conf.TreeKeyHashLen
-	itemLen := lenKHash + 10
+	itemLen := lenKHash + TREE_ITEM_HEAD_SIZE
 	idx := findInBytes(leaf, ki.KeyHash)
 	if idx >= 0 {
 		bytesToItem(leaf[idx+lenKHash:], &oldm)
-		if oldPos.ChunkID == -1 || oldm.pos&0xffffff00 == oldPos.Offset {
+		if oldPos.ChunkID == -1 || oldm.pos.Offset == oldPos.Offset {
 			removed = true
 			copy(leaf[idx:], leaf[idx+itemLen:])
 			sh.Len -= itemLen
@@ -151,7 +160,7 @@ func (sh *SliceHeader) Get(req *HTreeReq) (exist bool) {
 func (sh *SliceHeader) Iter(f ItemFunc, ni *NodeInfo) {
 	leaf := sh.ToBytes()
 	lenKHash := conf.TreeKeyHashLen
-	lenItem := lenKHash + 10
+	lenItem := lenKHash + TREE_ITEM_HEAD_SIZE
 	mask := conf.TreeKeyHashMask
 
 	nodeKHash := uint64(getNodeKhash(ni.path)) << 32 & (^conf.TreeKeyHashMask)

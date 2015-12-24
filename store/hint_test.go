@@ -95,7 +95,7 @@ func genSortedHintItems(n int) []*HintItem {
 		it := &HintItem{
 			HintItemMeta{
 				Keyhash: uint64(i),
-				Pos:     uint32(base) * 256,
+				Pos:     Position{0, uint32(base) * 256},
 				Ver:     int32(base + 1),
 				Vhash:   uint16(base + 2),
 			},
@@ -131,7 +131,7 @@ func testMerge(t *testing.T, nsrc int) {
 
 		tmp := new(HintItem)
 		*tmp = *it
-		tmp.Pos = it.Pos - 1
+		tmp.Pos.Offset = it.Pos.Offset - 1
 		w.writeItem(tmp)
 		// TODO: same khash diff key
 
@@ -305,7 +305,7 @@ func TestHintMgr(t *testing.T) {
 	// change item content, 注意 pos
 	logger.Infof("set 6 again")
 	it := *(items[0])
-	it.Pos = items[0].Pos + 100
+	it.Pos.ChunkID = items[0].Pos.ChunkID + 100
 	hm.setItem(&it, 6, 0)
 
 	time.Sleep(time.Second * 5)

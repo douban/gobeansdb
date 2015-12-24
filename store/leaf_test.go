@@ -2,15 +2,16 @@ package store
 
 import (
 	"bytes"
-	"github.intra.douban.com/coresys/gobeansdb/config"
 	"testing"
+
+	"github.intra.douban.com/coresys/gobeansdb/config"
 )
 
 func TestBytes(t *testing.T) {
 	b := make([]byte, 30)
-	m := HTreeItem{0, 1, 2, 3}
+	m := HTreeItem{0, Position{1, 0}, 2, 3}
 	itemToBytes(b, &m)
-	m2 := HTreeItem{0, 4, 5, 6}
+	m2 := HTreeItem{0, Position{4, 0}, 5, 6}
 	bytesToItem(b, &m2)
 	if m != m2 {
 		t.Fatalf("bytesToItem fail %v != %v", m, m2)
@@ -59,7 +60,7 @@ func TestLeaf(t *testing.T) {
 	// lenKHash := KHASH_LENS[len(ni.path)]
 	// t.Logf("%d %d", lenKHash, conf.TreeKeyHashLen)
 	lenKHash := conf.TreeKeyHashLen
-	lenItem := lenKHash + 10
+	lenItem := lenKHash + TREE_ITEM_HEAD_SIZE
 
 	var sh SliceHeader
 	var leaf []byte
@@ -113,7 +114,7 @@ func TestLeaf(t *testing.T) {
 	for i := 0; i < N; i++ {
 		ki.Prepare()
 		found := sh.Get(&req)
-		if !found || req.item.pos != (uint32(i)+shift)*PADDING {
+		if !found || req.item.pos.Offset != (uint32(i)+shift)*PADDING {
 			t.Fatalf("i=%d, shift=%d, found=%v, req.item=%#v", i, shift, found, req.item)
 		}
 		ki.KeyHash++
@@ -125,7 +126,7 @@ func TestLeaf(t *testing.T) {
 	for i := 0; i < N; i++ {
 		ki.Prepare()
 		oldm, removed := sh.Remove(ki, Position{0, req.Offset})
-		if !removed || oldm.pos != req.Offset || sh.Len != lenItem*(N-i-1) {
+		if !removed || oldm.pos.Offset != req.Offset || sh.Len != lenItem*(N-i-1) {
 			t.Fatalf("i=%d, offset=%x, removed=%v, oldm =%#v, %v",
 				i, req.Offset, removed, oldm, sh.Len/lenItem)
 		}
@@ -136,7 +137,7 @@ func TestLeaf(t *testing.T) {
 	// iter
 	i := 0
 	f := func(h uint64, m *HTreeItem) {
-		if h != base+uint64(i) || m.pos != (uint32(i)+shift)*PADDING {
+		if h != base+uint64(i) || m.pos.Offset != (uint32(i)+shift)*PADDING {
 			t.Fatalf("%d: %016x %v", i, h, m)
 		}
 		i += 1
