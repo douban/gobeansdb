@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	Version          = "2.1.0.8"
+	Version          = "2.1.0.9"
 	AccessLogVersion = "v1"
 )
 
