@@ -40,12 +40,11 @@ func initLog() {
 func handleSignals() {
 	sch := make(chan os.Signal, 10)
 	signal.Notify(sch, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT,
-		syscall.SIGHUP, syscall.SIGSTOP, syscall.SIGQUIT)
+		syscall.SIGHUP, syscall.SIGSTOP, syscall.SIGQUIT, syscall.SIGUSR1)
 	go func(ch <-chan os.Signal) {
 		for {
 			sig := <-ch
-			// CTRL + C
-			if sig == syscall.SIGINT {
+			if sig == syscall.SIGUSR1 {
 				// logger.Hub is always inited, so we call Reopen without check it.
 				logger.Hub.Reopen(conf.ErrorLog)
 
