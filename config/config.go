@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	Version = "2.1.0.8"
+	Version          = "2.1.0.9"
+	AccessLogVersion = "v1"
 )
 
 var (
@@ -39,7 +40,8 @@ type ServerConfig struct {
 	Port      int    `yaml:",omitempty"`
 	WebPort   int    `yaml:",omitempty"`
 	Threads   int    `yaml:",omitempty"` // NumCPU
-	LogDir    string `yaml:",omitempty"`
+	ErrorLog  string `yaml:",omitempty"`
+	AccessLog string `yaml:",omitempty"`
 	StaticDir string `yaml:",omitempty"` // directory for static files, e.g. *.html
 }
 

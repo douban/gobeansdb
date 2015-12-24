@@ -235,17 +235,17 @@ func handleKeyhash(w http.ResponseWriter, r *http.Request) {
 
 func handleLogBuffer(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
-	loghub.Default.DumpBuffer(false, w)
+	loghub.ErrorLog.Hub.DumpBuffer(false, w)
 }
 
 func handleLogBufferALL(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
-	loghub.Default.DumpBuffer(true, w)
+	loghub.ErrorLog.Hub.DumpBuffer(true, w)
 }
 
 func handleLogLast(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
-	w.Write(loghub.Default.GetLast())
+	w.Write(loghub.ErrorLog.Hub.GetLastLog())
 }
 
 func handleGC(w http.ResponseWriter, r *http.Request) {

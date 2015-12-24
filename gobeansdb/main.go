@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -18,29 +17,46 @@ import (
 )
 
 var (
-	server  *mc.Server
-	storage *Storage
-	conf    = &config.DB
-	logger  = loghub.Default
+	server       *mc.Server
+	storage      *Storage
+	conf         = &config.DB
+	logger       = loghub.ErrorLog
+	accessLogger = loghub.AccessLog
 )
 
 func initLog() {
-	if conf.LogDir != "" {
-		logpath := filepath.Join(conf.LogDir, "gobeansdb.log")
-		logger.Infof("loggging to %s", logpath)
-		loghub.SetDefault(logpath, loghub.INFO, 200)
+	if conf.ErrorLog != "" {
+		logpath := conf.ErrorLog
+		log.Printf("log to errorlog %s", logpath)
+		loghub.InitErrorLog(conf.ErrorLog, loghub.INFO, 200)
+	}
+	if conf.AccessLog != "" {
+		logpath := conf.AccessLog
+		log.Printf("open accesslog %s", logpath)
+		loghub.InitAccessLog(conf.AccessLog, loghub.INFO)
 	}
 }
 
 func handleSignals() {
 	sch := make(chan os.Signal, 10)
 	signal.Notify(sch, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT,
-		syscall.SIGHUP, syscall.SIGSTOP, syscall.SIGQUIT)
+		syscall.SIGHUP, syscall.SIGSTOP, syscall.SIGQUIT, syscall.SIGUSR1)
 	go func(ch <-chan os.Signal) {
 		for {
 			sig := <-ch
-			logger.Infof("signal recieved " + sig.String())
-			server.Shutdown()
+			if sig == syscall.SIGUSR1 {
+				// logger.Hub is always inited, so we call Reopen without check it.
+				logger.Hub.Reopen(conf.ErrorLog)
+
+				if accessLogger.Hub != nil {
+					if err := accessLogger.Hub.Reopen(conf.AccessLog); err != nil {
+						logger.Warnf("open %s failed: %s", conf.AccessLog, err.Error())
+					}
+				}
+			} else {
+				logger.Infof("signal recieved " + sig.String())
+				server.Shutdown()
+			}
 		}
 	}(sch)
 }

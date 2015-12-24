@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,10 +16,11 @@ import (
 )
 
 var (
-	SlowCmdTime = time.Millisecond * 100 // 100ms
-	RL          *ReqLimiter
-	logger      = loghub.Default
-	conf        = &config.DB
+	SlowCmdTime  = time.Millisecond * 100 // 100ms
+	RL           *ReqLimiter
+	logger       = loghub.ErrorLog
+	accessLogger = loghub.AccessLog
+	conf         = &config.DB
 )
 
 type ServerConn struct {
@@ -110,7 +113,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 		}
 	} else {
 		// process memcache commands, e.g. 'set', 'get', 'incr'.
-		resp, _ = req.Process(storageClient, stats)
+		resp, err = req.Process(storageClient, stats)
 		dt := time.Since(t)
 		if dt > SlowCmdTime {
 			stats.UpdateStat("slow_cmd", 1)
@@ -119,6 +122,10 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			// quit\r\n command
 			c.Shutdown()
 			return nil
+		}
+
+		if accessLogger.Hub != nil {
+			c.writeAccessLog(resp, err, dt, storageClient.GetSuccessedTargets())
 		}
 	}
 
@@ -130,7 +137,64 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			return
 		}
 	}
+
 	return
+}
+
+// 记录 accesslog, 主要用于 proxy 中
+func (c *ServerConn) writeAccessLog(resp *Response, processErr error, dt time.Duration, hosts []string) {
+	req := c.req
+	cmd := req.Cmd
+	total_size := 0
+	size_str := "0"
+	stat := "SUCC"
+
+	switch req.Cmd {
+	case "get", "gets":
+		if len(req.Keys) > 1 {
+			cmd += "m"
+			sizes := make([]string, 0, len(req.Keys))
+			for _, k := range req.Keys {
+				s := 0
+				if v, ok := resp.Items[k]; ok {
+					s = len(v.Body)
+				}
+				total_size += s
+				sizes = append(sizes, strconv.Itoa(s))
+			}
+			size_str = strings.Join(sizes, ",")
+		} else {
+			for _, v := range resp.Items {
+				total_size += len(v.Body)
+			}
+			size_str = strconv.Itoa(total_size)
+		}
+
+		if total_size == 0 {
+			stat = "FAILED"
+		}
+
+	case "set", "add", "replace":
+		size_str = strconv.Itoa(len(req.Item.Body))
+		if processErr != nil {
+			stat = "FAILED"
+		}
+
+	default:
+		if processErr != nil {
+			stat = "FAILED"
+		}
+	}
+
+	if len(hosts) == 0 {
+		hosts = append(hosts, "NoWhere")
+	}
+	host_str := strings.Join(hosts, ",")
+	keys := strings.Join(req.Keys, " ")
+
+	accessLogger.Infof("%s %s %s %s %s %s %d %s",
+		config.AccessLogVersion, c.RemoteAddr, strings.ToUpper(cmd),
+		stat, size_str, host_str, dt.Nanoseconds()/1e3, keys)
 }
 
 func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) {
@@ -174,6 +238,7 @@ func (s *Server) Serve() (e error) {
 	if s.l == nil {
 		return errors.New("no listener")
 	}
+
 	for {
 		rw, e := s.l.Accept()
 		if e != nil {
