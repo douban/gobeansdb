@@ -116,7 +116,7 @@ func (mgr *GCMgr) BeforeBucket(bkt *Bucket, startChunkID, endChunkID int, merge 
 
 func (mgr *GCMgr) AfterBucket(bkt *Bucket) {
 	bkt.hints.state &= ^HintStateGC
-	bkt.hints.maxDumpableChunkID = MAX_CHUNK_ID
+	bkt.hints.maxDumpableChunkID = MAX_NUM_CHUNK - 1
 }
 
 func (bkt *Bucket) gcCheckEnd(start, endChunkID, noGCDays int) (end int, err error) {

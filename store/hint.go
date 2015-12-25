@@ -48,7 +48,7 @@ func parseIDFromPath(path string) (id HintID, ok bool) {
 func parseIDFromName(name string) (id HintID, ok bool) {
 	ck, err1 := parseChunkIDFromName(name)
 	sp, err2 := parseSplitIDFromName(name)
-	if err1 == nil && err2 == nil && ck < 256 && sp < 256 {
+	if err1 == nil && err2 == nil && ck < MAX_NUM_CHUNK-1 && sp < MAX_SPLIT_ID {
 		return HintID{ck, sp}, true
 	}
 	return
@@ -321,7 +321,7 @@ func newHintMgr(bucketID int, home string) *hintMgr {
 	for i := 0; i < MAX_NUM_CHUNK; i++ {
 		hm.chunks[i] = newHintChunk(i)
 	}
-	hm.maxDumpableChunkID = MAX_CHUNK_ID
+	hm.maxDumpableChunkID = MAX_NUM_CHUNK - 1
 
 	hm.collisions = newCollisionTable()
 	return hm
@@ -420,7 +420,7 @@ func (h *hintMgr) dumpAndMerge(forGC bool) (maxSilence int64) {
 
 	maxDumpableChunkID := h.maxDumpableChunkID
 	if forGC {
-		maxDumpableChunkID = MAX_CHUNK_ID
+		maxDumpableChunkID = MAX_NUM_CHUNK - 1
 	}
 
 	for i := 0; i <= maxDumpableChunkID; i++ {

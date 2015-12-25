@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	MAX_CHUNK_ID  = 255
 	MAX_NUM_CHUNK = 256
+	MAX_SPLIT_ID  = 255
 )
 
 type dataStore struct {

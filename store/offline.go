@@ -17,7 +17,7 @@ func DataToHint(path string) (err error) {
 		return
 	}
 	if finfo.IsDir() {
-		return DataToHintDir(path, 0, MAX_CHUNK_ID)
+		return DataToHintDir(path, 0, MAX_NUM_CHUNK-1)
 	} else {
 
 		return DataToHintFile(path)
