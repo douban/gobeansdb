@@ -12,7 +12,7 @@ import (
 )
 
 func Remove(path string) error {
-	loghub.ErrorLog.Logf(loghub.INFO, "remove path: %s", path)
+	loghub.ErrorLogger.Logf(loghub.INFO, "remove path: %s", path)
 	return os.Remove(path)
 }
 

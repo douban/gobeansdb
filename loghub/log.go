@@ -3,6 +3,7 @@ package loghub
 import (
 	"fmt"
 	"io"
+	"log"
 	"runtime"
 	"sync"
 )
@@ -94,4 +95,15 @@ func (l *Logger) Logf(level int, format string, v ...interface{}) {
 	}
 	msg := fmt.Sprintf(format, v...)
 	l.Hub.Log(l.name, level, file, line, msg)
+}
+
+func InitLogger(errorlog string, accesslog string) {
+	if errorlog != "" {
+		log.Printf("log to errorlog %s", errorlog)
+		InitErrorLog(errorlog, INFO, 200)
+	}
+	if accesslog != "" {
+		log.Printf("open accesslog %s", accesslog)
+		InitAccessLog(accesslog, INFO)
+	}
 }

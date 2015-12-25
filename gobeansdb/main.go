@@ -4,10 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.intra.douban.com/coresys/gobeansdb/config"
@@ -17,49 +14,11 @@ import (
 )
 
 var (
-	server       *mc.Server
-	storage      *Storage
-	conf         = &config.DB
-	logger       = loghub.ErrorLog
-	accessLogger = loghub.AccessLog
+	server  *mc.Server
+	storage *Storage
+	conf    = &config.DB
+	logger  = loghub.ErrorLogger
 )
-
-func initLog() {
-	if conf.ErrorLog != "" {
-		logpath := conf.ErrorLog
-		log.Printf("log to errorlog %s", logpath)
-		loghub.InitErrorLog(conf.ErrorLog, loghub.INFO, 200)
-	}
-	if conf.AccessLog != "" {
-		logpath := conf.AccessLog
-		log.Printf("open accesslog %s", logpath)
-		loghub.InitAccessLog(conf.AccessLog, loghub.INFO)
-	}
-}
-
-func handleSignals() {
-	sch := make(chan os.Signal, 10)
-	signal.Notify(sch, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT,
-		syscall.SIGHUP, syscall.SIGSTOP, syscall.SIGQUIT, syscall.SIGUSR1)
-	go func(ch <-chan os.Signal) {
-		for {
-			sig := <-ch
-			if sig == syscall.SIGUSR1 {
-				// logger.Hub is always inited, so we call Reopen without check it.
-				logger.Hub.Reopen(conf.ErrorLog)
-
-				if accessLogger.Hub != nil {
-					if err := accessLogger.Hub.Reopen(conf.AccessLog); err != nil {
-						logger.Warnf("open %s failed: %s", conf.AccessLog, err.Error())
-					}
-				}
-			} else {
-				logger.Infof("signal recieved " + sig.String())
-				server.Shutdown()
-			}
-		}
-	}(sch)
-}
 
 func main() {
 	var version = flag.Bool("version", false, "print version of gobeansdb")
@@ -94,7 +53,7 @@ func main() {
 		return
 	}
 
-	initLog()
+	loghub.InitLogger(conf.ErrorLog, conf.AccessLog)
 	logger.Infof("gobeansdb version %s starting at %d, config: %#v",
 		config.Version, conf.Port, conf)
 	logger.Infof("route table: %#v", config.Route)
@@ -116,7 +75,8 @@ func main() {
 	}
 	logger.Infof("mc server listen at %s", addr)
 	log.Println("ready")
-	handleSignals()
+
+	server.HandleSignals(conf.ErrorLog, conf.AccessLog)
 	go storage.hstore.HintDumper(1 * time.Minute) // it may start merge go routine
 	go storage.hstore.Flusher()
 	err = server.Serve()
