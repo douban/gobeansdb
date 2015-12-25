@@ -23,7 +23,7 @@ import (
 )
 
 const LEN_USE_C_FIND = 100
-const TREE_ITEM_HEAD_SIZE = 10
+const TREE_ITEM_HEAD_SIZE = 11
 
 // BlockArrayLeaf
 
@@ -54,8 +54,8 @@ func bytesToItem(b []byte, item *HTreeItem) {
 	item.ver = int32(binary.LittleEndian.Uint32(b))
 	item.vhash = binary.LittleEndian.Uint16(b[4:])
 	item.pos.Offset = (uint32(b[6])<<8 | uint32(b[7])<<16 | uint32(b[8])<<24)
-	item.pos.ChunkID = int(uint32(b[9]))
-	//item.pos.ChunkID = int(uint32(b[9]) | uint32(b[10])<<8)
+	//item.pos.ChunkID = int(uint32(b[9]))
+	item.pos.ChunkID = int(uint32(b[9]) | uint32(b[10])<<8)
 }
 
 func itemToBytes(b []byte, item *HTreeItem) {
@@ -67,7 +67,7 @@ func itemToBytes(b []byte, item *HTreeItem) {
 	b[8] = byte(v >> 24)
 	v = uint32(item.pos.ChunkID)
 	b[9] = byte(v)
-	// b[10] = byte(v >> 8)
+	b[10] = byte(v >> 8)
 }
 
 func khashToBytes(b []byte, khash uint64) {
