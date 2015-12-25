@@ -62,6 +62,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	req := c.req
 	var resp *Response = nil
 	defer func() {
+		storageClient.Clean()
 		if e := recover(); e != nil {
 			logger.Errorf("mc panic(%#v), cmd %s, keys %v, stack: %s",
 				e, req.Cmd, req.Keys, utils.GetStack(2000))
