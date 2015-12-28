@@ -9,9 +9,9 @@ import (
 
 func TestBytes(t *testing.T) {
 	b := make([]byte, 30)
-	m := HTreeItem{0, Position{1, 0}, 2, 3}
+	m := HTreeItem{keyhash: 0, pos: Position{1, 0}, ver: 2, vhash: 3}
 	itemToBytes(b, &m)
-	m2 := HTreeItem{0, Position{4, 0}, 5, 6}
+	m2 := HTreeItem{keyhash: 0, pos: Position{4, 0}, ver: 5, vhash: 6}
 	bytesToItem(b, &m2)
 	if m != m2 {
 		t.Fatalf("bytesToItem fail %v != %v", m, m2)
