@@ -41,18 +41,15 @@ func (req *HTreeReq) encode() {
 	req.item = HTreeItem{req.ki.KeyHash, req.Position, req.Ver, req.ValueHash}
 }
 
-type HTreeItem struct {
-	keyhash uint64
-	pos     Position
-	ver     int32
-	vhash   uint16
-}
 type HintItemMeta struct {
 	Keyhash uint64
 	Pos     Position
 	Ver     int32
 	Vhash   uint16
 }
+
+type HTreeItem HintItemMeta
+
 type HintItem struct {
 	HintItemMeta
 	Key string

@@ -9,9 +9,9 @@ import (
 
 func TestBytes(t *testing.T) {
 	b := make([]byte, 30)
-	m := HTreeItem{keyhash: 0, pos: Position{1, 0}, ver: 2, vhash: 3}
+	m := HTreeItem{Keyhash: 0, Pos: Position{1, 0}, Ver: 2, Vhash: 3}
 	itemToBytes(b, &m)
-	m2 := HTreeItem{keyhash: 0, pos: Position{4, 0}, ver: 5, vhash: 6}
+	m2 := HTreeItem{Keyhash: 0, Pos: Position{4, 0}, Ver: 5, Vhash: 6}
 	bytesToItem(b, &m2)
 	if m != m2 {
 		t.Fatalf("bytesToItem fail %v != %v", m, m2)
@@ -114,7 +114,7 @@ func TestLeaf(t *testing.T) {
 	for i := 0; i < N; i++ {
 		ki.Prepare()
 		found := sh.Get(&req)
-		if !found || req.item.pos.Offset != (uint32(i)+shift)*PADDING {
+		if !found || req.item.Pos.Offset != (uint32(i)+shift)*PADDING {
 			t.Fatalf("i=%d, shift=%d, found=%v, req.item=%#v", i, shift, found, req.item)
 		}
 		ki.KeyHash++
@@ -126,7 +126,7 @@ func TestLeaf(t *testing.T) {
 	for i := 0; i < N; i++ {
 		ki.Prepare()
 		oldm, removed := sh.Remove(ki, Position{0, req.Offset})
-		if !removed || oldm.pos.Offset != req.Offset || sh.Len != lenItem*(N-i-1) {
+		if !removed || oldm.Pos.Offset != req.Offset || sh.Len != lenItem*(N-i-1) {
 			t.Fatalf("i=%d, offset=%x, removed=%v, oldm =%#v, %v",
 				i, req.Offset, removed, oldm, sh.Len/lenItem)
 		}
@@ -137,7 +137,7 @@ func TestLeaf(t *testing.T) {
 	// iter
 	i := 0
 	f := func(h uint64, m *HTreeItem) {
-		if h != base+uint64(i) || m.pos.Offset != (uint32(i)+shift)*PADDING {
+		if h != base+uint64(i) || m.Pos.Offset != (uint32(i)+shift)*PADDING {
 			t.Fatalf("%d: %016x %v", i, h, m)
 		}
 		i += 1

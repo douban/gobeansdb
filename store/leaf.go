@@ -51,21 +51,21 @@ func getNodeKhash(path []int) uint32 {
 }
 
 func bytesToItem(b []byte, item *HTreeItem) {
-	item.ver = int32(binary.LittleEndian.Uint32(b))
-	item.vhash = binary.LittleEndian.Uint16(b[4:])
-	item.pos.Offset = (uint32(b[6])<<8 | uint32(b[7])<<16 | uint32(b[8])<<24)
+	item.Ver = int32(binary.LittleEndian.Uint32(b))
+	item.Vhash = binary.LittleEndian.Uint16(b[4:])
+	item.Pos.Offset = (uint32(b[6])<<8 | uint32(b[7])<<16 | uint32(b[8])<<24)
 	//item.pos.ChunkID = int(uint32(b[9]))
-	item.pos.ChunkID = int(uint32(b[9]) | uint32(b[10])<<8)
+	item.Pos.ChunkID = int(uint32(b[9]) | uint32(b[10])<<8)
 }
 
 func itemToBytes(b []byte, item *HTreeItem) {
-	binary.LittleEndian.PutUint32(b, uint32(item.ver))
-	binary.LittleEndian.PutUint16(b[4:], item.vhash)
-	v := item.pos.Offset
+	binary.LittleEndian.PutUint32(b, uint32(item.Ver))
+	binary.LittleEndian.PutUint16(b[4:], item.Vhash)
+	v := item.Pos.Offset
 	b[6] = byte(v >> 8)
 	b[7] = byte(v >> 16)
 	b[8] = byte(v >> 24)
-	v = uint32(item.pos.ChunkID)
+	v = uint32(item.Pos.ChunkID)
 	b[9] = byte(v)
 	b[10] = byte(v >> 8)
 }
@@ -137,7 +137,7 @@ func (sh *SliceHeader) Remove(ki *KeyInfo, oldPos Position) (oldm HTreeItem, rem
 	idx := findInBytes(leaf, ki.KeyHash)
 	if idx >= 0 {
 		bytesToItem(leaf[idx+lenKHash:], &oldm)
-		if oldPos.ChunkID == -1 || oldm.pos.Offset == oldPos.Offset {
+		if oldPos.ChunkID == -1 || oldm.Pos.Offset == oldPos.Offset {
 			removed = true
 			copy(leaf[idx:], leaf[idx+itemLen:])
 			sh.Len -= itemLen
