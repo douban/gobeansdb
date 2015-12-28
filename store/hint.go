@@ -48,7 +48,7 @@ func parseIDFromPath(path string) (id HintID, ok bool) {
 func parseIDFromName(name string) (id HintID, ok bool) {
 	ck, err1 := parseChunkIDFromName(name)
 	sp, err2 := parseSplitIDFromName(name)
-	if err1 == nil && err2 == nil && ck < 256 && sp < 256 {
+	if err1 == nil && err2 == nil && ck < MAX_NUM_CHUNK && sp < MAX_NUM_SPLIT {
 		return HintID{ck, sp}, true
 	}
 	return
@@ -136,8 +136,8 @@ func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
 	if !found {
 		idx = h.num
 		if idx >= len(h.items) {
-			if it.Pos > h.maxoffset {
-				h.maxoffset = it.Pos
+			if it.Pos.Offset > h.maxoffset {
+				h.maxoffset = it.Pos.Offset
 			}
 			return false
 		}
@@ -149,7 +149,7 @@ func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
 		h.collisions[it.Keyhash][it.Key] = idx
 	}
 
-	end := it.Pos + recSize
+	end := it.Pos.Offset + recSize
 	if end > h.maxoffset {
 		h.maxoffset = end
 	}
@@ -321,7 +321,7 @@ func newHintMgr(bucketID int, home string) *hintMgr {
 	for i := 0; i < MAX_NUM_CHUNK; i++ {
 		hm.chunks[i] = newHintChunk(i)
 	}
-	hm.maxDumpableChunkID = MAX_CHUNK_ID
+	hm.maxDumpableChunkID = MAX_NUM_CHUNK - 1
 
 	hm.collisions = newCollisionTable()
 	return hm
@@ -420,7 +420,7 @@ func (h *hintMgr) dumpAndMerge(forGC bool) (maxSilence int64) {
 
 	maxDumpableChunkID := h.maxDumpableChunkID
 	if forGC {
-		maxDumpableChunkID = MAX_CHUNK_ID
+		maxDumpableChunkID = MAX_NUM_CHUNK - 1
 	}
 
 	for i := 0; i <= maxDumpableChunkID; i++ {
@@ -508,7 +508,7 @@ func (h *hintMgr) set(ki *KeyInfo, meta *Meta, pos Position, recSize uint32, rea
 	_, ok := h.collisions.get(ki.KeyHash, ki.StringKey)
 	if ok {
 		it2 := *it
-		it2.Pos |= uint32(pos.ChunkID)
+		it2.Pos.ChunkID = pos.ChunkID
 		h.collisions.compareAndSet(&it2, reason)
 	}
 	return h.setItem(it, pos.ChunkID, recSize)
@@ -559,7 +559,7 @@ func (h *hintMgr) get(keyhash uint64, key string) (meta Meta, pos Position, err 
 	}
 	meta.ValueHash = it.Vhash
 	meta.Ver = it.Ver
-	pos.Offset = it.Pos
+	pos.Offset = it.Pos.Offset
 	return
 }
 
@@ -574,8 +574,8 @@ func (h *hintMgr) getItem(keyhash uint64, key string, memOnly bool) (it *HintIte
 				return
 			} else if it != nil {
 				logger.Infof("hint get hit merged %#v", it)
-				chunkID = int(it.Pos & 0xff)
-				it.Pos &= 0xffffff00
+				chunkID = it.Pos.ChunkID
+				it.Pos.ChunkID = 0
 			}
 			return
 		}
@@ -713,7 +713,7 @@ func (h *hintMgr) getCollisionGC(ki *KeyInfo) (it *HintItem, ChunkID int, collis
 		// only in mem, in new hints buffers after gc begin
 		it, ChunkID, collision = h.getItemCollision(ki.KeyHash, ki.StringKey)
 	} else {
-		ChunkID = int(it.Pos & 0xff)
+		ChunkID = it.Pos.ChunkID
 	}
 	return
 }

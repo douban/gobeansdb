@@ -296,7 +296,7 @@ func tLoadAHint(tree *HTree, r *hintFileReader) (numKey, numAll int, e error) {
 			ki := NewKeyInfoFromBytes([]byte(item.Key), item.Keyhash, false)
 			meta.ValueHash = item.Vhash
 			meta.Ver = item.Ver
-			pos.Offset = item.Pos
+			pos.Offset = item.Pos.Offset
 			ki.Prepare()
 			tree.set(ki, &meta, pos)
 			numKey++

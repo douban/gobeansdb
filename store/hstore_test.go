@@ -802,7 +802,7 @@ func checkDataWithHints(dir string, chunk int) error {
 				}
 				rec.Payload.Decompress()
 				rec.Payload.CalcValueHash()
-				dm[string(rec.Key)] = &HintItemMeta{getKeyHash(rec.Key), offset, rec.Payload.Ver, rec.Payload.ValueHash}
+				dm[string(rec.Key)] = &HintItemMeta{getKeyHash(rec.Key), Position{0, offset}, rec.Payload.Ver, rec.Payload.ValueHash}
 			}
 			hm := make(map[string]*HintItemMeta)
 			for _, hp := range hpaths {
@@ -934,8 +934,79 @@ func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile in
 func TestGCReserveDelete(t *testing.T) {
 	testGC(t, testGCReserveDelete, "reserve_deletes", 100)
 }
+
 func TestHStoreCollision(t *testing.T) {
 	testHStore(t, 0, 16, makeKeyHasherTrival)
 	testHStore(t, 1, 16, makeKeyHasherTrival)
 	testHStore(t, 2, 16, makeKeyHasherTrival)
+}
+
+func TestChunk256(t *testing.T) {
+	conf.InitDefault()
+	setupTest("TestChunk256", 1)
+	defer clearTest()
+
+	numbucket := 16
+	bucketID := numbucket - 1
+	conf.NumBucket = numbucket
+	conf.BucketsStat = make([]int, numbucket)
+	conf.BucketsStat[bucketID] = 1
+	conf.TreeHeight = 3
+	conf.Init()
+
+	bucketDir := filepath.Join(conf.Homes[0], "0") // will be removed
+	os.Mkdir(bucketDir, 0777)
+
+	gen := newKVGen(numbucket)
+	getKeyHash = makeKeyHasherParseKey(gen.depth, bucketID)
+	defer func() {
+		getKeyHash = getKeyHashDefalut
+	}()
+
+	store, err := NewHStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger.Infof("%#v", conf)
+	// set
+	N := 300
+	var ki KeyInfo
+	for k := 0; k < 2; k++ {
+		for i := 0; i < N-k; i++ {
+			payload := gen.gen(&ki, i, 0)
+			if k == 0 {
+
+				logger.Infof("%v %v %#v %s", ki.StringKey, ki.KeyHash, payload.Meta, payload.Body)
+
+				if err := store.Set(&ki, payload); err != nil {
+					t.Fatal(err)
+				}
+				store.Close()
+
+				store, err = NewHStore()
+				if err != nil {
+					t.Fatalf("%v", err)
+				}
+			}
+
+			payload2, pos, err := store.Get(&ki, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pos2 := Position{i, uint32(0)}
+			if k == 1 {
+				pos2 = Position{0, uint32(i) * 256}
+			}
+
+			if payload2 == nil || (string(payload.Body) != string(payload2.Body)) || (pos != pos2) {
+				if payload2 != nil {
+					t.Errorf("%d %d: exp %s, got %s", k, i, string(payload.Body), string(payload2.Body))
+				}
+				t.Fatalf("%d %d: %#v %#v", k, i, payload2.Meta, pos)
+			}
+		}
+		bkt := store.buckets[bucketID]
+		store.gcMgr.gc(bkt, 0, N-1, true)
+	}
+	store.Close()
 }

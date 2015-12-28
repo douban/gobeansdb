@@ -10,7 +10,7 @@ import (
 
 const (
 	HINTFILE_HEAD_SIZE = 16
-	HINTITEM_HEAD_SIZE = 19
+	HINTITEM_HEAD_SIZE = 23
 	HINTINDEX_ROW_SIZE = 4096
 )
 
@@ -103,10 +103,11 @@ func (reader *hintFileReader) next() (item *HintItem, err error) {
 		return
 	}
 	item.Keyhash = binary.LittleEndian.Uint64(h[:8])
-	item.Pos = binary.LittleEndian.Uint32(h[8:12])
-	item.Ver = int32(binary.LittleEndian.Uint32(h[12:16]))
-	item.Vhash = binary.LittleEndian.Uint16(h[16:18])
-	ksz := int(h[18])
+	item.Pos.ChunkID = int(binary.LittleEndian.Uint32(h[8:12]))
+	item.Pos.Offset = binary.LittleEndian.Uint32(h[12:16])
+	item.Ver = int32(binary.LittleEndian.Uint32(h[16:20]))
+	item.Vhash = binary.LittleEndian.Uint16(h[20:22])
+	ksz := int(h[22])
 	key := reader.buf[:ksz]
 	readn, err = io.ReadFull(reader.rbuf, key)
 	if err != nil {
@@ -162,10 +163,11 @@ func newHintFileWriter(path string, maxOffset uint32, bufsize int) (w *hintFileW
 func (w *hintFileWriter) writeItem(item *HintItem) error {
 	h := w.buf[:HINTITEM_HEAD_SIZE]
 	binary.LittleEndian.PutUint64(h[0:8], item.Keyhash)
-	binary.LittleEndian.PutUint32(h[8:12], item.Pos)
-	binary.LittleEndian.PutUint32(h[12:16], uint32(item.Ver))
-	binary.LittleEndian.PutUint16(h[16:18], item.Vhash)
-	h[18] = byte(len(item.Key))
+	binary.LittleEndian.PutUint32(h[8:12], uint32(item.Pos.ChunkID))
+	binary.LittleEndian.PutUint32(h[12:16], item.Pos.Offset)
+	binary.LittleEndian.PutUint32(h[16:20], uint32(item.Ver))
+	binary.LittleEndian.PutUint16(h[20:22], item.Vhash)
+	h[22] = byte(len(item.Key))
 	w.wbuf.Write(h)
 	w.wbuf.WriteString(item.Key)
 	// TODO: refactor

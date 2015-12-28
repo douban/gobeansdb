@@ -207,12 +207,12 @@ func (tree *HTree) setToLeaf(ni *NodeInfo, req *HTreeReq) {
 	oldm, exist := tree.leafs[ni.offset].Set(req)
 
 	vhash := uint16(0)
-	if req.item.ver > 0 {
-		vhash += req.item.vhash
+	if req.item.Ver > 0 {
+		vhash += req.item.Vhash
 		node.count += 1
 	}
-	if exist && oldm.ver > 0 {
-		vhash -= oldm.vhash
+	if exist && oldm.Ver > 0 {
+		vhash -= oldm.Vhash
 		node.count -= 1
 	}
 	node.hash += vhash * uint16(req.ki.KeyHash>>32)
@@ -221,8 +221,8 @@ func (tree *HTree) setToLeaf(ni *NodeInfo, req *HTreeReq) {
 func (tree *HTree) remvoeFromLeaf(ni *NodeInfo, ki *KeyInfo, oldPos Position) {
 	node := ni.node
 	oldm, removed := tree.leafs[ni.offset].Remove(ki, oldPos)
-	if removed && oldm.ver > 0 {
-		node.hash -= oldm.vhash * uint16(ki.KeyHash>>32)
+	if removed && oldm.Ver > 0 {
+		node.hash -= oldm.Vhash * uint16(ki.KeyHash>>32)
 		node.count -= 1
 	}
 }
@@ -283,7 +283,7 @@ func (tree *HTree) set(ki *KeyInfo, meta *Meta, pos Position) {
 	req.ki = ki
 	req.Meta = *meta
 	req.Position = pos
-	req.item = HTreeItem{ki.KeyHash, pos.encode(), meta.Ver, meta.ValueHash}
+	req.item = HTreeItem{ki.KeyHash, pos, meta.Ver, meta.ValueHash}
 	tree.setReq(&req)
 }
 
@@ -308,8 +308,8 @@ func (tree *HTree) get(ki *KeyInfo) (meta *Meta, pos Position, found bool) {
 	var req HTreeReq
 	req.ki = ki
 	found = tree.getReq(&req)
-	meta = &Meta{0, 0, req.item.ver, req.item.vhash, 0, 0}
-	pos = decodePos(req.item.pos)
+	meta = &Meta{0, 0, req.item.Ver, req.item.Vhash, 0, 0}
+	pos = req.item.Pos
 	return
 }
 
@@ -356,7 +356,7 @@ func (tree *HTree) collectItems(ni *NodeInfo, items []HTreeItem, filterkeyhash, 
 	if ni.level >= len(tree.levels)-1 { // leaf
 		f := func(h uint64, m *HTreeItem) {
 			if (filtermask & h) == filterkeyhash {
-				m.keyhash = h
+				m.Keyhash = h
 				items = append(items, *m)
 			}
 		}
@@ -415,7 +415,7 @@ func (tree *HTree) ListDir(ki *KeyInfo) (ret []byte, err error) {
 	if items != nil {
 
 		for _, item := range items {
-			s := fmt.Sprintf("%016x %d %d\n", item.keyhash, int(item.vhash), item.ver)
+			s := fmt.Sprintf("%016x %d %d\n", item.Keyhash, int(item.Vhash), item.Ver)
 			buffer.WriteString(s)
 		}
 		return buffer.Bytes(), nil

@@ -124,7 +124,7 @@ func (bkt *Bucket) updateHtreeFromHint(chunkID int, path string) (maxoffset uint
 		ki.Prepare()
 		meta.ValueHash = item.Vhash
 		meta.Ver = item.Ver
-		pos.Offset = item.Pos & 0xffffff00
+		pos.Offset = item.Pos.Offset
 		if item.Ver > 0 {
 			pos.ChunkID = chunkID
 			tree.set(ki, &meta, pos)
@@ -363,7 +363,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		}
 		_ = meta
 	} else {
-		pos = decodePos(hintit.Pos)
+		pos = hintit.Pos
 		meta = &Meta{
 			Ver:       hintit.Ver,
 			ValueHash: hintit.Vhash,
@@ -428,8 +428,8 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	hintit2 := newHintItem(ki.KeyHash, rec.Payload.Ver, vhash, pos, string(rec.Key))
 	bkt.hints.collisions.compareAndSet(hintit2, "get1") // the one in htree
 
-	pos = Position{chunkID, hintit.Pos}
-	hintit.Pos = pos.encode()
+	pos = Position{chunkID, hintit.Pos.Offset}
+	hintit.Pos = pos
 	bkt.hints.collisions.compareAndSet(hintit, "get2") // the one not in htree
 
 	rec2, _, err := bkt.datas.GetRecordByPos(pos)
