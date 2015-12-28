@@ -180,7 +180,7 @@ type Position struct {
 	Offset  uint32
 }
 
-func (pos *Position) toInt64() int64 {
+func (pos *Position) CmpKey() int64 {
 	return (int64(pos.ChunkID) << 32) + int64(pos.Offset)
 }
 

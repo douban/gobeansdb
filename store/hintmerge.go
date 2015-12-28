@@ -78,7 +78,7 @@ func (h mergeHeap) Less(i, j int) bool {
 			return a.Key < b.Key
 		}
 	}
-	return a.Pos.toInt64() < b.Pos.toInt64()
+	return a.Pos.CmpKey() < b.Pos.CmpKey()
 }
 
 func (h *mergeHeap) Push(x interface{}) {
