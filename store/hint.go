@@ -48,7 +48,7 @@ func parseIDFromPath(path string) (id HintID, ok bool) {
 func parseIDFromName(name string) (id HintID, ok bool) {
 	ck, err1 := parseChunkIDFromName(name)
 	sp, err2 := parseSplitIDFromName(name)
-	if err1 == nil && err2 == nil && ck < MAX_NUM_CHUNK-1 && sp < MAX_SPLIT_ID {
+	if err1 == nil && err2 == nil && ck < MAX_NUM_CHUNK && sp < MAX_NUM_SPLIT {
 		return HintID{ck, sp}, true
 	}
 	return
