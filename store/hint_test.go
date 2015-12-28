@@ -131,9 +131,13 @@ func testMerge(t *testing.T, nsrc int) {
 
 		tmp := new(HintItem)
 		*tmp = *it
-		tmp.Pos.Offset = it.Pos.Offset - 1
+		tmp.Pos.Offset -= 1
 		w.writeItem(tmp)
-		// TODO: same khash diff key
+		if it.Pos.ChunkID > 0 {
+			tmp = new(HintItem)
+			tmp.Pos.ChunkID -= 1
+			w.writeItem(tmp)
+		}
 
 		w.writeItem(it)
 	}
