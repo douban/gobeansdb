@@ -17,7 +17,7 @@ test:
 	go test github.intra.douban.com/coresys/gobeansdb/config
 	go test github.intra.douban.com/coresys/gobeansdb/cmem
 	go test github.intra.douban.com/coresys/gobeansdb/quicklz
-	go test github.intra.douban.com/coresys/gobeansdb/store
+	ulimit -n 1024; go test github.intra.douban.com/coresys/gobeansdb/store
 
 pytest:install
 	./tests/run_test.sh
