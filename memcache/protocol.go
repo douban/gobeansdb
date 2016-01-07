@@ -88,7 +88,7 @@ func (req *Request) Clear() {
 		req.Item = nil
 	}
 	if req.SettingSize != 0 {
-		cmem.DBRL.SetData.SubSize(int64(req.SettingSize))
+		cmem.DBRL.SetData.SubSize(req.SettingSize)
 	}
 	req.SettingSize = 0
 
@@ -228,7 +228,7 @@ func (req *Request) Read(b *bufio.Reader) error {
 		}
 
 		req.SettingSize = length + len(req.Keys[0])
-		cmem.DBRL.SetData.AddSize(int64(req.SettingSize))
+		cmem.DBRL.SetData.AddSize(req.SettingSize)
 
 		if _, e = io.ReadFull(b, item.Body); e != nil {
 			return ErrNetworkError
@@ -427,7 +427,7 @@ func (resp *Response) Write(w io.Writer) error {
 func (resp *Response) CleanBuffer() {
 	for key, item := range resp.Items {
 		if key[0] != '@' && key[0] != '?' {
-			cmem.DBRL.GetData.SubSize(int64(len(key) + len(item.Body)))
+			cmem.DBRL.GetData.SubSizeAndCount(item.CArray.Cap)
 		}
 		item.CArray.Free()
 	}

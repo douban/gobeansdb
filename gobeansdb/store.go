@@ -100,8 +100,6 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 	if payload.Ver > 0 {
 		vhash = store.Getvhash(payload.Body)
 	}
-	cmem.DBRL.GetData.SubSize(payload.AccountingSize)
-	payload.Free()
 
 	var body string
 	if extended {
@@ -112,6 +110,10 @@ func (s *StorageClient) getMeta(key string, extended bool) (*mc.Item, error) {
 		body = fmt.Sprintf("%d %d %d %d %d",
 			payload.Ver, vhash, payload.Flag, len(payload.Body), payload.TS)
 	}
+
+	cmem.DBRL.GetData.SubSizeAndCount(payload.CArray.Cap)
+	payload.CArray.Free()
+
 	item := new(mc.Item)
 	item.Body = []byte(body)
 	item.Flag = 0
@@ -134,7 +136,7 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 			}
 			item := new(mc.Item) // TODO: avoid alloc?
 			item.Body = rec.Dumps()
-			cmem.DBRL.GetData.SubSize(rec.Payload.AccountingSize)
+			cmem.DBRL.GetData.SubSizeAndCount(rec.Payload.Cap)
 			rec.Payload.Free()
 			item.Flag = 0
 			return item, nil
@@ -179,8 +181,8 @@ func (s *StorageClient) Get(key string) (*mc.Item, error) {
 		return nil, nil
 	}
 	if payload.Ver < 0 {
-		cmem.DBRL.GetData.SubSize(payload.AccountingSize)
-		payload.Free()
+		cmem.DBRL.GetData.SubSizeAndCount(payload.CArray.Cap)
+		payload.CArray.Free()
 		return nil, nil
 	}
 	item := new(mc.Item) // TODO: avoid alloc?

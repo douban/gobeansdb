@@ -292,7 +292,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 			t.Fatal(err)
 		}
 		if payload2 != nil {
-			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 		}
 		if payload2 == nil || (string(payload.Body) != string(payload2.Body)) || (pos != Position{0, uint32(PADDING * (i))}) {
 			if payload2 != nil {
@@ -346,7 +346,7 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 			t.Fatal(err)
 		}
 		if payload2 != nil {
-			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 		}
 		if !(payload2 != nil && len(payload2.Body) != 0 && payload2.Ver == 1 &&
 			payload2.TS == uint32(i+1) && pos == Position{0, uint32(PADDING * (i))}) {
@@ -409,7 +409,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 			t.Fatal(err)
 		}
 		if payload2 != nil {
-			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 		}
 		if !(payload2 != nil && len(payload2.Body) == 0 && payload2.Ver == -2 &&
 			payload2.TS == uint32(i+tsShift) && pos == Position{0, uint32(PADDING * (i))}) {
@@ -452,7 +452,7 @@ func readHStore(t *testing.T, store *HStore, n, v int) {
 			t.Fatalf("%d: pos %#v", i, pos)
 		}
 		if payload2 != nil {
-			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 		}
 	}
 }
@@ -536,7 +536,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 				t.Fatalf("%d: exp %#v got %#v", i, pos2, pos)
 			}
 			if payload2 != nil {
-				cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+				cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 			}
 		}
 	}
@@ -665,7 +665,7 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 				t.Fatal(err)
 			}
 			if payload2 != nil {
-				cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+				cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 			}
 			if !(payload2 != nil && payload2.Ver == 2 &&
 				payload2.TS == uint32(i+tsShift) && pos == Position{0, uint32(PADDING * (i + 1))}) {
@@ -900,7 +900,7 @@ func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile in
 	if payload2.Ver != -2 {
 		t.Fatalf("bad ver %#v", payload2)
 	}
-	cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+	cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 
 	store.Close()
 	utils.Remove(bkt.Home + "/002.000.idx.hash")

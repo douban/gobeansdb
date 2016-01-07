@@ -131,22 +131,22 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		logger.Errorf(err.Error())
 		return
 	}
-	kvSize := wrec.ksz + wrec.vsz
+	kvSize := int(wrec.ksz + wrec.vsz)
 	var kv cmem.CArray
 	if !kv.Alloc(int(kvSize)) {
 		err = fmt.Errorf("fail to alloc for read %s:%d, wrec %v ", path, offset, wrec)
 		logger.Errorf(err.Error())
 		return
 	}
+	cmem.DBRL.GetData.AddSizeAndCount(int(kvSize))
 
-	cmem.DBRL.GetData.AddSize(int64(kvSize))
 	wrec.rec.Key = kv.Body[:wrec.ksz]
 
 	if n, err = f.ReadAt(kv.Body, int64(offset)+recHeaderSize); err != nil {
 		err = fmt.Errorf("fail to  read %s:%d, rec %v; return err = %s, n = %d",
 			path, offset, wrec, err.Error(), n)
 		logger.Errorf(err.Error())
-		cmem.DBRL.GetData.SubSize(int64(kvSize))
+		cmem.DBRL.GetData.SubSizeAndCount(kvSize)
 		return
 	}
 	wrec.rec.Key = make([]byte, wrec.ksz)
@@ -158,15 +158,15 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		err = fmt.Errorf("crc check fail %s:%d, rec %v; %d != %d",
 			path, offset, wrec, wrec.crc, crc)
 		logger.Errorf(err.Error())
-		cmem.DBRL.GetData.SubSize(int64(kvSize))
+		cmem.DBRL.GetData.SubSizeAndCount(kvSize)
 		return
 	}
 	wrec.rec.Payload.AccountingSize = int64(kvSize)
 	if wrec.rec.Payload.IsCompressed() {
-		diff := int64(quicklz.SizeDecompressed(wrec.rec.Payload.Body) - int(wrec.vsz))
+		diff := quicklz.SizeDecompressed(wrec.rec.Payload.Body) - int(wrec.vsz)
 		cmem.DBRL.GetData.AddSize(diff)
 		cmem.DBRL.GetData.SubCount(1)
-		wrec.rec.Payload.AccountingSize += diff
+		wrec.rec.Payload.AccountingSize += int64(diff)
 	}
 	return wrec, nil
 }
@@ -213,7 +213,6 @@ func (stream *DataStreamReader) nextValid() (rec *Record, offset uint32, sizeBro
 			stream.fd.Seek(int64(offset3), 0)
 			stream.rbuf.Reset(stream.fd)
 			stream.offset = offset2 + rsize
-			cmem.DBRL.GetData.SubSize(wrec.rec.Payload.AccountingSize)
 			return wrec.rec, offset2, sizeBroken, nil
 		}
 		sizeBroken += 256
