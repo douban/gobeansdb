@@ -34,22 +34,25 @@ func (rl *ResourceLimiter) IsZero() bool {
 	return rl.Count == 0 && rl.Size == 0
 }
 
+func (rl *ResourceLimiter) AddSizeAndCount(size) {
+	rl.AddSize(size)
+	rl.AddCount(1)
+}
+
+func (rl *ResourceLimiter) SubSizeAndCount(size) {
+	rl.SubSize(size)
+	rl.SubCount(1)
+}
+
 func (rl *ResourceLimiter) AddSize(size int64) {
-	// fmt.Printf("add %d\n", size)
 	atomic.AddInt64(&rl.Size, int64(size))
-	atomic.AddInt64(&rl.Count, 1)
 	if rl.Size > rl.MaxSize {
 		rl.MaxSize = rl.Size
-	}
-	if rl.Count > rl.MaxCount {
-		rl.MaxCount = rl.Count
 	}
 }
 
 func (rl *ResourceLimiter) SubSize(size int64) {
-	// fmt.Printf("sub %d\n", size)
 	atomic.AddInt64(&rl.Size, -int64(size))
-	atomic.AddInt64(&rl.Count, -1)
 }
 
 func (rl *ResourceLimiter) AddCount(count int64) {
