@@ -118,17 +118,17 @@ func (req *Request) Write(w io.Writer) (e error) {
 		_, e = io.WriteString(w, "\r\n")
 
 	case "set", "add", "replace", "cas", "prepend", "append":
-		noreplay := ""
+		noreply := ""
 		if req.NoReply {
-			noreplay = " noreply"
+			noreply = " noreply"
 		}
 		item := req.Item
 		if req.Cmd == "cas" {
 			fmt.Fprintf(w, "%s %s %d %d %d %d%s\r\n", req.Cmd, req.Keys[0], item.Flag,
-				item.Exptime, item.Cas, len(item.Body), noreplay)
+				item.Exptime, item.Cas, len(item.Body), noreply)
 		} else {
 			fmt.Fprintf(w, "%s %s %d %d %d%s\r\n", req.Cmd, req.Keys[0], item.Flag,
-				item.Exptime, len(item.Body), noreplay)
+				item.Exptime, len(item.Body), noreply)
 		}
 		if WriteFull(w, item.Body) != nil {
 			return e

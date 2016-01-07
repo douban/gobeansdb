@@ -13,7 +13,7 @@ import (
 var (
 	ErrorLogFormat = "%s %15s:%4d - %s"
 	ErrorLogFlag   = (log.LstdFlags | log.Lmicroseconds)
-	ErrorLog       *Logger
+	ErrorLogger    *Logger
 )
 
 type ErrorLogHub struct {
@@ -26,15 +26,15 @@ func init() {
 	logger := openLogWithFd(os.Stderr, ErrorLogFlag)
 	hub := &ErrorLogHub{logger: logger}
 	hub.InitBuffer(200)
-	ErrorLog = NewLogger("", hub, DEBUG)
+	ErrorLogger = NewLogger("", hub, DEBUG)
 }
 
 func InitErrorLog(path string, level int, bufferSize int) (err error) {
 	if errorLog, errorFd, err := openLog(path, ErrorLogFlag); err == nil {
 		hub := &ErrorLogHub{logger: errorLog, logFd: errorFd}
 		hub.InitBuffer(bufferSize)
-		ErrorLog.Hub = hub
-		ErrorLog.SetLevel(level)
+		ErrorLogger.Hub = hub
+		ErrorLogger.SetLevel(level)
 	} else {
 		log.Fatalf("open log error, path=[%s], err=[%s]", path, err.Error())
 	}

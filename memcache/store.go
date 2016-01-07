@@ -12,6 +12,7 @@ type Storage interface {
 
 type StorageClient interface {
 	GetSuccessedTargets() []string
+	Clean()
 	Get(key string) (*Item, error)
 	GetMulti(keys []string) (map[string]*Item, error)
 	Set(key string, item *Item, noreply bool) (bool, error)
@@ -36,6 +37,10 @@ func NewMapStore() *mapStore {
 
 func (s *mapStore) GetSuccessedTargets() []string {
 	return []string{"localhost"}
+}
+
+func (s *mapStore) Clean() {
+	return
 }
 
 func (s *mapStore) Client() StorageClient {

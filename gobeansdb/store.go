@@ -34,6 +34,10 @@ func (s *StorageClient) GetSuccessedTargets() []string {
 	return []string{"localhost"}
 }
 
+func (s *StorageClient) Clean() {
+	return
+}
+
 func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, error) {
 	tofree := &item.CArray
 	defer func() {

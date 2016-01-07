@@ -5,9 +5,12 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.intra.douban.com/coresys/gobeansdb/config"
@@ -18,8 +21,8 @@ import (
 var (
 	SlowCmdTime  = time.Millisecond * 100 // 100ms
 	RL           *ReqLimiter
-	logger       = loghub.ErrorLog
-	accessLogger = loghub.AccessLog
+	logger       = loghub.ErrorLogger
+	accessLogger = loghub.AccessLogger
 	conf         = &config.DB
 )
 
@@ -59,6 +62,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	req := c.req
 	var resp *Response = nil
 	defer func() {
+		storageClient.Clean()
 		if e := recover(); e != nil {
 			logger.Errorf("mc panic(%#v), cmd %s, keys %v, stack: %s",
 				e, req.Cmd, req.Keys, utils.GetStack(2000))
@@ -294,4 +298,30 @@ func (s *Server) Shutdown() {
 		}
 	}
 	//s.Unlock()
+}
+
+func (s *Server) HandleSignals(errorlog string, accesslog string) {
+	sch := make(chan os.Signal, 10)
+	signal.Notify(sch, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT,
+		syscall.SIGHUP, syscall.SIGSTOP, syscall.SIGQUIT, syscall.SIGUSR1)
+	go func(ch <-chan os.Signal) {
+		for {
+			sig := <-ch
+			// SIGUSR1 信号是 logrotate 程序发送给的，表示已经完成了 roate 任务，
+			// 通知 server 重新打开新的日志文件
+			if sig == syscall.SIGUSR1 {
+				// logger.Hub is always inited, so we call Reopen without check it.
+				logger.Hub.Reopen(errorlog)
+
+				if accessLogger.Hub != nil {
+					if err := accessLogger.Hub.Reopen(accesslog); err != nil {
+						logger.Warnf("open %s failed: %s", accesslog, err.Error())
+					}
+				}
+			} else {
+				logger.Infof("signal recieved " + sig.String())
+				s.Shutdown()
+			}
+		}
+	}(sch)
 }

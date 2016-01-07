@@ -9,7 +9,7 @@ import (
 var (
 	AccessLogFormat = "%s"
 	AccessLogFlag   = (log.Ldate | log.Ltime | log.Lmicroseconds)
-	AccessLog       *Logger
+	AccessLogger    *Logger
 )
 
 type AccessLogHub struct {
@@ -18,14 +18,14 @@ type AccessLogHub struct {
 }
 
 func init() {
-	AccessLog = NewLogger("", nil, DEBUG)
+	AccessLogger = NewLogger("", nil, DEBUG)
 }
 
 func InitAccessLog(path string, level int) (err error) {
 	if accessLog, accesssFd, err := openLog(path, AccessLogFlag); err == nil {
 		hub := &AccessLogHub{logger: accessLog, logFd: accesssFd}
-		AccessLog.Hub = hub
-		AccessLog.SetLevel(level)
+		AccessLogger.Hub = hub
+		AccessLogger.SetLevel(level)
 	} else {
 		log.Fatalf("open accesss log error, path=[%s], err=[%s]", path, err.Error())
 	}
