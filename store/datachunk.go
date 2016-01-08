@@ -140,7 +140,7 @@ func (dc *dataChunk) GetRecordByOffsetInBuffer(offset uint32) (res *Record, err 
 	wrec := wbuf[idx]
 	if wrec.pos.Offset == offset {
 		res = wrec.rec.Copy()
-		cmem.DBRL.GetData.AddSizeAndCount(wrec.rec.Payload.CArray.Cap)
+		cmem.DBRL.GetData.AddSizeAndCount(res.Payload.CArray.Cap)
 		return
 	} else {
 		err = fmt.Errorf("rec should in buffer, but not, pos = %#v", Position{dc.chunkid, offset})

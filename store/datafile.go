@@ -137,7 +137,7 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		logger.Errorf(err.Error())
 		return
 	}
-	cmem.DBRL.GetData.AddSizeAndCount(int(kvSize))
+	cmem.DBRL.GetData.AddSizeAndCount(kv.Cap)
 
 	wrec.rec.Key = kv.Body[:wrec.ksz]
 
@@ -145,7 +145,7 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		err = fmt.Errorf("fail to  read %s:%d, rec %v; return err = %s, n = %d",
 			path, offset, wrec, err.Error(), n)
 		logger.Errorf(err.Error())
-		cmem.DBRL.GetData.SubSizeAndCount(kvSize)
+		cmem.DBRL.GetData.SubSizeAndCount(kv.Cap)
 		return
 	}
 	wrec.rec.Key = make([]byte, wrec.ksz)
@@ -157,7 +157,7 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		err = fmt.Errorf("crc check fail %s:%d, rec %v; %d != %d",
 			path, offset, wrec, wrec.crc, crc)
 		logger.Errorf(err.Error())
-		cmem.DBRL.GetData.SubSizeAndCount(kvSize)
+		cmem.DBRL.GetData.SubSizeAndCount(kv.Cap)
 		return
 	}
 	return wrec, nil
