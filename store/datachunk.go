@@ -102,7 +102,7 @@ func (dc *dataChunk) flush(w *DataStreamWriter, gc bool) (flushed uint32, err er
 		size := wrec.rec.Payload.RecSize
 		flushed += size
 		if !gc && wrec.rec.Payload.Ver > 0 {
-			cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.CArray.Cap)
+			cmem.DBRL.FlushData.SubSizeAndCount(wrec.rec.Payload.CArray.Cap)
 			// NOTE: not freed yet, make it a little diff with AllocRL, which may provide more insight
 		}
 	}
@@ -158,6 +158,7 @@ func (dc *dataChunk) GetRecordByOffset(offset uint32) (res *Record, inbuffer boo
 	if res != nil {
 		inbuffer = true
 		res.Payload.Decompress()
+		cmem.DBRL.GetData.AddSize(res.Payload.DiffSizeAfterDecompressed())
 		return
 	}
 	wrec, e := readRecordAtPath(dc.path, offset)
@@ -165,6 +166,7 @@ func (dc *dataChunk) GetRecordByOffset(offset uint32) (res *Record, inbuffer boo
 		return nil, false, e
 	}
 	wrec.rec.Payload.Decompress()
+	cmem.DBRL.GetData.AddSize(wrec.rec.Payload.DiffSizeAfterDecompressed())
 	return wrec.rec, false, nil
 }
 

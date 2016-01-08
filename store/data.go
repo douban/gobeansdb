@@ -63,7 +63,9 @@ func (ds *dataStore) nextChunkID(chunkID int) int {
 
 func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	// must  CalcValueHash before compress
+	oldCap := rec.Payload.CArray.Cap
 	rec.TryCompress()
+	cmem.DBRL.SetData.AddSize(rec.Payload.CArray.Cap - oldCap)
 
 	wrec := wrapRecord(rec)
 	ds.Lock()
@@ -80,9 +82,12 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	wrec.pos = pos
 	ds.chunks[ds.newHead].AppendRecord(wrec)
 	ds.wbufSize += size
+
 	if wrec.rec.Payload.Ver > 0 {
-		cmem.DBRL.FlushData.AddSize(rec.Payload.CArray.Cap)
+		cmem.DBRL.FlushData.AddSizeAndCount(rec.Payload.CArray.Cap)
 	}
+	cmem.DBRL.SetData.SubSizeAndCount(rec.Payload.CArray.Cap)
+
 	if cmem.DBRL.FlushData.Size > int64(conf.FlushWake) {
 		WakeupFlush()
 	}

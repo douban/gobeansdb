@@ -87,11 +87,7 @@ func (req *Request) Clear() {
 	if req.Item != nil {
 		req.Item = nil
 	}
-	if req.SettingSize != 0 {
-		cmem.DBRL.SetData.SubSize(req.SettingSize)
-	}
 	req.SettingSize = 0
-
 }
 
 func WriteFull(w io.Writer, buf []byte) error {
@@ -227,8 +223,7 @@ func (req *Request) Read(b *bufio.Reader) error {
 			return e
 		}
 
-		req.SettingSize = length + len(req.Keys[0])
-		cmem.DBRL.SetData.AddSize(req.SettingSize)
+		cmem.DBRL.SetData.AddSizeAndCount(item.CArray.Cap)
 
 		if _, e = io.ReadFull(b, item.Body); e != nil {
 			return ErrNetworkError

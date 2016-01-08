@@ -308,7 +308,7 @@ func (tree *HTree) get(ki *KeyInfo) (meta *Meta, pos Position, found bool) {
 	var req HTreeReq
 	req.ki = ki
 	found = tree.getReq(&req)
-	meta = &Meta{0, 0, req.item.Ver, req.item.Vhash, 0, 0}
+	meta = &Meta{0, 0, req.item.Ver, req.item.Vhash, 0}
 	pos = req.item.Pos
 	return
 }

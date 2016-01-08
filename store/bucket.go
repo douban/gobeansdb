@@ -297,13 +297,17 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	if v.Ver >= 0 {
 		rec := &Record{ki.Key, v}
 		v.CalcValueHash()
+
+		oldCap := rec.Payload.CArray.Cap
 		rec.TryCompress()
+		cmem.DBRL.SetData.AddSize(rec.Payload.CArray.Cap - oldCap)
 	}
 	bkt.writeLock.Lock()
 	ok := false
 	defer func() {
 		bkt.writeLock.Unlock()
 		if !ok {
+			cmem.DBRL.SetData.SubSizeAndCount(v.CArray.Cap)
 			v.Free()
 		}
 	}()
@@ -482,7 +486,6 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 	s := strconv.Itoa(value)
 	payload.Body = []byte(s)
 	payload.CalcValueHash()
-	payload.AccountingSize = int64(len(ki.Key) + len(s))
 	bkt.set(ki, payload)
 	return value
 }

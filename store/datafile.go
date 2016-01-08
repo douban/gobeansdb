@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/quicklz"
 )
 
 const (
@@ -160,13 +159,6 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		logger.Errorf(err.Error())
 		cmem.DBRL.GetData.SubSizeAndCount(kvSize)
 		return
-	}
-	wrec.rec.Payload.AccountingSize = int64(kvSize)
-	if wrec.rec.Payload.IsCompressed() {
-		diff := quicklz.SizeDecompressed(wrec.rec.Payload.Body) - int(wrec.vsz)
-		cmem.DBRL.GetData.AddSize(diff)
-		cmem.DBRL.GetData.SubCount(1)
-		wrec.rec.Payload.AccountingSize += int64(diff)
 	}
 	return wrec, nil
 }
