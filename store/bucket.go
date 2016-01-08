@@ -306,7 +306,7 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	ok := false
 	defer func() {
 		bkt.writeLock.Unlock()
-		if !ok {
+		if !ok && v.Ver >= 0 {
 			cmem.DBRL.SetData.SubSizeAndCount(v.CArray.Cap)
 			v.Free()
 		}
@@ -448,35 +448,42 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 
 func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 	var tofree *Payload
+	var errFlag bool
 
 	tofree, _, err := bkt.get(ki, false)
 	if err != nil {
-		return 0
+		errFlag = true
 	}
 	ver := int32(1)
 	if tofree != nil {
-		defer func() {
-			cmem.DBRL.GetData.SubSizeAndCount(tofree.CArray.Cap)
-			tofree.CArray.Free()
-		}()
 		if tofree.Ver > 0 {
 			if tofree.Flag != FLAG_INCR {
 				logger.Warnf("incr with flag 0x%x", tofree.Flag)
-				return 0
+				errFlag = true
 			}
 			if len(tofree.Body) > 22 {
 				logger.Warnf("incr with large value %s...", string(tofree.Body[:22]))
+				errFlag = true
 				return 0
 			}
 			s := string(tofree.Body)
 			v, err := strconv.Atoi(s)
 			if err != nil {
+				errFlag = true
 				logger.Warnf("incr with value %s", s)
-				return 0
 			}
 			ver += tofree.Ver
 			value += v
 		}
+	}
+
+	if errFlag {
+		if tofree != nil {
+			cmem.DBRL.GetData.SubSizeAndCount(tofree.CArray.Cap)
+			tofree.CArray.Free()
+		}
+		cmem.DBRL.SetData.SubCount(1)
+		return 0
 	}
 
 	payload := &Payload{}

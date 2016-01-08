@@ -157,16 +157,16 @@ func (dc *dataChunk) GetRecordByOffset(offset uint32) (res *Record, inbuffer boo
 	}
 	if res != nil {
 		inbuffer = true
-		res.Payload.Decompress()
 		cmem.DBRL.GetData.AddSize(res.Payload.DiffSizeAfterDecompressed())
+		res.Payload.Decompress()
 		return
 	}
 	wrec, e := readRecordAtPath(dc.path, offset)
 	if e != nil {
 		return nil, false, e
 	}
-	wrec.rec.Payload.Decompress()
 	cmem.DBRL.GetData.AddSize(wrec.rec.Payload.DiffSizeAfterDecompressed())
+	wrec.rec.Payload.Decompress()
 	return wrec.rec, false, nil
 }
 

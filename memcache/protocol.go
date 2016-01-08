@@ -260,6 +260,9 @@ func (req *Request) Read(b *bufio.Reader) error {
 		req.Item = &Item{}
 		req.Item.Body = []byte(parts[2])
 		req.NoReply = len(parts) > 3 && parts[3] == "noreply"
+		// 因为 incr/decr 也会转化为 set 命令。SetData 做减法是在写入 flush buffer
+		// 的时候，那时已经分不清是 incr 还是 set，所以这里也给 incr 命令加上统计信息。
+		cmem.DBRL.SetData.AddCount(1)
 		RL.Get(req)
 
 	case "stats":
