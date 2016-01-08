@@ -397,7 +397,6 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 		gen.gen(&ki, i, 1)
 		p := GetPayloadForDelete()
 		p.TS = uint32(i + tsShift)
-		cmem.DBRL.SetData.AddSizeAndCount(p.CArray.Cap)
 		if err := store.Set(&ki, p); err != nil {
 			t.Fatal(err)
 		}
@@ -417,6 +416,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if payload2 != nil {
 			cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 		}
@@ -889,7 +889,6 @@ func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile in
 	}
 
 	p := GetPayloadForDelete()
-	cmem.DBRL.SetData.AddSizeAndCount(p.CArray.Cap)
 	if err := store.Set(&ki, p); err != nil {
 		t.Fatal(err)
 	}
