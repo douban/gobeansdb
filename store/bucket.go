@@ -398,8 +398,8 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		return
 	}
 	defer func() {
-		rec.Payload.CArray.Free()
 		cmem.DBRL.GetData.SubSizeAndCount(rec.Payload.CArray.Cap)
+		rec.Payload.CArray.Free()
 	}()
 
 	keyhash := getKeyHash(rec.Key)
@@ -456,8 +456,8 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 	ver := int32(1)
 	if tofree != nil {
 		defer func() {
-			tofree.CArray.Free()
 			cmem.DBRL.GetData.SubSizeAndCount(tofree.CArray.Cap)
+			tofree.CArray.Free()
 		}()
 		if tofree.Ver > 0 {
 			if tofree.Flag != FLAG_INCR {

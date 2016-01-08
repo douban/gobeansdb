@@ -42,6 +42,7 @@ func (s *StorageClient) Set(key string, item *mc.Item, noreply bool) (bool, erro
 	tofree := &item.CArray
 	defer func() {
 		if tofree != nil {
+			cmem.DBRL.SetData.SubSizeAndCount(tofree.Cap)
 			tofree.Free()
 		}
 	}()

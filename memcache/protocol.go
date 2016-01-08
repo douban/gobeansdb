@@ -226,6 +226,8 @@ func (req *Request) Read(b *bufio.Reader) error {
 		cmem.DBRL.SetData.AddSizeAndCount(item.CArray.Cap)
 
 		if _, e = io.ReadFull(b, item.Body); e != nil {
+			cmem.DBRL.SetData.SubSizeAndCount(item.CArray.Cap)
+			item.CArray.Free()
 			return ErrNetworkError
 		}
 
@@ -233,9 +235,13 @@ func (req *Request) Read(b *bufio.Reader) error {
 		c1, e1 := b.ReadByte()
 		c2, e2 := b.ReadByte()
 		if e1 != nil || e2 != nil {
+			cmem.DBRL.SetData.SubSizeAndCount(item.CArray.Cap)
+			item.CArray.Free()
 			return ErrNetworkError
 		}
 		if c1 != '\r' || c2 != '\n' {
+			cmem.DBRL.SetData.SubSizeAndCount(item.CArray.Cap)
+			item.CArray.Free()
 			return ErrBadDataChunk
 		}
 
