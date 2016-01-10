@@ -344,10 +344,15 @@ func (resp *Response) Read(b *bufio.Reader) error {
 				return e
 			}
 			if _, e = io.ReadFull(b, item.Body); e != nil {
+				item.Free()
 				return e
 			}
 			b.ReadByte() // \r
 			b.ReadByte() // \n
+
+			if key[0] != '@' && key[0] != '?' {
+				cmem.DBRL.GetData.AddSizeAndCount(item.CArray.Cap)
+			}
 			resp.Items[key] = item
 			continue
 
