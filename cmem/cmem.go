@@ -75,7 +75,7 @@ type CArray struct {
 func (arr *CArray) Alloc(size int) bool {
 	if size <= int(conf.MCConfig.BodyInC) {
 		arr.Body = make([]byte, size)
-		arr.Cap = 0
+		arr.Cap = size
 		arr.Addr = 0
 		return true
 	}
