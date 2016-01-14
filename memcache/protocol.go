@@ -73,8 +73,6 @@ type Request struct {
 
 	Token   int
 	Working bool
-
-	SettingSize int
 }
 
 func (req *Request) String() (s string) {
@@ -87,7 +85,6 @@ func (req *Request) Clear() {
 	if req.Item != nil {
 		req.Item = nil
 	}
-	req.SettingSize = 0
 }
 
 func WriteFull(w io.Writer, buf []byte) error {
