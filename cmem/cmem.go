@@ -34,33 +34,36 @@ func (rl *ResourceLimiter) IsZero() bool {
 	return rl.Count == 0 && rl.Size == 0
 }
 
-func (rl *ResourceLimiter) AddSize(size int64) {
-	// fmt.Printf("add %d\n", size)
+func (rl *ResourceLimiter) AddSizeAndCount(size int) {
+	rl.AddSize(size)
+	rl.AddCount(1)
+}
+
+func (rl *ResourceLimiter) SubSizeAndCount(size int) {
+	rl.SubSize(size)
+	rl.SubCount(1)
+}
+
+func (rl *ResourceLimiter) AddSize(size int) {
 	atomic.AddInt64(&rl.Size, int64(size))
-	atomic.AddInt64(&rl.Count, 1)
 	if rl.Size > rl.MaxSize {
 		rl.MaxSize = rl.Size
 	}
-	if rl.Count > rl.MaxCount {
-		rl.MaxCount = rl.Count
-	}
 }
 
-func (rl *ResourceLimiter) SubSize(size int64) {
-	// fmt.Printf("sub %d\n", size)
+func (rl *ResourceLimiter) SubSize(size int) {
 	atomic.AddInt64(&rl.Size, -int64(size))
-	atomic.AddInt64(&rl.Count, -1)
 }
 
-func (rl *ResourceLimiter) AddCount(count int64) {
-	atomic.AddInt64(&rl.Count, count)
+func (rl *ResourceLimiter) AddCount(count int) {
+	atomic.AddInt64(&rl.Count, int64(count))
 	if rl.Count > rl.MaxCount {
 		rl.MaxCount = rl.Count
 	}
 }
 
-func (rl *ResourceLimiter) SubCount(count int64) {
-	atomic.AddInt64(&rl.Count, -count)
+func (rl *ResourceLimiter) SubCount(count int) {
+	atomic.AddInt64(&rl.Count, -int64(count))
 }
 
 type CArray struct {
@@ -72,7 +75,7 @@ type CArray struct {
 func (arr *CArray) Alloc(size int) bool {
 	if size <= int(conf.MCConfig.BodyInC) {
 		arr.Body = make([]byte, size)
-		arr.Cap = 0
+		arr.Cap = size
 		arr.Addr = 0
 		return true
 	}
@@ -81,7 +84,7 @@ func (arr *CArray) Alloc(size int) bool {
 	if arr.Addr == 0 {
 		return false
 	}
-	AllocRL.AddSize(int64(size))
+	AllocRL.AddSizeAndCount(size)
 	arr.Cap = size
 	sliceheader := (*reflect.SliceHeader)(unsafe.Pointer(&arr.Body))
 	sliceheader.Data = arr.Addr
@@ -92,7 +95,7 @@ func (arr *CArray) Alloc(size int) bool {
 
 func (arr *CArray) Free() {
 	if arr.Addr != 0 {
-		AllocRL.SubSize(int64(arr.Cap))
+		AllocRL.SubSizeAndCount(arr.Cap)
 		C.free(unsafe.Pointer(arr.Addr))
 		arr.Body = nil
 		arr.Addr = 0

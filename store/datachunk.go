@@ -102,7 +102,7 @@ func (dc *dataChunk) flush(w *DataStreamWriter, gc bool) (flushed uint32, err er
 		size := wrec.rec.Payload.RecSize
 		flushed += size
 		if !gc && wrec.rec.Payload.Ver > 0 {
-			cmem.DBRL.FlushData.SubSize(wrec.rec.Payload.AccountingSize)
+			cmem.DBRL.FlushData.SubSizeAndCount(wrec.rec.Payload.CArray.Cap)
 			// NOTE: not freed yet, make it a little diff with AllocRL, which may provide more insight
 		}
 	}
@@ -139,8 +139,8 @@ func (dc *dataChunk) GetRecordByOffsetInBuffer(offset uint32) (res *Record, err 
 	}
 	wrec := wbuf[idx]
 	if wrec.pos.Offset == offset {
-		cmem.DBRL.GetData.AddSize(wrec.rec.Payload.AccountingSize)
 		res = wrec.rec.Copy()
+		cmem.DBRL.GetData.AddSizeAndCount(res.Payload.CArray.Cap)
 		return
 	} else {
 		err = fmt.Errorf("rec should in buffer, but not, pos = %#v", Position{dc.chunkid, offset})
@@ -157,6 +157,7 @@ func (dc *dataChunk) GetRecordByOffset(offset uint32) (res *Record, inbuffer boo
 	}
 	if res != nil {
 		inbuffer = true
+		cmem.DBRL.GetData.AddSize(res.Payload.DiffSizeAfterDecompressed())
 		res.Payload.Decompress()
 		return
 	}
@@ -164,6 +165,7 @@ func (dc *dataChunk) GetRecordByOffset(offset uint32) (res *Record, inbuffer boo
 	if e != nil {
 		return nil, false, e
 	}
+	cmem.DBRL.GetData.AddSize(wrec.rec.Payload.DiffSizeAfterDecompressed())
 	wrec.rec.Payload.Decompress()
 	return wrec.rec, false, nil
 }

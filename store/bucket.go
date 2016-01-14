@@ -297,13 +297,17 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	if v.Ver >= 0 {
 		rec := &Record{ki.Key, v}
 		v.CalcValueHash()
+
+		oldCap := rec.Payload.CArray.Cap
 		rec.TryCompress()
+		cmem.DBRL.SetData.AddSize(rec.Payload.CArray.Cap - oldCap)
 	}
 	bkt.writeLock.Lock()
 	ok := false
 	defer func() {
 		bkt.writeLock.Unlock()
-		if !ok {
+		if !ok && v.Ver >= 0 {
+			cmem.DBRL.SetData.SubSizeAndCount(v.CArray.Cap)
 			v.Free()
 		}
 	}()
@@ -394,8 +398,8 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		return
 	}
 	defer func() {
-		rec.Payload.Free()
-		cmem.DBRL.GetData.SubSize(rec.Payload.AccountingSize)
+		cmem.DBRL.GetData.SubSizeAndCount(rec.Payload.CArray.Cap)
+		rec.Payload.CArray.Free()
 	}()
 
 	keyhash := getKeyHash(rec.Key)
@@ -444,35 +448,42 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 
 func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 	var tofree *Payload
+	var errFlag bool
 
 	tofree, _, err := bkt.get(ki, false)
 	if err != nil {
-		return 0
+		errFlag = true
 	}
 	ver := int32(1)
 	if tofree != nil {
-		defer func() {
-			cmem.DBRL.GetData.SubSize(tofree.AccountingSize)
-			tofree.Free()
-		}()
 		if tofree.Ver > 0 {
 			if tofree.Flag != FLAG_INCR {
 				logger.Warnf("incr with flag 0x%x", tofree.Flag)
-				return 0
+				errFlag = true
 			}
 			if len(tofree.Body) > 22 {
 				logger.Warnf("incr with large value %s...", string(tofree.Body[:22]))
+				errFlag = true
 				return 0
 			}
 			s := string(tofree.Body)
 			v, err := strconv.Atoi(s)
 			if err != nil {
+				errFlag = true
 				logger.Warnf("incr with value %s", s)
-				return 0
 			}
 			ver += tofree.Ver
 			value += v
 		}
+	}
+
+	if errFlag {
+		if tofree != nil {
+			cmem.DBRL.GetData.SubSizeAndCount(tofree.CArray.Cap)
+			tofree.CArray.Free()
+		}
+		cmem.DBRL.SetData.SubCount(1)
+		return 0
 	}
 
 	payload := &Payload{}
@@ -482,7 +493,6 @@ func (bkt *Bucket) incr(ki *KeyInfo, value int) int {
 	s := strconv.Itoa(value)
 	payload.Body = []byte(s)
 	payload.CalcValueHash()
-	payload.AccountingSize = int64(len(ki.Key) + len(s))
 	bkt.set(ki, payload)
 	return value
 }

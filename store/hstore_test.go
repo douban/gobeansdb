@@ -202,6 +202,7 @@ func testHStore(t *testing.T, op, numbucket int, hashMaker KeyHasherMaker) {
 		payload := gen.gen(&ki, i, 0)
 		logger.Infof("%v %v %#v %s", ki.StringKey, ki.KeyHash, payload.Meta, payload.Body)
 
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -265,12 +266,14 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	logger.Infof("test gc all updated in the same file")
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -278,6 +281,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	store.flushdatas(true)
 
 	payload := gen.gen(&ki, -1, 0) // rotate
+	cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 	if err := store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +296,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 			t.Fatal(err)
 		}
 		if payload2 != nil {
-			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 		}
 		if payload2 == nil || (string(payload.Body) != string(payload2.Body)) || (pos != Position{0, uint32(PADDING * (i))}) {
 			if payload2 != nil {
@@ -326,12 +330,14 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	logger.Infof("test gc all updated in the same file")
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
 	}
 	store.flushdatas(true)
 	payload := gen.gen(&ki, -1, 0) // rotate
+	cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 	if err := store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +352,7 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 			t.Fatal(err)
 		}
 		if payload2 != nil {
-			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 		}
 		if !(payload2 != nil && len(payload2.Body) != 0 && payload2.Ver == 1 &&
 			payload2.TS == uint32(i+1) && pos == Position{0, uint32(PADDING * (i))}) {
@@ -381,6 +387,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	logger.Infof("test gc all updated in the same file")
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -396,6 +403,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	}
 	store.flushdatas(true)
 	payload := gen.gen(&ki, -1, 0) // rotate
+	cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 	if err := store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
 	}
@@ -408,8 +416,9 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		if payload2 != nil {
-			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 		}
 		if !(payload2 != nil && len(payload2.Body) == 0 && payload2.Ver == -2 &&
 			payload2.TS == uint32(i+tsShift) && pos == Position{0, uint32(PADDING * (i))}) {
@@ -452,7 +461,7 @@ func readHStore(t *testing.T, store *HStore, n, v int) {
 			t.Fatalf("%d: pos %#v", i, pos)
 		}
 		if payload2 != nil {
-			cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+			cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 		}
 	}
 }
@@ -472,6 +481,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	// 000.data
 	for i := 0; i < N/2; i++ {
 		payload := gen.gen(&ki, i*(-1)-N, 0)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -487,6 +497,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	// 001.data
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i*(-1)-N*2, 0)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -494,6 +505,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	// 002.data
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -502,6 +514,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	// 003.data
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 2)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -510,6 +523,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 
 	// 004.data
 	payload := gen.gen(&ki, -1, 0) // rotate
+	cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 	if err := store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
 	}
@@ -536,7 +550,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 				t.Fatalf("%d: exp %#v got %#v", i, pos2, pos)
 			}
 			if payload2 != nil {
-				cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+				cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 			}
 		}
 	}
@@ -625,6 +639,7 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	logger.Infof("test gc numRecPerFile = %d", numRecPerFile)
 
 	payload := gen.gen(&ki, -1, 0) // rotate
+	cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 	if err := store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
 	}
@@ -639,12 +654,14 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	tsShift := 1
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 		if err := store.Set(&ki, payload); err != nil {
 			t.Fatal(err)
 		}
@@ -652,6 +669,7 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	store.flushdatas(true)
 
 	payload = gen.gen(&ki, -2, 0) // rotate
+	cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 	if err := store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
 	}
@@ -665,7 +683,7 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 				t.Fatal(err)
 			}
 			if payload2 != nil {
-				cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+				cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 			}
 			if !(payload2 != nil && payload2.Ver == 2 &&
 				payload2.TS == uint32(i+tsShift) && pos == Position{0, uint32(PADDING * (i + 1))}) {
@@ -859,6 +877,7 @@ func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile in
 	logger.Infof("test gc all updated in the same file")
 
 	payload := gen.gen(&ki, 0, 0)
+	cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 	if err := store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
 	}
@@ -881,6 +900,7 @@ func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile in
 	}
 
 	payload = gen.gen(&ki, 1, 0) // rotate
+	cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 	if err = store.Set(&ki, payload); err != nil {
 		t.Fatal(err)
 	}
@@ -900,7 +920,7 @@ func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile in
 	if payload2.Ver != -2 {
 		t.Fatalf("bad ver %#v", payload2)
 	}
-	cmem.DBRL.GetData.SubSize(payload2.AccountingSize)
+	cmem.DBRL.GetData.SubSizeAndCount(payload2.CArray.Cap)
 
 	store.Close()
 	utils.Remove(bkt.Home + "/002.000.idx.hash")
@@ -978,6 +998,7 @@ func TestChunk256(t *testing.T) {
 
 				logger.Infof("%v %v %#v %s", ki.StringKey, ki.KeyHash, payload.Meta, payload.Body)
 
+				cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
 				if err := store.Set(&ki, payload); err != nil {
 					t.Fatal(err)
 				}

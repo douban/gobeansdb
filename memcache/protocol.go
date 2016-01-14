@@ -73,8 +73,6 @@ type Request struct {
 
 	Token   int
 	Working bool
-
-	SettingSize int
 }
 
 func (req *Request) String() (s string) {
@@ -87,11 +85,6 @@ func (req *Request) Clear() {
 	if req.Item != nil {
 		req.Item = nil
 	}
-	if req.SettingSize != 0 {
-		cmem.DBRL.SetData.SubSize(int64(req.SettingSize))
-	}
-	req.SettingSize = 0
-
 }
 
 func WriteFull(w io.Writer, buf []byte) error {
@@ -227,10 +220,11 @@ func (req *Request) Read(b *bufio.Reader) error {
 			return e
 		}
 
-		req.SettingSize = length + len(req.Keys[0])
-		cmem.DBRL.SetData.AddSize(int64(req.SettingSize))
+		cmem.DBRL.SetData.AddSizeAndCount(item.CArray.Cap)
 
 		if _, e = io.ReadFull(b, item.Body); e != nil {
+			cmem.DBRL.SetData.SubSizeAndCount(item.CArray.Cap)
+			item.CArray.Free()
 			return ErrNetworkError
 		}
 
@@ -238,9 +232,13 @@ func (req *Request) Read(b *bufio.Reader) error {
 		c1, e1 := b.ReadByte()
 		c2, e2 := b.ReadByte()
 		if e1 != nil || e2 != nil {
+			cmem.DBRL.SetData.SubSizeAndCount(item.CArray.Cap)
+			item.CArray.Free()
 			return ErrNetworkError
 		}
 		if c1 != '\r' || c2 != '\n' {
+			cmem.DBRL.SetData.SubSizeAndCount(item.CArray.Cap)
+			item.CArray.Free()
 			return ErrBadDataChunk
 		}
 
@@ -259,6 +257,9 @@ func (req *Request) Read(b *bufio.Reader) error {
 		req.Item = &Item{}
 		req.Item.Body = []byte(parts[2])
 		req.NoReply = len(parts) > 3 && parts[3] == "noreply"
+		// 因为 incr/decr 也会转化为 set 命令。SetData 做减法是在写入 flush buffer
+		// 的时候，那时已经分不清是 incr 还是 set，所以这里也给 incr 命令加上统计信息。
+		cmem.DBRL.SetData.AddCount(1)
 		RL.Get(req)
 
 	case "stats":
@@ -340,10 +341,15 @@ func (resp *Response) Read(b *bufio.Reader) error {
 				return e
 			}
 			if _, e = io.ReadFull(b, item.Body); e != nil {
+				item.Free()
 				return e
 			}
 			b.ReadByte() // \r
 			b.ReadByte() // \n
+
+			if key[0] != '@' && key[0] != '?' {
+				cmem.DBRL.GetData.AddSizeAndCount(item.CArray.Cap)
+			}
 			resp.Items[key] = item
 			continue
 
@@ -427,7 +433,7 @@ func (resp *Response) Write(w io.Writer) error {
 func (resp *Response) CleanBuffer() {
 	for key, item := range resp.Items {
 		if key[0] != '@' && key[0] != '?' {
-			cmem.DBRL.GetData.SubSize(int64(len(key) + len(item.Body)))
+			cmem.DBRL.GetData.SubSizeAndCount(item.CArray.Cap)
 		}
 		item.CArray.Free()
 	}

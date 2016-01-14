@@ -14,8 +14,6 @@ type BeansdbRL struct {
 	GetData   ResourceLimiter
 	SetData   ResourceLimiter
 	FlushData ResourceLimiter
-
-	//SetBigData   ResourceLimiter
 }
 
 func (dbrl *BeansdbRL) ResetAll() {

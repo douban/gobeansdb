@@ -25,9 +25,6 @@ type Meta struct {
 	// computed once
 	ValueHash uint16
 	RecSize   uint32
-	// not change, make accounting easier
-	// = ksz + vsz
-	AccountingSize int64
 }
 
 type HTreeReq struct {
@@ -77,6 +74,13 @@ func (p *Payload) Copy() *Payload {
 
 func (p *Payload) IsCompressed() bool {
 	return (p.Flag & FLAG_COMPRESS) != 0
+}
+
+func (p *Payload) DiffSizeAfterDecompressed() int {
+	if p.IsCompressed() {
+		return quicklz.SizeDecompressed(p.CArray.Body) - p.CArray.Cap
+	}
+	return 0
 }
 
 func Getvhash(value []byte) uint16 {
