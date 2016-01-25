@@ -218,7 +218,8 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	}()
 
 	bkt.loadGCHistroy()
-	logger.Infof("bucket %x opened, max rss = %d, use time %s", bucketID, GetMaxRSS(), time.Since(st))
+	logger.Infof("bucket %x opened, max rss = %d, use time %s",
+		bucketID, utils.GetMaxRSS(), time.Since(st))
 	return nil
 }
 

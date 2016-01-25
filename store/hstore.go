@@ -205,7 +205,8 @@ func NewHStore() (store *HStore, err error) {
 	if conf.TreeDepth > 0 {
 		store.htree = newHTree(0, 0, conf.TreeDepth+1)
 	}
-	logger.Infof("all %d bucket loaded, ready to serve, maxrss = %d, use time %s", n, GetMaxRSS(), time.Since(st))
+	logger.Infof("all %d bucket loaded, ready to serve, maxrss = %d, use time %s",
+		n, utils.GetMaxRSS(), time.Since(st))
 	return
 }
 

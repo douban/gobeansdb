@@ -3,8 +3,9 @@ package memcache
 import (
 	"os"
 	"runtime"
-	"syscall"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 type Stats struct {
@@ -80,11 +81,10 @@ func (s *Stats) Stats() map[string]int64 {
 	st["uptime"] = int64(t.Sub(s.start).Seconds())
 	st["pid"] = int64(os.Getpid())
 	st["threads"] = int64(runtime.NumGoroutine())
-	rusage := syscall.Rusage{}
-	syscall.Getrusage(syscall.RUSAGE_SELF, &rusage)
+	rusage := utils.Getrusage()
 	st["rusage_user"] = int64(rusage.Utime.Sec)
 	st["rusage_system"] = int64(rusage.Stime.Sec)
-	st["rusage_maxrss"] = int64(rusage.Maxrss)
+	st["rusage_maxrss"] = rusage.Maxrss
 	st["avail_space"] = 0
 	st["total_space"] = 0
 	st["curr_items"] = 0
