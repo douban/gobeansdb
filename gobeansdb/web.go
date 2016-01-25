@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"syscall"
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
 	"github.intra.douban.com/coresys/gobeansdb/loghub"
@@ -134,8 +133,7 @@ func handleRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRusage(w http.ResponseWriter, r *http.Request) {
-	var rusage syscall.Rusage
-	syscall.Getrusage(syscall.RUSAGE_SELF, &rusage)
+	rusage := utils.Getrusage()
 	handleJson(w, rusage)
 }
 

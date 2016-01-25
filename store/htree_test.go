@@ -408,9 +408,7 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 		}
 		totalNumKey += numKey
 		logger.Infof("%03d: #allkey %d, #key %d, #key_total %d", i, numAll, numKey, totalNumKey)
-		logger.Infof("%03d: max rss before gc: %d", i, GetMaxRSS())
-		//FreeMem()
-		//logger.Infof("%03d: max rss after gc: %d", i, GetMaxRSS())
+		logger.Infof("%03d: max rss before gc: %d", i, utils.GetMaxRSS())
 		r.close()
 		r = nil
 	}
@@ -425,7 +423,7 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 		for i := 0; ; i++ {
 			time.Sleep(5 * time.Minute)
 			FreeMem()
-			logger.Infof("after %03d minites, max rss = %d", i*5, GetMaxRSS())
+			logger.Infof("after %03d minites, max rss = %d", i*5, utils.GetMaxRSS())
 		}
 	}
 	runtime.GOMAXPROCS(1)

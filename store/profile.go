@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
-	"syscall"
 )
 
 var (
@@ -23,12 +22,6 @@ func FreeMem() {
 var (
 	profDir string
 )
-
-func GetMaxRSS() int64 {
-	var rusage syscall.Rusage
-	syscall.Getrusage(syscall.RUSAGE_SELF, &rusage)
-	return rusage.Maxrss
-}
 
 func StartCpuProfile(name string) *os.File {
 	if !doProf {
