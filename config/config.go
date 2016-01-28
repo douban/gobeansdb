@@ -13,7 +13,7 @@ import (
 
 const (
 	Version          = "2.1.0.9"
-	AccessLogVersion = "v1"
+	AccessLogVersion = "V1"
 )
 
 var (
