@@ -116,6 +116,13 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			err = nil
 		}
 	} else {
+		// 由于 set 等命令的 req.Item.Body 释放时间不确定，所以这里提前记录下 Body 的大小，
+		// 后面在记录 access log 时会用到
+		bodySize := 0
+		if req.Item != nil {
+			bodySize = len(req.Item.Body)
+		}
+
 		// process memcache commands, e.g. 'set', 'get', 'incr'.
 		resp, err = req.Process(storageClient, stats)
 		dt := time.Since(t)
@@ -129,7 +136,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 		}
 
 		if accessLogger.Hub != nil {
-			c.writeAccessLog(resp, err, dt, storageClient.GetSuccessedTargets())
+			c.writeAccessLog(resp, bodySize, err, dt, storageClient.GetSuccessedTargets())
 		}
 	}
 
@@ -146,11 +153,11 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 }
 
 // 记录 accesslog, 主要用于 proxy 中
-func (c *ServerConn) writeAccessLog(resp *Response, processErr error, dt time.Duration, hosts []string) {
+func (c *ServerConn) writeAccessLog(resp *Response, bodySize int, processErr error, dt time.Duration, hosts []string) {
 	req := c.req
 	cmd := req.Cmd
-	total_size := 0
-	size_str := "0"
+	totalSize := 0
+	sizeStr := "0"
 	stat := "SUCC"
 
 	switch req.Cmd {
@@ -163,23 +170,23 @@ func (c *ServerConn) writeAccessLog(resp *Response, processErr error, dt time.Du
 				if v, ok := resp.Items[k]; ok {
 					s = len(v.Body)
 				}
-				total_size += s
+				totalSize += s
 				sizes = append(sizes, strconv.Itoa(s))
 			}
-			size_str = strings.Join(sizes, ",")
+			sizeStr = strings.Join(sizes, ",")
 		} else {
 			for _, v := range resp.Items {
-				total_size += len(v.Body)
+				totalSize += len(v.Body)
 			}
-			size_str = strconv.Itoa(total_size)
+			sizeStr = strconv.Itoa(totalSize)
 		}
 
-		if total_size == 0 {
+		if totalSize == 0 {
 			stat = "FAILED"
 		}
 
 	case "set", "add", "replace":
-		size_str = strconv.Itoa(len(req.Item.Body))
+		sizeStr = strconv.Itoa(bodySize)
 		if processErr != nil {
 			stat = "FAILED"
 		}
@@ -193,12 +200,12 @@ func (c *ServerConn) writeAccessLog(resp *Response, processErr error, dt time.Du
 	if len(hosts) == 0 {
 		hosts = append(hosts, "NoWhere")
 	}
-	host_str := strings.Join(hosts, ",")
+	hostStr := strings.Join(hosts, ",")
 	keys := strings.Join(req.Keys, " ")
 
 	accessLogger.Infof("%s %s %s %s %s %s %d %s",
 		config.AccessLogVersion, c.RemoteAddr, strings.ToUpper(cmd),
-		stat, size_str, host_str, dt.Nanoseconds()/1e3, keys)
+		stat, sizeStr, hostStr, dt.Nanoseconds()/1e3, keys)
 }
 
 func (c *ServerConn) Serve(storageClient StorageClient, stats *Stats) (e error) {
