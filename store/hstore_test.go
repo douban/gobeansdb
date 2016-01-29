@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/config"
 	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
@@ -51,17 +52,17 @@ func init() {
 }
 
 func setupTest(casename string, numhome int) {
-	conf.InitDefault()
+	Conf.InitDefault()
 	// dir = time.Now().Format("20060102T030405")
 	dir = fmt.Sprintf("%s/%s", *tBase, casename)
 	logger.Infof("test in %s", dir)
 	os.RemoveAll(dir)
 	os.Mkdir(dir, 0777)
-	conf.Homes = nil
+	Conf.Homes = nil
 	for i := 0; i < numhome; i++ {
 		home := fmt.Sprintf("%s/home_%d", dir, i)
 		os.Mkdir(home, 0777)
-		conf.Homes = append(conf.Homes, home)
+		Conf.Homes = append(Conf.Homes, home)
 	}
 }
 func clearTest() {
@@ -167,20 +168,20 @@ func TestHStoreRestart1(t *testing.T) {
 }
 
 func testHStore(t *testing.T, op, numbucket int, hashMaker KeyHasherMaker) {
-	conf.InitDefault()
+	Conf.InitDefault()
 	funcname := GetFunctionName(hashMaker)
 	home := fmt.Sprintf("testHStore_%d_%d_%v", op, numbucket, funcname)
 	setupTest(home, 1)
 	defer clearTest()
 
 	bkt := numbucket - 1
-	conf.NumBucket = numbucket
-	conf.BucketsStat = make([]int, numbucket)
-	conf.BucketsStat[bkt] = 1
-	conf.TreeHeight = 3
-	conf.Init()
+	Conf.NumBucket = numbucket
+	Conf.BucketsStat = make([]int, numbucket)
+	Conf.BucketsStat[bkt] = 1
+	Conf.TreeHeight = 3
+	Conf.Init()
 
-	bucketDir := filepath.Join(conf.Homes[0], "0") // will be removed
+	bucketDir := filepath.Join(Conf.Homes[0], "0") // will be removed
 	os.Mkdir(bucketDir, 0777)
 
 	gen := newKVGen(numbucket)
@@ -193,7 +194,7 @@ func testHStore(t *testing.T, op, numbucket int, hashMaker KeyHasherMaker) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger.Infof("%#v", conf)
+	logger.Infof("%#v", Conf)
 	// set
 
 	N := 10
@@ -467,13 +468,13 @@ func readHStore(t *testing.T, store *HStore, n, v int) {
 }
 
 func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
-	conf.BodyMax = 512
+	config.MC.BodyMax = 512
 	defer func() {
-		conf.BodyMax = 50 << 20
+		config.MC.BodyMax = 50 << 20
 	}()
 	gen := newKVGen(16)
 
-	conf.DataFileMax = 256 * int64(numRecPerFile)
+	Conf.DataFileMax = 256 * int64(numRecPerFile)
 
 	var ki KeyInfo
 	N := numRecPerFile
@@ -627,9 +628,9 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 }
 
 func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
-	conf.BodyMax = 512
+	config.MC.BodyMax = 512
 	defer func() {
-		conf.BodyMax = 50 << 20
+		config.MC.BodyMax = 50 << 20
 	}()
 	gen := newKVGen(16)
 
@@ -763,27 +764,27 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 
 	numbucket := 16
 	bkt := numbucket - 1
-	conf.NumBucket = numbucket
-	conf.BucketsStat = make([]int, numbucket)
-	conf.BucketsStat[bkt] = 1
-	conf.TreeHeight = 3
+	Conf.NumBucket = numbucket
+	Conf.BucketsStat = make([]int, numbucket)
+	Conf.BucketsStat[bkt] = 1
+	Conf.TreeHeight = 3
 	getKeyHash = makeKeyHasherFixBucet(1, bkt)
 	defer func() {
 		getKeyHash = getKeyHashDefalut
 	}()
 
-	conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(numRecPerFile)))
+	Conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(numRecPerFile)))
 
-	conf.Init()
+	Conf.Init()
 
-	bucketDir := filepath.Join(conf.Homes[0], "f") // will be removed
+	bucketDir := filepath.Join(Conf.Homes[0], "f") // will be removed
 	os.Mkdir(bucketDir, 0777)
 
 	store, err := NewHStore()
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger.Infof("%#v", conf)
+	logger.Infof("%#v", Conf)
 	casefunc(t, store, bkt, numRecPerFile)
 
 	if !cmem.DBRL.IsZero() {
@@ -962,19 +963,19 @@ func TestHStoreCollision(t *testing.T) {
 }
 
 func TestChunk256(t *testing.T) {
-	conf.InitDefault()
+	Conf.InitDefault()
 	setupTest("TestChunk256", 1)
 	defer clearTest()
 
 	numbucket := 16
 	bucketID := numbucket - 1
-	conf.NumBucket = numbucket
-	conf.BucketsStat = make([]int, numbucket)
-	conf.BucketsStat[bucketID] = 1
-	conf.TreeHeight = 3
-	conf.Init()
+	Conf.NumBucket = numbucket
+	Conf.BucketsStat = make([]int, numbucket)
+	Conf.BucketsStat[bucketID] = 1
+	Conf.TreeHeight = 3
+	Conf.Init()
 
-	bucketDir := filepath.Join(conf.Homes[0], "0") // will be removed
+	bucketDir := filepath.Join(Conf.Homes[0], "0") // will be removed
 	os.Mkdir(bucketDir, 0777)
 
 	gen := newKVGen(numbucket)
@@ -987,7 +988,7 @@ func TestChunk256(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	logger.Infof("%#v", conf)
+	logger.Infof("%#v", Conf)
 	// set
 	N := 300
 	var ki KeyInfo

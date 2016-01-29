@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/config"
 	"io"
 	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/config"
 )
 
 const VERSION = "0.1.0"
@@ -191,8 +192,8 @@ func (req *Request) Read(b *bufio.Reader) error {
 		if length > MaxValueSize {
 			return ErrValueTooLarge
 		}
-		if length > int(conf.MCConfig.BodyBig) {
-			if cmem.DBRL.FlushData.Size > int64(conf.HStoreConfig.FlushMax) {
+		if length > int(config.MC.BodyBig) {
+			if cmem.DBRL.FlushData.Size > int64(config.MC.FlushMax) {
 				logger.Warnf("ErrOOM key %s, size %d", req.Keys[0], length)
 				return ErrOOM
 			}

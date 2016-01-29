@@ -3,6 +3,8 @@ package memcache
 import (
 	"sync/atomic"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/config"
 )
 
 type ReqHistoy struct {
@@ -72,7 +74,7 @@ func (rl *ReqLimiter) Put(req *Request) {
 }
 
 func InitTokens() {
-	n := conf.MaxReq
+	n := config.MC.MaxReq
 	if n == 0 {
 		n = 16
 	}

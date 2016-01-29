@@ -1,10 +1,11 @@
-package config
+package main
 
 import (
 	"bytes"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"io/ioutil"
 	"testing"
+
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 
 	yaml "gopkg.in/yaml.v2"
 )

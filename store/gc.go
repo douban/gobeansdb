@@ -3,6 +3,8 @@ package store
 import (
 	"fmt"
 	"time"
+
+	"github.intra.douban.com/coresys/gobeansdb/config"
 )
 
 type GCMgr struct {
@@ -126,7 +128,7 @@ func (bkt *Bucket) gcCheckEnd(start, endChunkID, noGCDays int) (end int, err err
 	}
 
 	if noGCDays < 0 {
-		noGCDays = conf.NoGCDays
+		noGCDays = Conf.NoGCDays
 	}
 	for next := end + 1; next >= start+1; next-- {
 		if bkt.datas.chunks[next].getDiskFileSize() <= 0 {
@@ -208,7 +210,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	gc.Dst = startChunkID
 	for i := 0; i < startChunkID; i++ {
 		sz := bkt.datas.chunks[i].size
-		if sz > 0 && (int64(sz) < conf.DataFileMax-conf.BodyMax) {
+		if sz > 0 && (int64(sz) < Conf.DataFileMax-config.MC.BodyMax) {
 			gc.Dst = i
 		}
 	}
@@ -292,7 +294,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 				continue
 			}
 
-			if recsize+dstchunk.writingHead > uint32(conf.DataFileMax) {
+			if recsize+dstchunk.writingHead > uint32(Conf.DataFileMax) {
 				dstchunk.endGCWriting()
 				bkt.hints.trydump(gc.Dst, true)
 

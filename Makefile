@@ -14,7 +14,6 @@ test:
 	go version
 	go test github.intra.douban.com/coresys/gobeansdb/memcache
 	go test github.intra.douban.com/coresys/gobeansdb/loghub
-	go test github.intra.douban.com/coresys/gobeansdb/config
 	go test github.intra.douban.com/coresys/gobeansdb/cmem
 	go test github.intra.douban.com/coresys/gobeansdb/quicklz
 	ulimit -n 1024; go test github.intra.douban.com/coresys/gobeansdb/store

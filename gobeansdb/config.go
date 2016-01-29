@@ -1,0 +1,81 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.intra.douban.com/coresys/gobeansdb/store"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
+)
+
+var (
+	KHASH_LENS = [8]int{8, 8, 7, 7, 6, 6, 5, 5}
+)
+
+type DBConfig struct {
+	config.ServerConfig `yaml:"server,omitempty"`
+	config.MCConfig     `yaml:"mc,omitempty"`
+	store.HStoreConfig  `yaml:"hstore,omitempty"`
+}
+
+func (c *DBConfig) ConfigPackages() {
+	config.ServerConf = c.ServerConfig
+	config.MC = c.MCConfig
+	store.Conf = &c.HStoreConfig
+}
+
+func (c *DBConfig) Load(confdir string) {
+	c.InitDefault()
+
+	if confdir != "" {
+		// global
+		path := fmt.Sprintf("%s/%s", confdir, "global.yaml")
+		err := config.LoadYamlConfig(c, path)
+		if err != nil {
+			log.Fatalf("bad config %s: %s", path, err.Error())
+		}
+		c.checkEmptyConfig(path)
+
+		//local
+		path = fmt.Sprintf("%s/%s", confdir, "local.yaml")
+		if _, e := os.Stat(path); e == nil {
+			err = config.LoadYamlConfig(c, path)
+			if err != nil {
+				log.Fatalf("bad config %s: %s", path, err.Error())
+			}
+			c.checkEmptyConfig(path)
+		}
+
+		// route
+		route, err := config.LoadRouteTable(fmt.Sprintf("%s/%s", confdir, "route.yaml"), c.ZK)
+		if err != nil {
+			log.Fatalf("fail to load route table: %s", err.Error())
+		}
+		c.DBRouteConfig, err = route.GetDBRouteConfig(c.Addr())
+		if err != nil {
+			log.Fatalf("bad config in %s %s", confdir, err.Error())
+		}
+		config.Route = *route
+	}
+	utils.InitSizesPointer(c)
+	err := c.HStoreConfig.InitTree()
+	if err != nil {
+		log.Fatalf("bad config: %s", err.Error())
+	}
+	c.ConfigPackages()
+}
+
+func (c *DBConfig) InitDefault() {
+	c.ServerConfig = config.DefaultServerConfig
+	c.MCConfig = config.DefaultMCConfig
+	c.HStoreConfig.InitDefault()
+	utils.InitSizesPointer(c)
+}
+
+func (c *DBConfig) checkEmptyConfig(path string) {
+	if c.MaxKeyLen == 0 || c.SplitCapStr == "" || c.TreeHeight == 0 {
+		log.Fatal("bad config: empty struct in ", path)
+	}
+}

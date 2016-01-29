@@ -157,7 +157,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	bkt.datas = NewdataStore(bucketID, home)
 	bkt.hints = newHintMgr(bucketID, home)
 	bkt.hints.loadCollisions()
-	bkt.htree = newHTree(conf.TreeDepth, bucketID, conf.TreeHeight)
+	bkt.htree = newHTree(Conf.TreeDepth, bucketID, Conf.TreeHeight)
 	bkt.TreeID = HintID{0, -1}
 
 	maxdata, err := bkt.datas.ListFiles()
@@ -176,7 +176,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 				err := bkt.htree.load(treepath)
 				if err != nil {
 					bkt.TreeID = HintID{0, -1}
-					bkt.htree = newHTree(conf.TreeDepth, bucketID, conf.TreeHeight)
+					bkt.htree = newHTree(Conf.TreeDepth, bucketID, Conf.TreeHeight)
 					continue
 				}
 				bkt.TreeID = id
@@ -321,7 +321,7 @@ func (bkt *Bucket) checkAndSet(ki *KeyInfo, v *Payload) error {
 	if payload != nil {
 		oldv = payload.Ver
 		if oldv > 0 && v.ValueHash == payload.ValueHash {
-			if conf.CheckVHash {
+			if Conf.CheckVHash {
 				if v.Ver != 0 {
 					// sync script would be here, e.g. set_raw(k, v, rev=xxx)
 					bkt.htree.set(ki, &v.Meta, pos)
