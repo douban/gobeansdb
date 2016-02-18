@@ -74,7 +74,7 @@ func (rl *ReqLimiter) Put(req *Request) {
 }
 
 func InitTokens() {
-	n := config.MC.MaxReq
+	n := config.MCConf.MaxReq
 	if n == 0 {
 		n = 16
 	}

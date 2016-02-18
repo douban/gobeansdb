@@ -468,9 +468,9 @@ func readHStore(t *testing.T, store *HStore, n, v int) {
 }
 
 func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
-	config.MC.BodyMax = 512
+	config.MCConf.BodyMax = 512
 	defer func() {
-		config.MC.BodyMax = 50 << 20
+		config.MCConf.BodyMax = 50 << 20
 	}()
 	gen := newKVGen(16)
 
@@ -628,9 +628,9 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 }
 
 func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
-	config.MC.BodyMax = 512
+	config.MCConf.BodyMax = 512
 	defer func() {
-		config.MC.BodyMax = 50 << 20
+		config.MCConf.BodyMax = 50 << 20
 	}()
 	gen := newKVGen(16)
 

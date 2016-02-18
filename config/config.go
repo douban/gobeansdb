@@ -18,11 +18,11 @@ const (
 var (
 	ServerConf ServerConfig = DefaultServerConfig
 	Route      RouteTable
-	MC         MCConfig = DefaultMCConfig
+	MCConf     MCConfig = DefaultMCConfig
 )
 
 func init() {
-	utils.InitSizesPointer(&MC)
+	utils.InitSizesPointer(&MCConf)
 	for i := 0; i < DefaultRouteConfig.NumBucket; i++ {
 		DefaultRouteConfig.BucketsStat[i] = 1
 		DefaultRouteConfig.BucketsHex = append(DefaultRouteConfig.BucketsHex, BucketIDHex(i, DefaultRouteConfig.NumBucket))

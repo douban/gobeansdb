@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/config"
 	"github.intra.douban.com/coresys/gobeansdb/quicklz"
 	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
@@ -220,10 +219,6 @@ func (rec *Record) Dumps() []byte {
 	wrec := wrapRecord(rec)
 	wrec.append(&buf, false)
 	return buf.Bytes()
-}
-
-func isValidKVSzie(ksz, vsz uint32) bool {
-	return ksz != 0 && ksz <= uint32(config.MC.MaxKeyLen) && vsz <= uint32(config.MC.BodyMax)
 }
 
 func posForCompare(pos uint32) int64 {

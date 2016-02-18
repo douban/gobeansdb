@@ -210,7 +210,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	gc.Dst = startChunkID
 	for i := 0; i < startChunkID; i++ {
 		sz := bkt.datas.chunks[i].size
-		if sz > 0 && (int64(sz) < Conf.DataFileMax-config.MC.BodyMax) {
+		if sz > 0 && (int64(sz) < Conf.DataFileMax-config.MCConf.BodyMax) {
 			gc.Dst = i
 		}
 	}

@@ -27,3 +27,7 @@ type MCConfig struct {
 
 	BodyInCStr string `yaml:"body_c_str,omitempty"`
 }
+
+func IsValidKVSzie(ksz, vsz uint32) bool {
+	return ksz != 0 && ksz <= uint32(MCConf.MaxKeyLen) && vsz <= uint32(MCConf.BodyMax)
+}

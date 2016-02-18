@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.intra.douban.com/coresys/gobeansdb/utils"
-
 	yaml "gopkg.in/yaml.v2"
+
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 func TestConfig(t *testing.T) {

@@ -192,8 +192,8 @@ func (req *Request) Read(b *bufio.Reader) error {
 		if length > MaxValueSize {
 			return ErrValueTooLarge
 		}
-		if length > int(config.MC.BodyBig) {
-			if cmem.DBRL.FlushData.Size > int64(config.MC.FlushMax) {
+		if length > int(config.MCConf.BodyBig) {
+			if cmem.DBRL.FlushData.Size > int64(config.MCConf.FlushMax) {
 				logger.Warnf("ErrOOM key %s, size %d", req.Keys[0], length)
 				return ErrOOM
 			}

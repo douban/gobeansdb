@@ -22,7 +22,7 @@ type DBConfig struct {
 
 func (c *DBConfig) ConfigPackages() {
 	config.ServerConf = c.ServerConfig
-	config.MC = c.MCConfig
+	config.MCConf = c.MCConfig
 	store.Conf = &c.HStoreConfig
 }
 
