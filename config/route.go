@@ -8,6 +8,9 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+//DefaultRouteConfig = route.RouteConfig{NumBucket: 256, Buckets: make([]int, 256)}
+var DefaultRouteConfig = DBRouteConfig{NumBucket: 16, BucketsStat: make([]int, 16)}
+
 type Server struct {
 	Addr       string
 	Buckets    []int    `yaml:"-"`
@@ -33,6 +36,12 @@ type RouteTable struct {
 
 	Buckets map[int]map[string]bool `yaml:"-"`
 	Servers map[string]map[int]bool `yaml:"-"`
+}
+
+type DBRouteConfig struct {
+	NumBucket   int
+	BucketsStat []int `json:"Buckets"` // TODO: `json:"-"`
+	BucketsHex  []string
 }
 
 func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig, err error) {

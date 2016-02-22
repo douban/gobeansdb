@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/config"
 )
 
 const (
@@ -125,7 +126,7 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		return
 	}
 	wrec.decodeHeader()
-	if !isValidKVSzie(wrec.ksz, wrec.vsz) {
+	if !config.IsValidKVSzie(wrec.ksz, wrec.vsz) {
 		err = fmt.Errorf("bad kv size %s:%d, wrec %v", path, offset, wrec)
 		logger.Errorf(err.Error())
 		return

@@ -16,7 +16,7 @@ import (
 var (
 	server  *mc.Server
 	storage *Storage
-	conf    = &config.DB
+	conf    DBConfig
 	logger  = loghub.ErrorLogger
 )
 

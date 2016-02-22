@@ -23,7 +23,6 @@ var (
 	RL           *ReqLimiter
 	logger       = loghub.ErrorLogger
 	accessLogger = loghub.AccessLogger
-	conf         = &config.DB
 )
 
 type ServerConn struct {

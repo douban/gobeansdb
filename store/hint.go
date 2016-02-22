@@ -116,7 +116,7 @@ func newHintSplit() *hintSplit {
 
 func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
 	if len(h.index) == 0 {
-		h.items = make([]*HintItem, conf.SplitCap)
+		h.items = make([]*HintItem, Conf.SplitCap)
 	}
 
 	idx, found := h.index[it.Keyhash]
@@ -433,7 +433,7 @@ func (h *hintMgr) dumpAndMerge(forGC bool) (maxSilence int64) {
 	if h.state&HintStateDump != 0 { // gcing
 		return
 	}
-	if !(h.state&HintStateMerge != 0) && !forGC && (h.maxChunkID-h.collisions.Chunk > conf.MergeInterval) {
+	if !(h.state&HintStateMerge != 0) && !forGC && (h.maxChunkID-h.collisions.Chunk > Conf.MergeInterval) {
 		logger.Infof("start merge goroutine")
 		go h.Merge(false)
 	}

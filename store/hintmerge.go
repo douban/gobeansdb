@@ -115,7 +115,7 @@ func merge(src []*hintFileReader, dst string, ct *CollisionTable, hintState *int
 		}
 	}
 	var w *hintFileWriter
-	if !conf.NoMerged && !forGC {
+	if !Conf.NoMerged && !forGC {
 		w, err = newHintFileWriter(dst, datasize, 1<<20)
 		if err != nil {
 			logger.Errorf("%s", err.Error())

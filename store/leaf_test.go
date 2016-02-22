@@ -3,8 +3,6 @@ package store
 import (
 	"bytes"
 	"testing"
-
-	"github.intra.douban.com/coresys/gobeansdb/config"
 )
 
 func TestBytes(t *testing.T) {
@@ -22,7 +20,7 @@ func TestBytes(t *testing.T) {
 
 	khashToBytes(b, k)
 
-	lenKHash := config.KHASH_LENS[len(path)]
+	lenKHash := KHASH_LENS[len(path)]
 	mask := ((uint64(1) << (uint32(lenKHash) * 8)) - 1)
 	nodeKHash := k & (^mask)
 	k2 := bytesToKhash(b)
@@ -52,14 +50,14 @@ func TestLeafEnlarge(t *testing.T) {
 }
 
 func TestLeaf(t *testing.T) {
-	conf.InitDefault()
+	Conf.InitDefault()
 
-	conf.NumBucket = 256
-	conf.Init()
+	Conf.NumBucket = 256
+	Conf.Init()
 
 	// lenKHash := KHASH_LENS[len(ni.path)]
-	// t.Logf("%d %d", lenKHash, conf.TreeKeyHashLen)
-	lenKHash := conf.TreeKeyHashLen
+	// t.Logf("%d %d", lenKHash, Conf.TreeKeyHashLen)
+	lenKHash := Conf.TreeKeyHashLen
 	lenItem := lenKHash + TREE_ITEM_HEAD_SIZE
 
 	var sh SliceHeader

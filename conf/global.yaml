@@ -15,10 +15,10 @@ mc:
   body_max_str: 50M
   body_big_str: 5M
   body_c_str: 4K
+  flush_max_str: 100M
 hstore:
   data:
     flush_interval: 60
-    flush_max_str: 100M
     flush_wake_str: 10M
     datafile_max_str: 4000M
     check_vhash: true

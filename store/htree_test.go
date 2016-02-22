@@ -43,19 +43,19 @@ func TestHTree(t *testing.T) {
 
 	pos := 0xfe
 	for h := 2; h <= 6; h++ {
-		conf.InitDefault()
-		conf.NumBucket = 256
-		conf.TreeHeight = h
-		conf.Init()
+		Conf.InitDefault()
+		Conf.NumBucket = 256
+		Conf.TreeHeight = h
+		Conf.Init()
 		testHTree(t, 1, pos)
 	}
 
 	pos = 0xf
 	for h := 2; h <= 7; h++ {
-		conf.InitDefault()
-		conf.NumBucket = 16
-		conf.TreeHeight = h
-		conf.Init()
+		Conf.InitDefault()
+		Conf.NumBucket = 16
+		Conf.TreeHeight = h
+		Conf.Init()
 		testHTree(t, 2, pos)
 	}
 }
@@ -65,9 +65,9 @@ func testHTree(t *testing.T, seq, treepos int) {
 		thresholdListKey = ThresholdListKeyDefault
 	}()
 
-	t.Logf("testing height %d %x %d", conf.TreeDepth, treepos, conf.TreeHeight)
-	depth := conf.TreeDepth
-	height := conf.TreeHeight
+	t.Logf("testing height %d %x %d", Conf.TreeDepth, treepos, Conf.TreeHeight)
+	depth := Conf.TreeDepth
+	height := Conf.TreeHeight
 	tree := newHTree(depth, treepos, height)
 	N := int(thresholdListKey)
 	dstNode := &tree.levels[height-1][0]
@@ -192,14 +192,14 @@ type HTreeBench struct {
 }
 
 func (hb *HTreeBench) init() {
-	conf.InitDefault()
-	conf.TreeHeight = *tHeigth
-	conf.NumBucket = 1
-	conf.Init()
-	hb.tree = newHTree(conf.TreeDepth, hb.treepos, conf.TreeHeight)
+	Conf.InitDefault()
+	Conf.TreeHeight = *tHeigth
+	Conf.NumBucket = 1
+	Conf.Init()
+	hb.tree = newHTree(Conf.TreeDepth, hb.treepos, Conf.TreeHeight)
 	hb.base = uint64(0)
-	hb.step = uint64(1<<(uint32(8-conf.TreeHeight+1)*4)) << 32 // (0x00000100 << 32) given depthbench = 6
-	hb.numLeaf = 1 << (4 * (uint32(conf.TreeHeight)))
+	hb.step = uint64(1<<(uint32(8-Conf.TreeHeight+1)*4)) << 32 // (0x00000100 << 32) given depthbench = 6
+	hb.numLeaf = 1 << (4 * (uint32(Conf.TreeHeight)))
 	hb.ki = NewKeyInfoFromBytes([]byte("key"), 0, false)
 	hb.meta = Meta{Ver: 1, ValueHash: 255}
 	hb.pos = Position{0, 0}
@@ -367,10 +367,10 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 	}
 	runtime.GOMAXPROCS(8)
 
-	conf.InitDefault()
-	conf.NumBucket = *tNumbucket
-	conf.TreeHeight = *tHeigth
-	conf.Init()
+	Conf.InitDefault()
+	Conf.NumBucket = *tNumbucket
+	Conf.TreeHeight = *tHeigth
+	Conf.Init()
 
 	pos, err := strconv.ParseInt(*tPos, 16, 32)
 	if err != nil {
@@ -388,7 +388,7 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 		}()
 	}
 
-	tree := newHTree(conf.TreeDepth, int(pos), conf.TreeHeight)
+	tree := newHTree(Conf.TreeDepth, int(pos), Conf.TreeHeight)
 	totalNumKey := 0
 	sort.Sort(sort.StringSlice(files))
 	for i, file := range files {

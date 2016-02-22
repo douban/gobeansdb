@@ -45,7 +45,7 @@ func TestHintRW(t *testing.T) {
 	path := fmt.Sprintf("%s/%s", dir, "000.hint.s")
 	utils.Remove(path)
 
-	conf.IndexIntervalSize = 1024
+	Conf.IndexIntervalSize = 1024
 
 	w, err := newHintFileWriter(path, 0, 1024)
 	if err != nil {
@@ -177,8 +177,8 @@ func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *HintItem) {
 
 func TestHintBuffer(t *testing.T) {
 	n := 10
-	conf.SplitCap = int64(n)
-	conf.IndexIntervalSize = 128
+	Conf.SplitCap = int64(n)
+	Conf.IndexIntervalSize = 128
 
 	defer func() {
 
@@ -212,8 +212,8 @@ func setAndCheckChunk(t *testing.T, ck *hintChunk, it *HintItem, rotate bool) {
 
 func TestHintChunk(t *testing.T) {
 	n := 10
-	conf.SplitCap = int64(n)
-	conf.IndexIntervalSize = 128
+	Conf.SplitCap = int64(n)
+	Conf.IndexIntervalSize = 128
 
 	ck := newHintChunk(0)
 	items := genSortedHintItems(n + 2)
@@ -279,9 +279,9 @@ func TestHintMgr(t *testing.T) {
 	runtime.GOMAXPROCS(4)
 
 	persp := 10
-	conf.SplitCap = int64(persp)
-	conf.IndexIntervalSize = 128
-	conf.MergeInterval = 250 // disable async merge
+	Conf.SplitCap = int64(persp)
+	Conf.IndexIntervalSize = 128
+	Conf.MergeInterval = 250 // disable async merge
 	nsp := 2
 	n := persp * nsp
 	items := genSortedHintItems(n)

@@ -20,7 +20,7 @@ func randomValue(size int) []byte {
 }
 
 func checkFileSize(t *testing.T, chunkID int, size uint32) {
-	path := genDataPath(conf.Homes[0], chunkID)
+	path := genDataPath(Conf.Homes[0], chunkID)
 	stat, err := os.Stat(path)
 	if size == 0 {
 		if err == nil {
@@ -89,14 +89,14 @@ func TestDataCompatibility(t *testing.T) {
 }
 
 func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint32) {
-	conf.InitDefault()
+	Conf.InitDefault()
 	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq), 1)
 	defer clearTest()
 
-	conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
-	conf.Init()
+	Conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
+	Conf.Init()
 
-	ds := NewdataStore(0, conf.Homes[0])
+	ds := NewdataStore(0, Conf.Homes[0])
 
 	for i := 0; i < recordPerFile+1; i++ {
 		p := &Payload{}
@@ -115,7 +115,7 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 			t.Fatalf("%d %#v", i, r.Payload)
 		}
 	}
-	checkFileSize(t, 0, uint32(conf.DataFileMax))
+	checkFileSize(t, 0, uint32(Conf.DataFileMax))
 	checkFileSize(t, 1, 256*recsize)
 	time.Sleep(time.Second)
 }
@@ -127,14 +127,14 @@ func breakdata(f *os.File, start, offset int) {
 }
 
 func TestDataBroken(t *testing.T) {
-	conf.InitDefault()
+	Conf.InitDefault()
 	setupTest("TestDataBroken", 1)
 	defer clearTest()
 
-	//conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
-	conf.Init()
+	//Conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
+	Conf.Init()
 
-	ds := NewdataStore(0, conf.Homes[0])
+	ds := NewdataStore(0, Conf.Homes[0])
 
 	key := []byte("key")
 	for i := 0; i < 7; i++ {
@@ -152,7 +152,7 @@ func TestDataBroken(t *testing.T) {
 	}
 	ds.flush(-1, true)
 
-	path := genDataPath(conf.Homes[0], 0)
+	path := genDataPath(Conf.Homes[0], 0)
 	fd, err := os.OpenFile(path, os.O_WRONLY, 0664)
 	if err != nil {
 		t.Fatalf(err.Error())

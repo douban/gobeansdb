@@ -1,12 +1,13 @@
-package config
+package main
 
 import (
 	"bytes"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
 	"io/ioutil"
 	"testing"
 
 	yaml "gopkg.in/yaml.v2"
+
+	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
 func TestConfig(t *testing.T) {

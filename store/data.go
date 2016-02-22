@@ -71,7 +71,7 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 	ds.Lock()
 	size := rec.Payload.RecSize
 	currOffset := ds.chunks[ds.newHead].writingHead
-	if currOffset+size > uint32(conf.DataFileMax) {
+	if currOffset+size > uint32(Conf.DataFileMax) {
 		ds.newHead++
 		logger.Infof("rotate to %d, size %d, new rec size %d", ds.newHead, currOffset, size)
 		currOffset = 0
@@ -88,7 +88,7 @@ func (ds *dataStore) AppendRecord(rec *Record) (pos Position, err error) {
 		cmem.DBRL.SetData.SubSizeAndCount(rec.Payload.CArray.Cap)
 	}
 
-	if cmem.DBRL.FlushData.Size > int64(conf.FlushWake) {
+	if cmem.DBRL.FlushData.Size > int64(Conf.FlushWake) {
 		WakeupFlush()
 	}
 	ds.Unlock()
@@ -106,7 +106,7 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 		ds.Unlock()
 		return nil
 	}
-	if !force && (time.Since(ds.lastFlushTime) < time.Duration(conf.FlushInterval)*time.Second) &&
+	if !force && (time.Since(ds.lastFlushTime) < time.Duration(Conf.FlushInterval)*time.Second) &&
 		(ds.wbufSize < (1 << 20)) {
 		ds.Unlock()
 		return nil

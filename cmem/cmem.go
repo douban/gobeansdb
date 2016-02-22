@@ -6,15 +6,15 @@ package cmem
 */
 import "C"
 import (
-	"github.intra.douban.com/coresys/gobeansdb/config"
 	"reflect"
 	"sync/atomic"
 	"unsafe"
+
+	"github.intra.douban.com/coresys/gobeansdb/config"
 )
 
 var (
 	AllocRL ResourceLimiter
-	conf    = &config.DB
 )
 
 type ResourceLimiter struct {
@@ -73,7 +73,7 @@ type CArray struct {
 }
 
 func (arr *CArray) Alloc(size int) bool {
-	if size <= int(conf.MCConfig.BodyInC) {
+	if size <= int(config.MCConf.BodyInC) {
 		arr.Body = make([]byte, size)
 		arr.Cap = size
 		arr.Addr = 0

@@ -1,24 +1,27 @@
-package config
+package store
 
-import "github.intra.douban.com/coresys/gobeansdb/utils"
+import (
+	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.intra.douban.com/coresys/gobeansdb/utils"
+)
 
 var (
 	KHASH_LENS = [8]int{8, 8, 7, 7, 6, 6, 5, 5}
+	Conf       *HStoreConfig
 )
 
+func init() {
+	Conf = &HStoreConfig{}
+	Conf.InitDefault()
+}
+
 type HStoreConfig struct {
-	DBRouteConfig `yaml:"-"` // from route table
-	DBLocalConfig `yaml:"local,omitempty"`
+	config.DBRouteConfig `yaml:"-"` // from route table
+	DBLocalConfig        `yaml:"local,omitempty"`
 
 	DataConfig  `yaml:"data,omitempty"`
 	HintConfig  `yaml:"hint,omitempty"`
 	HTreeConfig `yaml:"htree,omitempty"`
-}
-
-type DBRouteConfig struct {
-	NumBucket   int
-	BucketsStat []int `json:"Buckets"` // TODO: `json:"-"`
-	BucketsHex  []string
 }
 
 type HtreeDerivedConfig struct {
@@ -32,14 +35,12 @@ type DBLocalConfig struct {
 }
 
 type DataConfig struct {
-	FlushMax      int64 `yaml:"-"`                        // if flush buffer is larger, may fail BIG set request (return NOT_FOUND)
 	FlushWake     int64 `yaml:"-"`                        // after set to flush buffer, wake up flush go routine if buffer size > this
 	DataFileMax   int64 `yaml:"-"`                        // data rotate when reach the size
 	CheckVHash    bool  `yaml:"check_vhash,omitempty"`    // not really set if vhash is the same
 	FlushInterval int   `yaml:"flush_interval,omitempty"` // the flush go routine run at this interval
 	NoGCDays      int   `yaml:"no_gc_days,omitempty"`     // not data files whose mtime in recent NoGCDays days
 
-	FlushMaxStr    string `yaml:"flush_max_str"`
 	FlushWakeStr   string `yaml:"flush_wake_str"` //
 	DataFileMaxStr string `yaml:"datafile_max_str,omitempty"`
 }
@@ -66,12 +67,12 @@ func (c *HStoreConfig) Init() error {
 	if e != nil {
 		return e
 	}
-	return c.init()
+	return c.InitTree()
 }
 
 // must be called before use
 // NumBucket => TreeDepth => (TreeKeyHashLen & TreeKeyHashMask)
-func (c *HStoreConfig) init() error {
+func (c *HStoreConfig) InitTree() error {
 	// TreeDepth
 	n := c.NumBucket
 	c.TreeDepth = 0

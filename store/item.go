@@ -221,10 +221,6 @@ func (rec *Record) Dumps() []byte {
 	return buf.Bytes()
 }
 
-func isValidKVSzie(ksz, vsz uint32) bool {
-	return ksz != 0 && ksz <= uint32(conf.MaxKeyLen) && vsz <= uint32(conf.BodyMax)
-}
-
 func posForCompare(pos uint32) int64 {
 	return (int64(pos&0xff) << 32) | int64(pos)
 }

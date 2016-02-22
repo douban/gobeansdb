@@ -108,7 +108,7 @@ func (tree *HTree) load(path string) (err error) {
 	logger.Infof("loading htree %s", path)
 	reader := bufio.NewReader(f)
 	buf := make([]byte, 6)
-	leafnodes := tree.levels[conf.TreeHeight-1]
+	leafnodes := tree.levels[Conf.TreeHeight-1]
 	size := len(leafnodes)
 	for i := 0; i < size; i++ {
 		if _, err = io.ReadFull(reader, buf); err != nil {
@@ -155,7 +155,7 @@ func (tree *HTree) dump(path string) {
 
 	writer := bufio.NewWriter(f)
 	buf := make([]byte, 6)
-	leafnodes := tree.levels[conf.TreeHeight-1]
+	leafnodes := tree.levels[Conf.TreeHeight-1]
 	size := len(leafnodes)
 	for i := 0; i < size; i++ {
 		binary.LittleEndian.PutUint32(buf[0:4], leafnodes[i].count)
