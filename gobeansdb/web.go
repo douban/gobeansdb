@@ -9,7 +9,10 @@ import (
 	"runtime"
 	"strconv"
 
+	yaml "gopkg.in/yaml.v2"
+
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/config"
 	"github.intra.douban.com/coresys/gobeansdb/loghub"
 	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
 	"github.intra.douban.com/coresys/gobeansdb/store"
@@ -45,6 +48,9 @@ func init() {
 	http.HandleFunc("/collision/", handleCollision)
 
 	http.HandleFunc("/hash/", handleKeyhash)
+	http.HandleFunc("/route/", handleRoute)
+	http.HandleFunc("/route/stat", handleRouteStat)
+	http.HandleFunc("/route/reload", handleReloadRoute)
 
 }
 
@@ -101,6 +107,16 @@ func handleWebPanic(w http.ResponseWriter) {
 func handleJson(w http.ResponseWriter, v interface{}) {
 	defer handleWebPanic(w)
 	b, err := json.Marshal(v)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+	} else {
+		w.Write(b)
+	}
+}
+
+func handleYaml(w http.ResponseWriter, v interface{}) {
+	defer handleWebPanic(w)
+	b, err := yaml.Marshal(v)
 	if err != nil {
 		w.Write([]byte(err.Error()))
 	} else {
@@ -306,4 +322,69 @@ func handleDU(w http.ResponseWriter, r *http.Request) {
 	}
 	defer handleWebPanic(w)
 	handleJson(w, storage.hstore.GetDU())
+}
+
+func handleRoute(w http.ResponseWriter, r *http.Request) {
+	defer handleWebPanic(w)
+	handleYaml(w, config.Route)
+}
+func handleRouteStat(w http.ResponseWriter, r *http.Request) {
+	defer handleWebPanic(w)
+	if len(conf.ZK) == 0 {
+		w.Write([]byte("local"))
+		return
+	} else {
+		handleJson(w, config.ZKClient.Stat)
+	}
+}
+
+func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
+	var err error
+	if !config.AllowReload {
+		w.Write([]byte("reloading"))
+		return
+	}
+	config.AllowReload = false
+	defer func() {
+		config.AllowReload = true
+		if err != nil {
+			logger.Errorf("handleRoute err: %s", err.Error())
+			w.Write([]byte(fmt.Sprintf(err.Error())))
+			return
+		}
+	}()
+
+	if storage == nil {
+		return
+	}
+	if len(conf.ZK) == 0 {
+		w.Write([]byte("not using zookeeper"))
+		return
+	}
+	defer handleWebPanic(w)
+	newRouteContent, stat, err := config.ZKClient.GetRouteRaw()
+	if stat.Version == config.ZKClient.Stat.Version {
+		w.Write([]byte(fmt.Sprintf("same version %d", stat.Version)))
+		return
+	}
+	info := fmt.Sprintf("update with route version %d\n", stat.Version)
+	logger.Infof(info)
+	newRoute := new(config.RouteTable)
+	err = newRoute.LoadFromYaml(newRouteContent)
+	if err != nil {
+		return
+	}
+	dbRouteConfig, err := newRoute.GetDBRouteConfig(config.ServerConf.Addr())
+	if err != nil {
+		return
+	}
+	loaded, unload, err := storage.hstore.ChangeRoute(dbRouteConfig)
+	if err != nil {
+		return
+	}
+	info = fmt.Sprintf("loaded:%v, unloaded:%v", loaded, unload)
+	w.Write([]byte(info))
+	store.Conf.DBRouteConfig = dbRouteConfig
+	config.Route = *newRoute
+	config.ZKClient.Stat = stat
 }

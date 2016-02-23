@@ -1,6 +1,6 @@
 # for doubandb
 server:
-  zk: "NO"
+  cluster: "/beansdb/test"
   listen: 0.0.0.0
   port: 7900
   webport: 7903

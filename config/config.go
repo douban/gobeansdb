@@ -16,9 +16,10 @@ const (
 )
 
 var (
-	ServerConf ServerConfig = DefaultServerConfig
-	Route      RouteTable
-	MCConf     MCConfig = DefaultMCConfig
+	ServerConf  ServerConfig = DefaultServerConfig
+	Route       RouteTable
+	MCConf      MCConfig = DefaultMCConfig
+	AllowReload bool
 )
 
 func init() {

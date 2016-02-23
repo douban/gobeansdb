@@ -68,6 +68,14 @@ type Bucket struct {
 	GCHistory []GCState
 }
 
+func (bkt *Bucket) release() {
+	bkt.hints = nil
+	bkt.datas = nil
+	bkt.htree.release()
+	bkt.htree = nil
+	bkt.BucketInfo = BucketInfo{}
+}
+
 func (bkt *Bucket) getHtreePath(chunkID, SplitID int) string {
 	return getIndexPath(bkt.Home, chunkID, SplitID, "hash")
 }

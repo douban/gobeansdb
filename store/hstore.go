@@ -125,9 +125,11 @@ func (store *HStore) allocBucket(bucketID int) (err error) {
 	}
 	store.buckets[bucketID].HomeID = homeid
 	store.homeToBuckets[homeid][bucketID] = true
-
 	dirpath := store.getBucketPath(homeid, bucketID)
-	err = os.Mkdir(dirpath, 0755)
+
+	if _, err = os.Stat(dirpath); err != nil {
+		err = os.Mkdir(dirpath, 0755)
+	}
 	logger.Infof("allocBucket %s", dirpath)
 	return
 }
@@ -453,6 +455,43 @@ func (store *HStore) GetDU() (du *DU) {
 			} else {
 				du.Buckets[i] = diru
 				du.BucketsHex[config.BucketIDHex(i, Conf.NumBucket)] = diru
+			}
+		}
+	}
+	return
+}
+
+func (store *HStore) ChangeRoute(newConf config.DBRouteConfig) (loaded, unloaded []int, err error) {
+	for i := 0; i < Conf.NumBucket; i++ {
+		bkt := store.buckets[i]
+		oldc := Conf.BucketsStat[i]
+		newc := newConf.BucketsStat[i]
+		if newc != oldc {
+			if newc >= BUCKET_STAT_NOT_EMPTY {
+
+				logger.Infof("hot load bucket %d", i)
+				err = store.allocBucket(i)
+				if err != nil {
+					return
+				}
+
+				err = bkt.open(i, store.getBucketPath(bkt.HomeID, i))
+				if err != nil {
+					return
+				}
+				// check status before serve
+				bkt.State = BUCKET_STAT_READY
+				Conf.BucketsStat[i] = BUCKET_STAT_READY
+				loaded = append(loaded, i)
+			} else {
+				logger.Infof("hot unload bucket %d", i)
+				Conf.BucketsStat[i] = BUCKET_STAT_EMPTY
+				bkt.State = BUCKET_STAT_EMPTY
+				time.Sleep(time.Second * 10)
+				bkt.close()
+				bkt.release()
+				logger.Infof("bucket %d unload done", i)
+				unloaded = append(unloaded, i)
 			}
 		}
 	}

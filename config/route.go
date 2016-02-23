@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"strconv"
 
@@ -49,7 +48,6 @@ func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig, err error)
 	r.BucketsStat = make([]int, rt.NumBucket)
 	buckets, found := rt.Servers[addr]
 	if !found {
-		err = fmt.Errorf("can not find self in route table")
 		return
 	}
 	r.BucketsHex = make([]string, 0)
@@ -90,12 +88,36 @@ func (rt *RouteTable) LoadFromYaml(data []byte) error {
 	return nil
 }
 
-func LoadRouteTable(path, zkaddr string) (*RouteTable, error) {
+func LoadRouteTableLocal(path string) (*RouteTable, error) {
+	LocalRoutePath = path
 	rt := &RouteTable{}
-	data, err := ioutil.ReadFile(path)
+	data, err := ioutil.ReadFile(LocalRoutePath)
 	if err != nil {
 		return nil, err
 	}
 	err = rt.LoadFromYaml(data)
-	return rt, err
+	if err != nil {
+		return nil, err
+	}
+	return rt, nil
+}
+
+func LoadRouteTableZK(path, cluster string, zkservers []string) (*RouteTable, error) {
+	LocalRoutePath = path
+
+	rt := &RouteTable{}
+	client, err := NewZK(cluster, zkservers)
+	if err != nil {
+		return nil, err
+	}
+	ZKClient = client
+	data, stat, err := client.GetRouteRaw()
+
+	err = rt.LoadFromYaml(data)
+	if err != nil {
+		return nil, err
+	}
+	ZKClient.Stat = stat
+	UpdateLocalRoute(data)
+	return rt, nil
 }

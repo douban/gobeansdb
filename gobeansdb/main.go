@@ -79,6 +79,7 @@ func main() {
 	server.HandleSignals(conf.ErrorLog, conf.AccessLog)
 	go storage.hstore.HintDumper(1 * time.Minute) // it may start merge go routine
 	go storage.hstore.Flusher()
+	config.AllowReload = true
 	err = server.Serve()
 	tmp := storage
 	storage = nil
