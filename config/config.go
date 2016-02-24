@@ -10,10 +10,10 @@ import (
 	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
-const (
-	Version          = "2.1.0.9"
-	AccessLogVersion = "V1"
-)
+// `Version` can be changed in gobeansproxy.
+var Version = "2.1.0.9"
+
+const AccessLogVersion = "V1"
 
 var (
 	ServerConf ServerConfig = DefaultServerConfig
