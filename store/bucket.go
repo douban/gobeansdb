@@ -55,6 +55,8 @@ type BucketInfo struct {
 	NumSameVhash    int64
 	SizeSameVhash   int64
 	SizeVhashKey    string
+	NumSet          int64
+	NumGet          int64
 }
 
 type Bucket struct {

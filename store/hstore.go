@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
@@ -349,6 +350,7 @@ func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Posit
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
 	bkt := store.buckets[ki.BucketID]
+	atomic.AddInt64(&bkt.NumSet, 1)
 	if bkt.State != BUCKET_STAT_READY {
 		return
 	}
@@ -358,12 +360,15 @@ func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Posit
 func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
+
 	bkt := store.buckets[ki.BucketID]
+	atomic.AddInt64(&bkt.NumSet, 1)
 	if bkt.State != BUCKET_STAT_READY {
 		cmem.DBRL.SetData.SubSizeAndCount(p.CArray.Cap)
 		p.CArray.Free()
 		return nil
 	}
+
 	return bkt.checkAndSet(ki, p)
 }
 
@@ -496,6 +501,16 @@ func (store *HStore) ChangeRoute(newConf config.DBRouteConfig) (loaded, unloaded
 				unloaded = append(unloaded, i)
 			}
 		}
+	}
+	return
+}
+
+func (store *HStore) GetNumCmdByBuckets() (counts [][]int64) {
+	n := Conf.NumBucket
+	counts = make([][]int64, n)
+	for i := 0; i < n; i++ {
+		bkt := store.buckets[i]
+		counts[i] = []int64{int64(bkt.State), bkt.NumGet, bkt.NumSet}
 	}
 	return
 }

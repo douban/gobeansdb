@@ -52,6 +52,8 @@ func init() {
 	http.HandleFunc("/route/stat", handleRouteStat)
 	http.HandleFunc("/route/reload", handleReloadRoute)
 
+	http.HandleFunc("/statgetset", handleStatGetSet)
+
 }
 
 func initWeb() {
@@ -84,6 +86,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
     <a href='/logbufall'> /logbufall </a> <p/>
     <a href='/loglast'> /loglast </a> <p/>
     <a href='/du'> /du </a> <p/>
+    <a href='/statgetset'> /statgetset </a> <p/>
 
     <hr/>
 
@@ -221,6 +224,20 @@ func handleBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	handleJson(w, storage.hstore.GetBucketInfo(int(bucketID)))
+}
+
+func handleStatGetSet(w http.ResponseWriter, r *http.Request) {
+	if storage == nil {
+		return
+	}
+	defer handleWebPanic(w)
+	res := make(map[int][]int64)
+	counts := storage.hstore.GetNumCmdByBuckets()
+	for i, count := range counts {
+		res[i] = count
+	}
+	handleYaml(w, res)
+	return
 }
 
 func handleKeyhash(w http.ResponseWriter, r *http.Request) {
