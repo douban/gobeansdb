@@ -360,6 +360,8 @@ func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 	ki.Prepare()
 	bkt := store.buckets[ki.BucketID]
 	if bkt.State != BUCKET_STAT_READY {
+		cmem.DBRL.SetData.SubSizeAndCount(p.CArray.Cap)
+		p.CArray.Free()
 		return nil
 	}
 	return bkt.checkAndSet(ki, p)
