@@ -501,6 +501,11 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 		}
 
 	case "set", "add", "replace", "cas":
+		// We MUST update stat at first, because req.Item will be released
+		// in `store.Set`.
+		atomic.AddInt64(&stat.cmd_set, 1)
+		stat.bytes_read += int64(len(req.Item.Body))
+
 		key := req.Keys[0]
 		var suc bool
 		suc, err = store.Set(key, req.Item, req.NoReply)
@@ -510,8 +515,6 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			break
 		}
 
-		atomic.AddInt64(&stat.cmd_set, 1)
-		stat.bytes_read += int64(len(req.Item.Body))
 		if suc {
 			resp.Status = "STORED"
 		} else {
@@ -519,6 +522,9 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 		}
 
 	case "append":
+		atomic.AddInt64(&stat.cmd_set, 1)
+		stat.bytes_read += int64(len(req.Item.Body))
+
 		key := req.Keys[0]
 		var suc bool
 		suc, err = store.Append(key, req.Item.Body)
@@ -528,8 +534,6 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 			return
 		}
 
-		atomic.AddInt64(&stat.cmd_set, 1)
-		stat.bytes_read += int64(len(req.Item.Body))
 		if suc {
 			resp.Status = "STORED"
 		} else {
@@ -539,6 +543,7 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 	case "incr":
 		atomic.AddInt64(&stat.cmd_set, 1)
 		stat.bytes_read += int64(len(req.Item.Body))
+
 		resp.Noreply = req.NoReply
 		key := req.Keys[0]
 		add, err := strconv.Atoi(string(req.Item.Body))
