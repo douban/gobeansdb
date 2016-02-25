@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
@@ -125,9 +126,11 @@ func (store *HStore) allocBucket(bucketID int) (err error) {
 	}
 	store.buckets[bucketID].HomeID = homeid
 	store.homeToBuckets[homeid][bucketID] = true
-
 	dirpath := store.getBucketPath(homeid, bucketID)
-	err = os.Mkdir(dirpath, 0755)
+
+	if _, err = os.Stat(dirpath); err != nil {
+		err = os.Mkdir(dirpath, 0755)
+	}
 	logger.Infof("allocBucket %s", dirpath)
 	return
 }
@@ -347,6 +350,7 @@ func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Posit
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
 	bkt := store.buckets[ki.BucketID]
+	atomic.AddInt64(&bkt.NumSet, 1)
 	if bkt.State != BUCKET_STAT_READY {
 		return
 	}
@@ -356,10 +360,15 @@ func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Posit
 func (store *HStore) Set(ki *KeyInfo, p *Payload) error {
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
+
 	bkt := store.buckets[ki.BucketID]
+	atomic.AddInt64(&bkt.NumSet, 1)
 	if bkt.State != BUCKET_STAT_READY {
+		cmem.DBRL.SetData.SubSizeAndCount(p.CArray.Cap)
+		p.CArray.Free()
 		return nil
 	}
+
 	return bkt.checkAndSet(ki, p)
 }
 
@@ -455,6 +464,53 @@ func (store *HStore) GetDU() (du *DU) {
 				du.BucketsHex[config.BucketIDHex(i, Conf.NumBucket)] = diru
 			}
 		}
+	}
+	return
+}
+
+func (store *HStore) ChangeRoute(newConf config.DBRouteConfig) (loaded, unloaded []int, err error) {
+	for i := 0; i < Conf.NumBucket; i++ {
+		bkt := store.buckets[i]
+		oldc := Conf.BucketsStat[i]
+		newc := newConf.BucketsStat[i]
+		if newc != oldc {
+			if newc >= BUCKET_STAT_NOT_EMPTY {
+
+				logger.Infof("hot load bucket %d", i)
+				err = store.allocBucket(i)
+				if err != nil {
+					return
+				}
+
+				err = bkt.open(i, store.getBucketPath(bkt.HomeID, i))
+				if err != nil {
+					return
+				}
+				// check status before serve
+				bkt.State = BUCKET_STAT_READY
+				Conf.BucketsStat[i] = BUCKET_STAT_READY
+				loaded = append(loaded, i)
+			} else {
+				logger.Infof("hot unload bucket %d", i)
+				Conf.BucketsStat[i] = BUCKET_STAT_EMPTY
+				bkt.State = BUCKET_STAT_EMPTY
+				time.Sleep(time.Second * 10)
+				bkt.close()
+				bkt.release()
+				logger.Infof("bucket %d unload done", i)
+				unloaded = append(unloaded, i)
+			}
+		}
+	}
+	return
+}
+
+func (store *HStore) GetNumCmdByBuckets() (counts [][]int64) {
+	n := Conf.NumBucket
+	counts = make([][]int64, n)
+	for i := 0; i < n; i++ {
+		bkt := store.buckets[i]
+		counts[i] = []int64{int64(bkt.State), bkt.NumGet, bkt.NumSet}
 	}
 	return
 }

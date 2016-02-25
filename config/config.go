@@ -16,9 +16,10 @@ var Version = "2.1.0.9"
 const AccessLogVersion = "V1"
 
 var (
-	ServerConf ServerConfig = DefaultServerConfig
-	Route      RouteTable
-	MCConf     MCConfig = DefaultMCConfig
+	ServerConf  ServerConfig = DefaultServerConfig
+	Route       RouteTable
+	MCConf      MCConfig = DefaultMCConfig
+	AllowReload bool
 )
 
 func init() {

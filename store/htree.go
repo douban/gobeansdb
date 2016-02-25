@@ -98,6 +98,12 @@ func newHTree(depth, bucketID, height int) *HTree {
 	return tree
 }
 
+func (tree *HTree) release() {
+	for i := 0; i < len(tree.leafs); i++ {
+		tree.leafs[i].free()
+	}
+}
+
 func (tree *HTree) load(path string) (err error) {
 	f, err := os.Open(path)
 	if err != nil {

@@ -111,6 +111,12 @@ func (sh *SliceHeader) enlarge(size int) {
 	sh.Len = size
 }
 
+func (sh *SliceHeader) free() {
+	if sh.Len != 0 {
+		C.free(unsafe.Pointer(sh.Data))
+	}
+}
+
 func (sh *SliceHeader) Set(req *HTreeReq) (oldm HTreeItem, exist bool) {
 	leaf := sh.ToBytes()
 	lenKHash := Conf.TreeKeyHashLen

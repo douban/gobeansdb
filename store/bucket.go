@@ -55,6 +55,8 @@ type BucketInfo struct {
 	NumSameVhash    int64
 	SizeSameVhash   int64
 	SizeVhashKey    string
+	NumSet          int64
+	NumGet          int64
 }
 
 type Bucket struct {
@@ -66,6 +68,14 @@ type Bucket struct {
 	hints     *hintMgr
 	datas     *dataStore
 	GCHistory []GCState
+}
+
+func (bkt *Bucket) release() {
+	bkt.hints = nil
+	bkt.datas = nil
+	bkt.htree.release()
+	bkt.htree = nil
+	bkt.BucketInfo = BucketInfo{}
 }
 
 func (bkt *Bucket) getHtreePath(chunkID, SplitID int) string {

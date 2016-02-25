@@ -6,6 +6,7 @@ server:
   webport: 7988
   errorlog: ./gobeansdb.log
   accesslog: ""
+  #zk: ["zk1:2181"]
 hstore:
   data:
     flush_interval: 0
