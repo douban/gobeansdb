@@ -73,8 +73,9 @@ type Bucket struct {
 func (bkt *Bucket) release() {
 	bkt.hints = nil
 	bkt.datas = nil
-	bkt.htree.release()
+	htree := bkt.htree
 	bkt.htree = nil
+	htree.release()
 	bkt.BucketInfo = BucketInfo{}
 }
 
