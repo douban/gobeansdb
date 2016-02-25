@@ -9,7 +9,7 @@ var (
 		Port:      7900,
 		WebPort:   7903,
 		Threads:   4,
-		ZK:        nil,
+		ZKServers: nil,
 		ErrorLog:  "./gobeansdb.log",
 		AccessLog: "",
 		StaticDir: "./",
@@ -18,8 +18,8 @@ var (
 
 type ServerConfig struct {
 	Hostname  string   `yaml:",omitempty"`
-	Cluster   string   `yaml:",omitempty"` // root path in zk
-	ZK        []string `yaml:",omitempty"` // e.g. "zk1:2181,zk2:2181"
+	ZKPath    string   `yaml:",omitempty"` // root path in zk
+	ZKServers []string `yaml:",omitempty"` // e.g. "zk1:2181,zk2:2181"
 	Listen    string   `yaml:",omitempty"` // ip
 	Port      int      `yaml:",omitempty"`
 	WebPort   int      `yaml:",omitempty"`

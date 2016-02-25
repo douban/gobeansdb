@@ -1,8 +1,8 @@
 # for doubandb
 # should include all configurable fields
 server:
-  zk: []
-  cluster: "/beansdb/test"
+  zkserves: []
+  zkpath: "/beansdb/test"
   listen: 0.0.0.0
   port: 7900
   webport: 7903

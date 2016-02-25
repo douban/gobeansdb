@@ -355,7 +355,7 @@ func handleRoute(w http.ResponseWriter, r *http.Request) {
 }
 func handleRouteStat(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
-	if len(conf.ZK) == 0 {
+	if len(conf.ZKServers) == 0 {
 		w.Write([]byte("local"))
 		return
 	} else {
@@ -382,7 +382,7 @@ func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
 	if checkStarting(w) {
 		return
 	}
-	if len(conf.ZK) == 0 {
+	if len(conf.ZKServers) == 0 {
 		w.Write([]byte("not using zookeeper"))
 		return
 	}

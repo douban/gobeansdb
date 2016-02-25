@@ -51,13 +51,13 @@ func (c *DBConfig) Load(confdir string) {
 		routePath := fmt.Sprintf("%s/%s", confdir, "route.yaml")
 		var route *config.RouteTable
 		// route
-		if len(c.ZK) > 0 {
-			route, err = config.LoadRouteTableZK(routePath, c.Cluster, c.ZK)
+		if len(c.ZKServers) > 0 {
+			route, err = config.LoadRouteTableZK(routePath, c.ZKPath, c.ZKServers)
 			if err != nil {
 				log.Printf("fail to load route table from zk: %s", err.Error())
 			}
 		}
-		if len(c.ZK) == 0 || err != nil {
+		if len(c.ZKServers) == 0 || err != nil {
 			route, err = config.LoadRouteTableLocal(routePath)
 		}
 		if err != nil {

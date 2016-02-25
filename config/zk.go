@@ -24,7 +24,6 @@ type zkClient struct {
 
 func NewZK(root string, servers []string) (c *zkClient, err error) {
 	c = &zkClient{Root: root, Servers: servers}
-	fmt.Println(servers)
 	c.Client, c.Events, err = zk.Connect(servers, 10*time.Second)
 	return c, err
 }
