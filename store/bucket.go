@@ -168,7 +168,8 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	bkt.datas = NewdataStore(bucketID, home)
 	bkt.hints = newHintMgr(bucketID, home)
 	bkt.hints.loadCollisions()
-	bkt.htree = newHTree(Conf.TreeDepth, bucketID, Conf.TreeHeight)
+	htree := newHTree(Conf.TreeDepth, bucketID, Conf.TreeHeight)
+
 	bkt.TreeID = HintID{0, -1}
 
 	maxdata, err := bkt.datas.ListFiles()
@@ -184,10 +185,10 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 			utils.Remove(treepath)
 		} else {
 			if bkt.TreeID.isLarger(id.Chunk, id.Split) {
-				err := bkt.htree.load(treepath)
+				err := htree.load(treepath)
 				if err != nil {
 					bkt.TreeID = HintID{0, -1}
-					bkt.htree = newHTree(Conf.TreeDepth, bucketID, Conf.TreeHeight)
+					htree = newHTree(Conf.TreeDepth, bucketID, Conf.TreeHeight)
 					continue
 				}
 				bkt.TreeID = id
@@ -197,6 +198,8 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 			}
 		}
 	}
+	bkt.htree = htree
+
 	bkt.hints.maxDumpedHintID = bkt.TreeID
 	for i := bkt.TreeID.Chunk; i < MAX_NUM_CHUNK; i++ {
 		startsp := 0
