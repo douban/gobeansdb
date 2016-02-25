@@ -70,6 +70,14 @@ func initWeb() {
 	}()
 }
 
+func checkStarting(w http.ResponseWriter) (starting bool) {
+	starting = (storage == nil)
+	if starting {
+		w.Write([]byte("starting"))
+	}
+	return
+}
+
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w,
 		`
@@ -168,7 +176,7 @@ func handleBuffers(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleCollision(w http.ResponseWriter, r *http.Request) {
-	if storage == nil {
+	if checkStarting(w) {
 		return
 	}
 	defer handleWebPanic(w)
@@ -200,7 +208,7 @@ func showBucket(w http.ResponseWriter, path string) {
 }
 
 func handleBucket(w http.ResponseWriter, r *http.Request) {
-	if storage == nil {
+	if checkStarting(w) {
 		return
 	}
 	defer handleWebPanic(w)
@@ -227,7 +235,7 @@ func handleBucket(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleStatGetSet(w http.ResponseWriter, r *http.Request) {
-	if storage == nil {
+	if checkStarting(w) {
 		return
 	}
 	defer handleWebPanic(w)
@@ -241,7 +249,7 @@ func handleStatGetSet(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleKeyhash(w http.ResponseWriter, r *http.Request) {
-	if storage == nil {
+	if checkStarting(w) {
 		return
 	}
 	defer handleWebPanic(w)
@@ -280,7 +288,7 @@ func handleLogLast(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGC(w http.ResponseWriter, r *http.Request) {
-	if storage == nil {
+	if checkStarting(w) {
 		return
 	}
 	defer handleWebPanic(w)
@@ -334,7 +342,7 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleDU(w http.ResponseWriter, r *http.Request) {
-	if storage == nil {
+	if checkStarting(w) {
 		return
 	}
 	defer handleWebPanic(w)
@@ -371,7 +379,7 @@ func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	if storage == nil {
+	if checkStarting(w) {
 		return
 	}
 	if len(conf.ZK) == 0 {
@@ -395,11 +403,11 @@ func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	loaded, unload, err := storage.hstore.ChangeRoute(dbRouteConfig)
+	loaded, unloaded, err := storage.hstore.ChangeRoute(dbRouteConfig)
 	if err != nil {
 		return
 	}
-	info = fmt.Sprintf("loaded:%v, unloaded:%v", loaded, unload)
+	info = fmt.Sprintf("loaded:%v, unloaded:%v", loaded, unloaded)
 	w.Write([]byte(info))
 	store.Conf.DBRouteConfig = dbRouteConfig
 	config.Route = *newRoute
