@@ -260,7 +260,7 @@ func (store *HStore) updateNodesUpper(level, offset int) (node *Node) {
 		}
 	} else {
 		bkt := store.buckets[offset]
-		if bkt.htree != nil {
+		if bkt.State == BUCKET_STAT_READY && bkt.htree != nil {
 			root := bkt.htree.Update()
 			node.hash = root.hash
 			node.count = root.count
@@ -350,7 +350,7 @@ func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Posit
 	ki.KeyHash = getKeyHash(ki.Key)
 	ki.Prepare()
 	bkt := store.buckets[ki.BucketID]
-	atomic.AddInt64(&bkt.NumSet, 1)
+	atomic.AddInt64(&bkt.NumGet, 1)
 	if bkt.State != BUCKET_STAT_READY {
 		return
 	}
