@@ -112,6 +112,9 @@ func LoadRouteTableZK(path, cluster string, zkservers []string) (*RouteTable, er
 	}
 	ZKClient = client
 	data, stat, err := client.GetRouteRaw()
+	if err != nil {
+		return nil, err
+	}
 
 	err = rt.LoadFromYaml(data)
 	if err != nil {
