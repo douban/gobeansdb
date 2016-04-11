@@ -111,7 +111,7 @@ func LoadRouteTableZK(path, cluster string, zkservers []string) (*RouteTable, er
 		return nil, err
 	}
 	ZKClient = client
-	data, stat, err := client.GetRouteRaw()
+	data, ver, err := client.GetRouteRaw(-1)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func LoadRouteTableZK(path, cluster string, zkservers []string) (*RouteTable, er
 	if err != nil {
 		return nil, err
 	}
-	ZKClient.Stat = stat
+	ZKClient.Version = ver
 	UpdateLocalRoute(data)
 	return rt, nil
 }

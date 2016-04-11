@@ -49,7 +49,7 @@ func init() {
 
 	http.HandleFunc("/hash/", handleKeyhash)
 	http.HandleFunc("/route/", handleRoute)
-	http.HandleFunc("/route/stat", handleRouteStat)
+	http.HandleFunc("/route/version", handleRouteVersion)
 	http.HandleFunc("/route/reload", handleReloadRoute)
 
 	http.HandleFunc("/statgetset", handleStatGetSet)
@@ -353,13 +353,14 @@ func handleRoute(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
 	handleYaml(w, config.Route)
 }
-func handleRouteStat(w http.ResponseWriter, r *http.Request) {
+
+func handleRouteVersion(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
 	if len(conf.ZKServers) == 0 {
-		w.Write([]byte("local"))
+		w.Write([]byte("-1"))
 		return
 	} else {
-		handleJson(w, config.ZKClient.Stat)
+		w.Write([]byte(strconv.Itoa(config.ZKClient.Version)))
 	}
 }
 
@@ -383,16 +384,24 @@ func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(conf.ZKServers) == 0 {
-		w.Write([]byte("not using zookeeper"))
+		w.Write([]byte("err: not using zookeeper"))
 		return
 	}
 	defer handleWebPanic(w)
-	newRouteContent, stat, err := config.ZKClient.GetRouteRaw()
-	if stat.Version == config.ZKClient.Stat.Version {
-		w.Write([]byte(fmt.Sprintf("same version %d", stat.Version)))
+
+	r.ParseForm()
+	ver, err := getFormValueInt(r, "ver", -1)
+	if err != nil {
 		return
 	}
-	info := fmt.Sprintf("update with route version %d\n", stat.Version)
+
+	newRouteContent, ver, err := config.ZKClient.GetRouteRaw(ver)
+	if ver == config.ZKClient.Version {
+		w.Write([]byte(fmt.Sprintf("err: same version %d", ver)))
+		return
+	}
+
+	info := fmt.Sprintf("update with route version %d\n", ver)
 	logger.Infof(info)
 	newRoute := new(config.RouteTable)
 	err = newRoute.LoadFromYaml(newRouteContent)
@@ -405,11 +414,13 @@ func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	loaded, unloaded, err := storage.hstore.ChangeRoute(dbRouteConfig)
 	if err != nil {
+		w.Write([]byte(fmt.Sprintf("err: %v", err)))
+		logger.Infof("fail to reload: %v", err)
 		return
 	}
 	info = fmt.Sprintf("loaded:%v, unloaded:%v", loaded, unloaded)
 	w.Write([]byte(info))
 	store.Conf.DBRouteConfig = dbRouteConfig
 	config.Route = *newRoute
-	config.ZKClient.Stat = stat
+	config.ZKClient.Version = ver
 }
