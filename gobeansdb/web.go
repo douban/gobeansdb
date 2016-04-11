@@ -408,10 +408,7 @@ func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	dbRouteConfig, err := newRoute.GetDBRouteConfig(config.ServerConf.Addr())
-	if err != nil {
-		return
-	}
+	dbRouteConfig := newRoute.GetDBRouteConfig(config.ServerConf.Addr())
 	loaded, unloaded, err := storage.hstore.ChangeRoute(dbRouteConfig)
 	if err != nil {
 		w.Write([]byte(fmt.Sprintf("err: %v", err)))

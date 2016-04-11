@@ -43,19 +43,20 @@ type DBRouteConfig struct {
 	BucketsHex  []string
 }
 
-func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig, err error) {
+func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig) {
 	r = DBRouteConfig{NumBucket: rt.NumBucket}
 	r.BucketsStat = make([]int, rt.NumBucket)
+	r.BucketsHex = make([]string, 0)
+
 	buckets, found := rt.Servers[addr]
 	if !found {
 		return
 	}
-	r.BucketsHex = make([]string, 0)
 	for b, _ := range buckets {
 		r.BucketsStat[b] = 1
 		r.BucketsHex = append(r.BucketsHex, BucketIDHex(b, rt.NumBucket))
 	}
-	return r, nil
+	return
 }
 
 func (rt *RouteTable) LoadFromYaml(data []byte) error {
