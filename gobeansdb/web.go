@@ -367,7 +367,7 @@ func handleRouteVersion(w http.ResponseWriter, r *http.Request) {
 func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if !config.AllowReload {
-		w.Write([]byte("reloading"))
+		w.Write([]byte("err: reloading"))
 		return
 	}
 	config.AllowReload = false
@@ -397,7 +397,7 @@ func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
 
 	newRouteContent, ver, err := config.ZKClient.GetRouteRaw(ver)
 	if ver == config.ZKClient.Version {
-		w.Write([]byte(fmt.Sprintf("err: same version %d", ver)))
+		w.Write([]byte(fmt.Sprintf("warn: same version %d", ver)))
 		return
 	}
 
@@ -415,7 +415,7 @@ func handleReloadRoute(w http.ResponseWriter, r *http.Request) {
 		logger.Infof("fail to reload: %v", err)
 		return
 	}
-	info = fmt.Sprintf("loaded:%v, unloaded:%v", loaded, unloaded)
+	info = fmt.Sprintf("ok: loaded:%v, unloaded:%v", loaded, unloaded)
 	w.Write([]byte(info))
 	store.Conf.DBRouteConfig = dbRouteConfig
 	config.Route = *newRoute
