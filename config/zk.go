@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/samuel/go-zookeeper/zk"
@@ -15,7 +16,7 @@ var (
 )
 
 type zkClient struct {
-	Stat    *zk.Stat
+	Version int
 	Root    string
 	Servers []string
 	Client  *zk.Conn
@@ -32,8 +33,21 @@ func (c *zkClient) Get(subPath string) ([]byte, *zk.Stat, error) {
 	return c.Client.Get(fmt.Sprintf("%s/%s", c.Root, subPath))
 }
 
-func (c *zkClient) GetRouteRaw() ([]byte, *zk.Stat, error) {
-	return c.Get("route")
+func (c *zkClient) GetRouteRaw(version int) (data []byte, ver int, err error) {
+	if version < 0 {
+		data, _, err = c.Get("route")
+		if err != nil {
+			return
+		}
+		ver, err = strconv.Atoi(string(data))
+		if err != nil {
+			return
+		}
+	} else {
+		ver = version
+	}
+	data, _, err = c.Get(fmt.Sprintf("route/route_%010d", ver))
+	return
 }
 
 func UpdateLocalRoute(content []byte) {

@@ -43,19 +43,20 @@ type DBRouteConfig struct {
 	BucketsHex  []string
 }
 
-func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig, err error) {
+func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig) {
 	r = DBRouteConfig{NumBucket: rt.NumBucket}
 	r.BucketsStat = make([]int, rt.NumBucket)
+	r.BucketsHex = make([]string, 0)
+
 	buckets, found := rt.Servers[addr]
 	if !found {
 		return
 	}
-	r.BucketsHex = make([]string, 0)
 	for b, _ := range buckets {
 		r.BucketsStat[b] = 1
 		r.BucketsHex = append(r.BucketsHex, BucketIDHex(b, rt.NumBucket))
 	}
-	return r, nil
+	return
 }
 
 func (rt *RouteTable) LoadFromYaml(data []byte) error {
@@ -111,7 +112,7 @@ func LoadRouteTableZK(path, cluster string, zkservers []string) (*RouteTable, er
 		return nil, err
 	}
 	ZKClient = client
-	data, stat, err := client.GetRouteRaw()
+	data, ver, err := client.GetRouteRaw(-1)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +121,7 @@ func LoadRouteTableZK(path, cluster string, zkservers []string) (*RouteTable, er
 	if err != nil {
 		return nil, err
 	}
-	ZKClient.Stat = stat
+	ZKClient.Version = ver
 	UpdateLocalRoute(data)
 	return rt, nil
 }
