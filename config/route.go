@@ -46,7 +46,10 @@ type DBRouteConfig struct {
 func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig) {
 	r = DBRouteConfig{NumBucket: rt.NumBucket}
 	r.BucketsStat = make([]int, rt.NumBucket)
-	r.BucketsHex = make([]string, 0)
+	r.BucketsHex = make([]string, rt.NumBucket)
+	for i := 0; i < rt.NumBucket; i++ {
+		r.BucketsHex[i] = BucketIDHex(i, rt.NumBucket)
+	}
 
 	buckets, found := rt.Servers[addr]
 	if !found {
@@ -54,7 +57,6 @@ func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig) {
 	}
 	for b, _ := range buckets {
 		r.BucketsStat[b] = 1
-		r.BucketsHex = append(r.BucketsHex, BucketIDHex(b, rt.NumBucket))
 	}
 	return
 }
