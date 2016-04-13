@@ -30,15 +30,19 @@ func NewZK(root string, servers []string) (c *zkClient, err error) {
 }
 
 func (c *zkClient) Get(subPath string) ([]byte, *zk.Stat, error) {
-	return c.Client.Get(fmt.Sprintf("%s/%s", c.Root, subPath))
+	path := fmt.Sprintf("%s/%s", c.Root, subPath)
+	log.Printf("get zk %s", path)
+	return c.Client.Get(path)
 }
 
 func (c *zkClient) GetRouteRaw(version int) (data []byte, ver int, err error) {
 	if version < 0 {
 		data, _, err = c.Get("route")
 		if err != nil {
+			log.Printf("%v", err)
 			return
 		}
+		log.Printf("got route version %s", string(data))
 		ver, err = strconv.Atoi(string(data))
 		if err != nil {
 			return
@@ -46,7 +50,11 @@ func (c *zkClient) GetRouteRaw(version int) (data []byte, ver int, err error) {
 	} else {
 		ver = version
 	}
-	data, _, err = c.Get(fmt.Sprintf("route/route_%010d", ver))
+	sp := fmt.Sprintf("route/route_%010d", ver)
+	data, _, err = c.Get(sp)
+	if err != nil {
+		log.Printf("%v", err)
+	}
 	return
 }
 

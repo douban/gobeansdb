@@ -56,6 +56,12 @@ func main() {
 	loghub.InitLogger(conf.ErrorLog, conf.AccessLog)
 	logger.Infof("gobeansdb version %s starting at %d, config: %#v",
 		config.Version, conf.Port, conf)
+
+	if config.ZKClient == nil {
+		logger.Warnf("route version: local")
+	} else {
+		logger.Infof("route version: %d", config.ZKClient.Version)
+	}
 	logger.Infof("route table: %#v", config.Route)
 
 	initWeb()
