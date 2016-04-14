@@ -297,7 +297,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 	for {
 		s, e := b.ReadString('\n')
 		if e != nil {
-			logger.Errorf("read response line failed", e)
+			logger.Errorf("read response line failed %v", e)
 			return e
 		}
 		parts := splitKeys(s)
