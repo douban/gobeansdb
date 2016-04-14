@@ -114,6 +114,10 @@ func newhintSplit() *hintSplit {
 	return &hintSplit{NewHintBuffer(), nil}
 }
 
+func (h *HintBuffer) SetMaxOffset(offset uint32) {
+	h.maxoffset = offset
+}
+
 func (h *HintBuffer) Set(it *HintItem, recSize uint32) bool {
 	if len(h.index) == 0 {
 		h.items = make([]*HintItem, Conf.SplitCap)
