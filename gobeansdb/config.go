@@ -10,10 +10,6 @@ import (
 	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
-var (
-	KHASH_LENS = [8]int{8, 8, 7, 7, 6, 6, 5, 5}
-)
-
 type DBConfig struct {
 	config.ServerConfig `yaml:"server,omitempty"`
 	config.MCConfig     `yaml:"mc,omitempty"`
