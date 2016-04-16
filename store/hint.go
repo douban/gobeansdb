@@ -90,7 +90,7 @@ type HintStatus struct {
 	MaxTime time.Duration
 }
 
-type hintBuffer struct {
+type HintBuffer struct {
 	maxoffset  uint32
 	index      map[uint64]int
 	collisions map[uint64]map[string]int
@@ -99,22 +99,26 @@ type hintBuffer struct {
 }
 
 type hintSplit struct {
-	buf  *hintBuffer
+	buf  *HintBuffer
 	file *hintFileIndex
 }
 
-func newHintBuffer() *hintBuffer {
-	buf := &hintBuffer{}
+func NewHintBuffer() *HintBuffer {
+	buf := &HintBuffer{}
 	buf.index = make(map[uint64]int)
 	buf.collisions = make(map[uint64]map[string]int)
 	return buf
 }
 
-func newHintSplit() *hintSplit {
-	return &hintSplit{newHintBuffer(), nil}
+func newhintSplit() *hintSplit {
+	return &hintSplit{NewHintBuffer(), nil}
 }
 
-func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
+func (h *HintBuffer) SetMaxOffset(offset uint32) {
+	h.maxoffset = offset
+}
+
+func (h *HintBuffer) Set(it *HintItem, recSize uint32) bool {
 	if len(h.index) == 0 {
 		h.items = make([]*HintItem, Conf.SplitCap)
 	}
@@ -156,7 +160,7 @@ func (h *hintBuffer) set(it *HintItem, recSize uint32) bool {
 	return true
 }
 
-func (h *hintBuffer) get(keyhash uint64, key string) (it *HintItem, iscollision bool) {
+func (h *HintBuffer) Get(keyhash uint64, key string) (it *HintItem, iscollision bool) {
 	idx, found := h.index[keyhash]
 	if found {
 		if key != h.items[idx].Key {
@@ -174,7 +178,7 @@ func (h *hintBuffer) get(keyhash uint64, key string) (it *HintItem, iscollision 
 	return
 }
 
-func (h *hintBuffer) dump(path string) (index *hintFileIndex, err error) {
+func (h *HintBuffer) Dump(path string) (index *hintFileIndex, err error) {
 	n := h.num
 	arr := make([]int, n)
 	for i := 0; i < n; i++ {
@@ -224,7 +228,7 @@ func newHintChunk(id int) *hintChunk {
 }
 
 func (chunk *hintChunk) rotate() *hintSplit {
-	sp := newHintSplit()
+	sp := newhintSplit()
 	n := len(chunk.splits)
 	chunk.splits = append(chunk.splits, sp)
 	if n > 0 {
@@ -238,8 +242,8 @@ func (chunk *hintChunk) setItem(it *HintItem, recSize uint32) (rotated bool) {
 	chunk.Lock()
 	l := len(chunk.splits)
 	sp := chunk.splits[l-1]
-	if !sp.buf.set(it, recSize) {
-		chunk.rotate().buf.set(it, recSize)
+	if !sp.buf.Set(it, recSize) {
+		chunk.rotate().buf.Set(it, recSize)
 		rotated = true
 	}
 	chunk.lastTS = time.Now().Unix()
@@ -253,7 +257,7 @@ func (chunk *hintChunk) getMemOnly(keyhash uint64, key string) (it *HintItem, sp
 	for sp = len(chunk.splits) - 1; sp >= 0; sp-- {
 		split := chunk.splits[sp]
 		if split.buf != nil {
-			if it, _ = split.buf.get(keyhash, key); it != nil {
+			if it, _ = split.buf.Get(keyhash, key); it != nil {
 				return
 			}
 		} else {
@@ -356,7 +360,7 @@ func (h *hintMgr) dump(chunkID, splitID int) (err error) {
 
 	path := h.getPath(chunkID, splitID, false)
 	logger.Infof("dump %s", path)
-	sp.file, err = sp.buf.dump(path)
+	sp.file, err = sp.buf.Dump(path)
 	if err == nil {
 		h.maxDumpedHintID.setIfLarger(chunkID, splitID)
 	}
@@ -600,7 +604,7 @@ func (chunk *hintChunk) getItemCollision(keyhash uint64, key string) (it *HintIt
 			stop = true
 			return
 		} else {
-			if it, collision = split.buf.get(keyhash, key); it != nil {
+			if it, collision = split.buf.Get(keyhash, key); it != nil {
 				ChunkID = chunk.id
 				return
 			}

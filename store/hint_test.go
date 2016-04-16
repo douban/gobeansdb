@@ -165,11 +165,11 @@ func genKey(i int) string {
 	return fmt.Sprintf("key_%05d", i)
 }
 
-func setAndCheckHintBuffer(t *testing.T, buf *hintBuffer, it *HintItem) {
-	if !buf.set(it, 0) {
+func setAndCheckHintBuffer(t *testing.T, buf *HintBuffer, it *HintItem) {
+	if !buf.Set(it, 0) {
 		t.Fatalf("%#v set return false", it)
 	}
-	r, _ := buf.get(it.Keyhash, it.Key)
+	r, _ := buf.Get(it.Keyhash, it.Key)
 	if r == nil || *r != *it {
 		t.Fatalf("%#v != %#v", r, it)
 	}
@@ -184,12 +184,12 @@ func TestHintBuffer(t *testing.T) {
 
 	}()
 
-	buf := newHintBuffer()
+	buf := NewHintBuffer()
 	items := genSortedHintItems(n + 1)
 	for i := 0; i < n; i++ {
 		setAndCheckHintBuffer(t, buf, items[i])
 	}
-	if buf.set(items[n], 0) {
+	if buf.Set(items[n], 0) {
 		t.Fatalf("set return true")
 	}
 	items[n-1].Ver = -1
