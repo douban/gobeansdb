@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,117 +16,57 @@ import (
 )
 
 var (
-	logger                 = loghub.ErrorLogger
-	bucketPattern []string = []string{"0", "%x", "%02x", "%03x"}
-	mergeChan     chan int
+	logger    = loghub.ErrorLogger
+	mergeChan chan int
 )
 
 type HStore struct {
-	buckets       []*Bucket
-	homeToBuckets []map[int]bool
-	gcMgr         *GCMgr
-	htree         *HTree
-	htreeLock     sync.Mutex
-}
-
-func checkBucketDir(fi os.FileInfo) (valid bool, bucketID int) {
-	if !fi.IsDir() {
-		return
-	}
-	name := fi.Name()
-	if Conf.TreeDepth == 0 {
-		if name == "0" {
-			return true, 0
-		} else {
-			return
-		}
-	} else if len(name) != Conf.TreeDepth {
-		return
-	}
-	s := "09af"
-	for i := 0; i < Conf.TreeDepth; i++ {
-		b := name[i]
-		if !((b >= s[0] && b <= s[1]) || (b >= s[2] && b <= s[3])) {
-			return
-		}
-	}
-	bucketID64, _ := strconv.ParseInt(name, 16, 32)
-	bucketID = int(bucketID64)
-	if bucketID >= Conf.NumBucket {
-		logger.Fatalf("Bug: wrong bucketid %s->%d", name, bucketID)
-		return
-	}
-	valid = true
-	return
+	buckets   []*Bucket
+	gcMgr     *GCMgr
+	htree     *HTree
+	htreeLock sync.Mutex
 }
 
 // TODO: allow rescan
 func (store *HStore) scanBuckets() (err error) {
-
-	for homeid, home := range Conf.Homes {
-		homefile, err := os.Open(home)
+	for id := 0; id < Conf.NumBucket; id++ {
+		path := GetBucketPath(id)
+		fi, err := os.Stat(path)
 		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			logger.Infof("%s", err.Error())
 			return err
 		}
-		fileinfos, err := homefile.Readdir(-1)
-		if err != nil {
+		if !fi.IsDir() {
+			err = fmt.Errorf("%s is not dir", path)
+			logger.Errorf("%s", err.Error())
 			return err
 		}
 
-		homefile.Close()
-		for _, fi := range fileinfos {
-			fullpath := filepath.Join(home, fi.Name())
-			if fi.Mode()&os.ModeSymlink != 0 {
-				fi, err = os.Stat(fullpath)
-				if err != nil {
-					return err
+		datas, err := filepath.Glob(filepath.Join(path, "*.data"))
+		if err != nil {
+			logger.Errorf("%s", err.Error())
+			return err
+		}
+		if len(datas) == 0 {
+			if Conf.NumBucket > 1 {
+				logger.Warnf("remove empty bucket dir %s", path)
+				if err = os.RemoveAll(path); err != nil {
+					logger.Errorf("fail to delete empty bucket %s", path)
 				}
 			}
-			valid, bucketID := checkBucketDir(fi)
-
-			datas, err := filepath.Glob(filepath.Join(fullpath, "*.data"))
-			if err != nil {
-				logger.Errorf("%s", err.Error())
-				return err
-			}
-			empty := (len(datas) == 0)
-			if valid {
-				if empty {
-					logger.Warnf("remove empty bucket dir %s", fullpath)
-					if err = os.RemoveAll(fullpath); err != nil {
-						logger.Errorf("fail to delete empty bucket %s", fullpath)
-					}
-				} else {
-					if store.buckets[bucketID].State > BUCKET_STAT_EMPTY {
-						return fmt.Errorf("found dup bucket %d", bucketID)
-					}
-					logger.Infof("found bucket %x in %s", bucketID, Conf.Homes[homeid])
-					store.buckets[bucketID].State = BUCKET_STAT_NOT_EMPTY
-					store.buckets[bucketID].HomeID = homeid
-					store.homeToBuckets[homeid][bucketID] = true
-				}
-			} else {
-				logger.Warnf("found unknown file %#v in %s", fi.Name(), home)
-			}
+		} else {
+			logger.Infof("found bucket %x", id)
+			store.buckets[id].State = BUCKET_STAT_NOT_EMPTY
 		}
 	}
 	return nil
 }
 
 func (store *HStore) allocBucket(bucketID int) (err error) {
-	homeid := 0
-	min := Conf.NumBucket
-	for i := 0; i < len(Conf.Homes); i++ {
-		l := len(store.homeToBuckets[i])
-		if l < min {
-			homeid = i
-			min = l
-		}
-	}
-	store.buckets[bucketID].HomeID = homeid
-	store.homeToBuckets[homeid][bucketID] = true
-	dirpath := store.getBucketPath(homeid, bucketID)
-
+	dirpath := GetBucketPath(bucketID)
 	if _, err = os.Stat(dirpath); err != nil {
 		err = os.Mkdir(dirpath, 0755)
 	}
@@ -135,21 +74,11 @@ func (store *HStore) allocBucket(bucketID int) (err error) {
 	return
 }
 
-func (store *HStore) getBucketPath(homeID, bucketID int) string {
-	dirname := fmt.Sprintf(bucketPattern[len(Conf.Homes)], bucketID)
-	return filepath.Join(Conf.Homes[homeID], dirname)
-}
-
-func initHomes() {
-	for _, s := range Conf.Homes {
-		if err := os.MkdirAll(s, os.ModePerm); err != nil {
-			logger.Fatalf("fail to init home %s", s)
-		}
-	}
-}
-
 func NewHStore() (store *HStore, err error) {
-	initHomes()
+	home := Conf.Home
+	if err := os.MkdirAll(home, os.ModePerm); err != nil {
+		logger.Fatalf("fail to init home %s", home)
+	}
 	mergeChan = nil
 	cmem.DBRL.ResetAll()
 	st := time.Now()
@@ -161,12 +90,6 @@ func NewHStore() (store *HStore, err error) {
 		store.buckets[i].ID = i
 
 	}
-	nhome := len(Conf.Homes)
-	store.homeToBuckets = make([]map[int]bool, nhome)
-	for i := 0; i < nhome; i++ {
-		store.homeToBuckets[i] = make(map[int]bool)
-	}
-
 	err = store.scanBuckets()
 	if err != nil {
 		return
@@ -195,7 +118,7 @@ func NewHStore() (store *HStore, err error) {
 	for i := 0; i < Conf.NumBucket; i++ {
 		bkt := store.buckets[i]
 		if Conf.BucketsStat[i] > 0 {
-			err = bkt.open(i, store.getBucketPath(bkt.HomeID, i))
+			err = bkt.open(i, GetBucketPath(i))
 			if err != nil {
 				return
 			}
@@ -482,7 +405,7 @@ func (store *HStore) ChangeRoute(newConf config.DBRouteConfig) (loaded, unloaded
 					return
 				}
 
-				err = bkt.open(i, store.getBucketPath(bkt.HomeID, i))
+				err = bkt.open(i, GetBucketPath(i))
 				if err != nil {
 					return
 				}

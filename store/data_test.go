@@ -20,7 +20,7 @@ func randomValue(size int) []byte {
 }
 
 func checkFileSize(t *testing.T, chunkID int, size uint32) {
-	path := genDataPath(Conf.Homes[0], chunkID)
+	path := genDataPath(Conf.Home, chunkID)
 	stat, err := os.Stat(path)
 	if size == 0 {
 		if err == nil {
@@ -90,13 +90,13 @@ func TestDataCompatibility(t *testing.T) {
 
 func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint32) {
 	Conf.InitDefault()
-	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq), 1)
+	setupTest(fmt.Sprintf("TestDataSameKeyValue_%d", seq))
 	defer clearTest()
 
 	Conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
 	Conf.Init()
 
-	ds := NewdataStore(0, Conf.Homes[0])
+	ds := NewdataStore(0, Conf.Home)
 
 	for i := 0; i < recordPerFile+1; i++ {
 		p := &Payload{}
@@ -128,13 +128,13 @@ func breakdata(f *os.File, start, offset int) {
 
 func TestDataBroken(t *testing.T) {
 	Conf.InitDefault()
-	setupTest("TestDataBroken", 1)
+	setupTest("TestDataBroken")
 	defer clearTest()
 
 	//Conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(recordPerFile) * recsize))
 	Conf.Init()
 
-	ds := NewdataStore(0, Conf.Homes[0])
+	ds := NewdataStore(0, Conf.Home)
 
 	key := []byte("key")
 	for i := 0; i < 7; i++ {
@@ -152,7 +152,7 @@ func TestDataBroken(t *testing.T) {
 	}
 	ds.flush(-1, true)
 
-	path := genDataPath(Conf.Homes[0], 0)
+	path := genDataPath(Conf.Home, 0)
 	fd, err := os.OpenFile(path, os.O_WRONLY, 0664)
 	if err != nil {
 		t.Fatalf(err.Error())

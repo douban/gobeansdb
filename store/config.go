@@ -1,6 +1,9 @@
 package store
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.intra.douban.com/coresys/gobeansdb/config"
 	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
@@ -31,7 +34,7 @@ type HtreeDerivedConfig struct {
 }
 
 type DBLocalConfig struct {
-	Homes []string `yaml:",omitempty"`
+	Home string `yaml:",omitempty"`
 }
 
 type DataConfig struct {
@@ -86,4 +89,19 @@ func (c *HStoreConfig) InitTree() error {
 	c.TreeKeyHashMask = (uint64(0xffffffffffffffff) << shift) >> shift
 
 	return nil
+}
+
+func GetBucketDir(numBucket, bucketID int) string {
+	if numBucket == 1 {
+		return ""
+	} else if numBucket == 16 {
+		return fmt.Sprintf("%x", bucketID)
+	} else if numBucket == 256 {
+		return fmt.Sprintf("%x/%x", bucketID/16, bucketID%16)
+	}
+	panic(fmt.Sprintf("wrong numBucket: %d", numBucket))
+}
+
+func GetBucketPath(bucketID int) string {
+	return filepath.Join(Conf.Home, GetBucketDir(Conf.NumBucket, bucketID))
 }

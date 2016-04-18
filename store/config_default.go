@@ -44,7 +44,7 @@ var (
 	}
 
 	DefaultDBLocalConfig = DBLocalConfig{
-		Homes: []string{"./testdb"},
+		Home: "./testdb",
 	}
 )
 
