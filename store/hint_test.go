@@ -40,7 +40,7 @@ func readHintAndCheck(t *testing.T, path string, items []*HintItem) {
 }
 
 func TestHintRW(t *testing.T) {
-	setupTest("TestHintRW", 1)
+	setupTest("TestHintRW")
 	defer clearTest()
 	path := fmt.Sprintf("%s/%s", dir, "000.hint.s")
 	utils.Remove(path)
@@ -107,7 +107,8 @@ func genSortedHintItems(n int) []*HintItem {
 }
 
 func testMerge(t *testing.T, nsrc int) {
-	setupTest(fmt.Sprintf("%s_%d", "TestHintMerge", nsrc), 1)
+	home := fmt.Sprintf("%s_%d", "TestHintMerge", nsrc)
+	setupTest(home)
 	defer clearTest()
 
 	n := 10
@@ -274,7 +275,7 @@ func fillChunk(t *testing.T, dir string, hm *hintMgr, items []*HintItem, chunkID
 }
 
 func TestHintMgr(t *testing.T) {
-	setupTest("testHintMgr", 0)
+	setupTest("testHintMgr")
 	defer clearTest()
 	runtime.GOMAXPROCS(4)
 

@@ -32,8 +32,7 @@ const (
 
 type BucketStat struct {
 	// pre open init
-	State  int
-	HomeID int
+	State int
 
 	// init in open
 	ID   int

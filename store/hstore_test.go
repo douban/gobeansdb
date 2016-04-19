@@ -51,19 +51,14 @@ func init() {
 	doProf = *tDoProf
 }
 
-func setupTest(casename string, numhome int) {
+func setupTest(casename string) {
 	Conf.InitDefault()
 	// dir = time.Now().Format("20060102T030405")
 	dir = fmt.Sprintf("%s/%s", *tBase, casename)
 	logger.Infof("test in %s", dir)
 	os.RemoveAll(dir)
 	os.Mkdir(dir, 0777)
-	Conf.Homes = nil
-	for i := 0; i < numhome; i++ {
-		home := fmt.Sprintf("%s/home_%d", dir, i)
-		os.Mkdir(home, 0777)
-		Conf.Homes = append(Conf.Homes, home)
-	}
+	Conf.Home = dir
 }
 func clearTest() {
 	if *tNotClear {
@@ -171,7 +166,7 @@ func testHStore(t *testing.T, op, numbucket int, hashMaker KeyHasherMaker) {
 	Conf.InitDefault()
 	funcname := GetFunctionName(hashMaker)
 	home := fmt.Sprintf("testHStore_%d_%d_%v", op, numbucket, funcname)
-	setupTest(home, 1)
+	setupTest(home)
 	defer clearTest()
 
 	bkt := numbucket - 1
@@ -181,7 +176,8 @@ func testHStore(t *testing.T, op, numbucket int, hashMaker KeyHasherMaker) {
 	Conf.TreeHeight = 3
 	Conf.Init()
 
-	bucketDir := filepath.Join(Conf.Homes[0], "0") // will be removed
+	bucketDir := GetBucketPath(bkt)
+	logger.Infof("xxx %s", bucketDir)
 	os.Mkdir(bucketDir, 0777)
 
 	gen := newKVGen(numbucket)
@@ -759,7 +755,7 @@ type testGCFunc func(t *testing.T, hstore *HStore, bucket, numRecPerFile int)
 // numRecPerFile should be even
 func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 
-	setupTest(fmt.Sprintf("testGC_%s", name), 1)
+	setupTest(fmt.Sprintf("testGC_%s", name))
 	defer clearTest()
 
 	numbucket := 16
@@ -777,7 +773,7 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 
 	Conf.Init()
 
-	bucketDir := filepath.Join(Conf.Homes[0], "f") // will be removed
+	bucketDir := filepath.Join(Conf.Home, "f") // will be removed
 	os.Mkdir(bucketDir, 0777)
 
 	store, err := NewHStore()
@@ -964,7 +960,7 @@ func TestHStoreCollision(t *testing.T) {
 
 func TestChunk256(t *testing.T) {
 	Conf.InitDefault()
-	setupTest("TestChunk256", 1)
+	setupTest("TestChunk256")
 	defer clearTest()
 
 	numbucket := 16
@@ -975,7 +971,7 @@ func TestChunk256(t *testing.T) {
 	Conf.TreeHeight = 3
 	Conf.Init()
 
-	bucketDir := filepath.Join(Conf.Homes[0], "0") // will be removed
+	bucketDir := filepath.Join(Conf.Home, "0") // will be removed
 	os.Mkdir(bucketDir, 0777)
 
 	gen := newKVGen(numbucket)
