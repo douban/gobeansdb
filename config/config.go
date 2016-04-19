@@ -51,7 +51,7 @@ func BucketIDHex(id, numBucket int) string {
 	if numBucket == 16 {
 		return fmt.Sprintf("%x", id)
 	} else if numBucket == 256 {
-		return fmt.Sprintf("%2x", id)
+		return fmt.Sprintf("%02x", id)
 	}
 	return "0"
 }
