@@ -11,7 +11,7 @@ import (
 )
 
 // `Version` can be changed in gobeansproxy.
-var Version = "2.1.0.11"
+var Version = "2.1.0.12"
 
 const AccessLogVersion = "V1"
 
@@ -51,7 +51,7 @@ func BucketIDHex(id, numBucket int) string {
 	if numBucket == 16 {
 		return fmt.Sprintf("%x", id)
 	} else if numBucket == 256 {
-		return fmt.Sprintf("%2x", id)
+		return fmt.Sprintf("%02x", id)
 	}
 	return "0"
 }

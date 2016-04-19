@@ -46,17 +46,14 @@ type DBRouteConfig struct {
 func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig) {
 	r = DBRouteConfig{NumBucket: rt.NumBucket}
 	r.BucketsStat = make([]int, rt.NumBucket)
-	r.BucketsHex = make([]string, rt.NumBucket)
-	for i := 0; i < rt.NumBucket; i++ {
-		r.BucketsHex[i] = BucketIDHex(i, rt.NumBucket)
-	}
-
+	r.BucketsHex = make([]string, 0)
 	buckets, found := rt.Servers[addr]
 	if !found {
 		return
 	}
 	for b, _ := range buckets {
 		r.BucketsStat[b] = 1
+		r.BucketsHex = append(r.BucketsHex, BucketIDHex(b, rt.NumBucket))
 	}
 	return
 }
@@ -85,6 +82,7 @@ func (rt *RouteTable) LoadFromYaml(data []byte) error {
 		for bucket := 0; bucket < rt.NumBucket; bucket++ {
 			rt.Servers[addr][bucket] = false
 			rt.Buckets[bucket][addr] = false
+
 		}
 	}
 
