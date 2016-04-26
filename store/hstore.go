@@ -68,7 +68,7 @@ func (store *HStore) scanBuckets() (err error) {
 func (store *HStore) allocBucket(bucketID int) (err error) {
 	dirpath := GetBucketPath(bucketID)
 	if _, err = os.Stat(dirpath); err != nil {
-		err = os.Mkdir(dirpath, 0755)
+		err = os.MkdirAll(dirpath, 0755)
 	}
 	logger.Infof("allocBucket %s", dirpath)
 	return
