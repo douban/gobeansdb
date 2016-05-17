@@ -16,6 +16,11 @@ func Remove(path string) error {
 	return os.Remove(path)
 }
 
+func Rename(path, newpath string) error {
+	loghub.ErrorLogger.Logf(loghub.INFO, "rename path: %s to %s", path, newpath)
+	return os.Rename(path, newpath)
+}
+
 type Dir struct {
 	Files map[string]int64
 }

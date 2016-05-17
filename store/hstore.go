@@ -88,7 +88,6 @@ func NewHStore() (store *HStore, err error) {
 	for i := 0; i < Conf.NumBucket; i++ {
 		store.buckets[i] = &Bucket{}
 		store.buckets[i].ID = i
-
 	}
 	err = store.scanBuckets()
 	if err != nil {
