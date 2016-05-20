@@ -231,9 +231,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 	}()
 
 	if bkt.checkForDump(Conf.TreeDump) {
-		bkt.backupHtree()
 		bkt.dumpHtree()
-		bkt.removeBack()
 	}
 
 	bkt.loadGCHistroy()
@@ -285,21 +283,6 @@ func (bkt *Bucket) close() {
 	bkt.hints.dumpCollisions()
 	bkt.hints.close()
 	bkt.dumpHtree()
-}
-
-func (bkt *Bucket) backupHtree() {
-	paths, _ := bkt.getAllIndex(HTREE_SUFFIX)
-	for _, p := range paths {
-		utils.Rename(p, p+".bak")
-	}
-	bkt.TreeID = HintID{0, 0}
-}
-
-func (bkt *Bucket) removeBack() {
-	paths, _ := bkt.getAllIndex(HTREE_SUFFIX)
-	for _, p := range paths {
-		utils.Remove(p + ".bak")
-	}
 }
 
 func (bkt *Bucket) dumpHtree() {
