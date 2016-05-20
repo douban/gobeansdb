@@ -174,6 +174,7 @@ func testHStore(t *testing.T, op, numbucket int, hashMaker KeyHasherMaker) {
 	Conf.BucketsStat = make([]int, numbucket)
 	Conf.BucketsStat[bkt] = 1
 	Conf.TreeHeight = 3
+	Conf.TreeDump = 3
 	Conf.Init()
 
 	bucketDir := GetBucketPath(bkt)
@@ -618,7 +619,6 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 		t.Fatalf("%v", err)
 	}
 	bkt = store.buckets[bucketID]
-	dir.Delete("004.000.idx.hash")
 	checkFiles(t, bkt.Home, dir)
 	readfunc()
 }
@@ -702,7 +702,7 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	dir.Set("002.000.idx.s", -1)
 	dir.Set("nextgc.txt", 1)
 	dir.Set("collision.yaml", -1)
-	checkFiles(t, bkt.Home, dir)
+	dir.Set("002.000.idx.hash", -1)
 
 	treeID := HintID{2, 0}
 	if bkt.hints.maxDumpedHintID != treeID {
@@ -717,7 +717,6 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 		t.Fatalf("%v", err)
 	}
 	bkt = store.buckets[bucketID]
-	dir.Delete("002.000.idx.hash")
 	checkFiles(t, bkt.Home, dir)
 	readfunc()
 }
@@ -944,6 +943,7 @@ func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile in
 	dir.Set("002.000.idx.s", -1)
 	dir.Set("nextgc.txt", 1)
 	dir.Set("collision.yaml", -1)
+	dir.Set("002.000.idx.hash", -1)
 
 	checkFiles(t, bkt.Home, dir)
 }

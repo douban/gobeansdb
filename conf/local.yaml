@@ -17,5 +17,6 @@ hstore:
     - ./testdb
   htree:
     tree_height: 3
+    tree_dump : 1
   hint:
     hint_no_merged: false

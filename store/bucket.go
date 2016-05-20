@@ -230,6 +230,10 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 		}
 	}()
 
+	if bkt.checkForDump(Conf.TreeDump) {
+		bkt.dumpHtree()
+	}
+
 	bkt.loadGCHistroy()
 	logger.Infof("bucket %x opened, max rss = %d, use time %s",
 		bucketID, utils.GetMaxRSS(), time.Since(st))
@@ -241,6 +245,30 @@ func abs(n int32) int32 {
 		return -n
 	}
 	return n
+}
+
+// check hash file, return true if the htree need to dump
+func (bkt *Bucket) checkForDump(dumpthreshold int) bool {
+	maxdata, err := bkt.datas.ListFiles()
+	if err != nil {
+		return false
+	}
+	logger.Infof("maxdata %d", maxdata)
+	if maxdata < 0 {
+		return false
+	}
+	htrees, ids := bkt.getAllIndex(HTREE_SUFFIX)
+	for i := len(htrees) - 1; i >= 0; i-- {
+		id := ids[i]
+		if maxdata > id.Chunk+dumpthreshold {
+			return false
+		}
+	}
+
+	if len(ids) > 0 {
+		return false
+	}
+	return true
 }
 
 // called by hstore, data already flushed

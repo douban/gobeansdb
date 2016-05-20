@@ -50,6 +50,7 @@ type DataConfig struct {
 
 type HTreeConfig struct {
 	TreeHeight int `yaml:"tree_height,omitempty"`
+	TreeDump   int `yaml:"tree_dump,omitempty"`
 
 	HtreeDerivedConfig `yaml:"-"`
 }

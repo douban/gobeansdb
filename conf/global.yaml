@@ -32,6 +32,7 @@ hstore:
     hint_merge_interval: 5
   htree:
     tree_height: 7
+    tree_dump : 3
   local:
     homes:
     - /var/lib/beansdb

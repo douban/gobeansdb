@@ -32,6 +32,7 @@ var (
 
 	DefaultHTreeConfig HTreeConfig = HTreeConfig{
 		TreeHeight: 3,
+		TreeDump:   3,
 	}
 
 	DefaultDataConfig = DataConfig{
