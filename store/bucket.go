@@ -188,9 +188,9 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 				if err != nil {
 					bkt.TreeID = HintID{0, -1}
 					htree = newHTree(Conf.TreeDepth, bucketID, Conf.TreeHeight)
-					continue
+				} else {
+					bkt.TreeID = id
 				}
-				bkt.TreeID = id
 			} else {
 				logger.Errorf("found old htree: htree=%s, currenct_htree_id=%s", treepath, bkt.TreeID)
 				utils.Remove(treepath)
@@ -216,7 +216,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 			continue
 		}
 		for j, sp := range splits[:numhintfile] {
-			bkt.updateHtreeFromHint(i, sp.file.path)
+			_, e := bkt.updateHtreeFromHint(i, sp.file.path)
 			if e != nil {
 				err = e
 				return
