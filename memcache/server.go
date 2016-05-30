@@ -16,6 +16,7 @@ import (
 	"github.intra.douban.com/coresys/gobeansdb/config"
 	"github.intra.douban.com/coresys/gobeansdb/loghub"
 	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"sync/atomic"
 )
 
 var (
@@ -126,7 +127,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 		resp, err = req.Process(storageClient, stats)
 		dt := time.Since(t)
 		if dt > SlowCmdTime {
-			stats.UpdateStat("slow_cmd", 1)
+			atomic.AddInt64(&(stats.slow_cmd), 1)
 		}
 		if resp == nil {
 			// quit\r\n command

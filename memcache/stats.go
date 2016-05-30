@@ -16,22 +16,13 @@ type Stats struct {
 	threads                             int64
 	curr_connections, total_connections int64
 	bytes_read, bytes_written           int64
-	stat                                map[string]int64
+	slow_cmd                            int64 // slow_cmd is not a stats in memecached protocol
 }
 
 func NewStats() *Stats {
 	s := new(Stats)
-	s.stat = make(map[string]int64)
 	s.start = time.Now()
 	return s
-}
-
-func (s *Stats) UpdateStat(key string, value int64) {
-	oldv, ok := s.stat[key]
-	if !ok {
-		oldv = 0
-	}
-	s.stat[key] = oldv + value
 }
 
 func mem_in_go(include_zero bool) runtime.MemProfileRecord {
@@ -72,9 +63,7 @@ func (s *Stats) Stats() map[string]int64 {
 	st["total_connections"] = s.total_connections
 	st["bytes_read"] = s.bytes_read
 	st["bytes_written"] = s.bytes_written
-	for k, v := range s.stat {
-		st[k] = v
-	}
+	st["slow_cmd"] = s.slow_cmd
 
 	t := time.Now()
 	st["time"] = int64(t.Unix())
