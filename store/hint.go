@@ -696,11 +696,10 @@ func (hm *hintMgr) loadHintsByChunk(chunkID int) (datasize uint32) {
 	}
 	return
 }
-func (h *hintMgr) ClearChunks(min, max int) {
-	for i := min; i <= max; i++ {
-		h.chunks[i] = newHintChunk(i)
-		h.RemoveHintfilesByChunk(i)
-	}
+
+func (h *hintMgr) ClearChunk(chunkID int) {
+	h.chunks[chunkID] = newHintChunk(chunkID)
+	h.RemoveHintfilesByChunk(chunkID)
 }
 
 // e.g. get A
