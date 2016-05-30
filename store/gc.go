@@ -236,7 +236,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 		var fileState GCFileState
 		// reader must have a larger buffer
 		logger.Infof("begin GC bucket %d, file %d -> %d", bkt.ID, gc.Src, gc.Dst)
-		bkt.hints.ClearChunks(gc.Src, gc.Src)
+		bkt.hints.ClearChunk(gc.Src)
 		if r, err = bkt.datas.GetStreamReader(gc.Src); err != nil {
 			gc.Err = err
 			logger.Errorf("gc failed: %s", err.Error())
