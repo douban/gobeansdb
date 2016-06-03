@@ -113,15 +113,31 @@ func NewHStore() (store *HStore, err error) {
 		}
 	}
 
-	n := 0
+	var n int32
+	var wg = sync.WaitGroup{}
+	wg.Add(Conf.NumBucket)
+	errs := make(chan error, Conf.NumBucket)
 	for i := 0; i < Conf.NumBucket; i++ {
-		bkt := store.buckets[i]
-		if Conf.BucketsStat[i] > 0 {
-			err = bkt.open(i, GetBucketPath(i))
-			if err != nil {
-				return
+		go func(id int) {
+			defer wg.Done()
+			bkt := store.buckets[id]
+			if Conf.BucketsStat[id] > 0 {
+				err = bkt.open(id, GetBucketPath(id))
+				if err != nil {
+					logger.Errorf("Error in bkt open %s", err.Error())
+					errs <- err
+				} else {
+					atomic.AddInt32(&n, 1)
+				}
 			}
-			n += 1
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs {
+		if e != nil {
+			err = e
+			return
 		}
 	}
 	if Conf.TreeDepth > 0 {
