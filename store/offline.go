@@ -18,11 +18,8 @@ func DataToHint(path string) (err error) {
 	}
 	if finfo.IsDir() {
 		return DataToHintDir(path, 0, MAX_NUM_CHUNK-1)
-	} else {
-
-		return DataToHintFile(path)
 	}
-	return
+	return DataToHintFile(path)
 }
 
 func DataToHintDir(path string, start, end int) (err error) {
@@ -43,7 +40,7 @@ func DataToHintDir(path string, start, end int) (err error) {
 		logger.Infof("building %s", data)
 		err = bkt.checkHintWithData(i)
 		if err != nil {
-			logger.Errorf("error build %s", i)
+			logger.Errorf("error build %d", i)
 		}
 	}
 	return

@@ -31,9 +31,8 @@ func main() {
 	if *version {
 		fmt.Println("gobeansdb version", config.Version)
 		return
-	} else {
-		log.Printf("version %s", config.Version)
 	}
+	log.Printf("version %s", config.Version)
 
 	if *confdir != "" {
 		log.Printf("use confdir %s", *confdir)
@@ -49,7 +48,9 @@ func main() {
 		} else {
 			conf.HintConfig.SplitCap = (3 << 20) // cost maxrss about 900M
 		}
-		store.DataToHint(*buildhint)
+		if err := store.DataToHint(*buildhint); err != nil {
+			log.Printf("%s", err.Error())
+		}
 		return
 	}
 
@@ -77,7 +78,7 @@ func main() {
 	server = mc.NewServer(storage)
 	addr := fmt.Sprintf("%s:%d", conf.Listen, conf.Port)
 	if err := server.Listen(addr); err != nil {
-		logger.Fatalf("listen failed", err.Error())
+		logger.Fatalf("listen failed %s", err.Error())
 	}
 	logger.Infof("mc server listen at %s", addr)
 	log.Println("ready")
