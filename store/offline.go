@@ -53,7 +53,5 @@ func DataToHintFile(path string) (err error) {
 	if err != nil {
 		return
 	}
-	DataToHintDir(dir, chunkID, chunkID)
-
-	return
+	return DataToHintDir(dir, chunkID, chunkID)
 }

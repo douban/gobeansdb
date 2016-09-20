@@ -283,7 +283,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 				}
 			} else {
 				// deleted recs is removed from htree during start up
-				fileState.NumNotInHtree += 1
+				fileState.NumNotInHtree++
 			}
 
 			wrec := wrapRecord(rec)

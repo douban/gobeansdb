@@ -87,8 +87,8 @@ func (wrec *WriteRecord) encodeHeader() {
 	return
 }
 
-func (rec *WriteRecord) decodeHeader() (err error) {
-	return decodeHeader(rec, rec.header[:])
+func (wrec *WriteRecord) decodeHeader() (err error) {
+	return decodeHeader(wrec, wrec.header[:])
 }
 
 func decodeHeader(wrec *WriteRecord, h []byte) (err error) {

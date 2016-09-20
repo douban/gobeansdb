@@ -63,12 +63,12 @@ func (table *CollisionTable) dump(path string) {
 	content, err := yaml.Marshal(table)
 	table.Unlock()
 	if err != nil {
-		logger.Errorf("unmarshal yaml faild %s %s", path, err.Error())
+		logger.Errorf("unmarshal yaml faild %s: %s", path, err.Error())
 		return
 	}
 	err = ioutil.WriteFile(path, content, 0644)
 	if err != nil {
-		logger.Errorf("write yaml failed %s ", path, err.Error())
+		logger.Errorf("write yaml failed %s: %s", path, err.Error())
 	}
 }
 
@@ -76,7 +76,7 @@ func (table *CollisionTable) load(path string) {
 	content, err := ioutil.ReadFile(path)
 	if err != nil {
 		if !strings.Contains(err.Error(), "no such file or directory") {
-			logger.Errorf("read yaml failed %s ", path, err.Error())
+			logger.Errorf("read yaml failed %s: %s", path, err.Error())
 		}
 		return
 	}
