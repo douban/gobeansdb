@@ -16,11 +16,6 @@ import (
 
 const VERSION = "0.1.0"
 
-var (
-	MaxKeyLength = 200
-	MaxValueSize = 1024 * 1024 * 50
-)
-
 // Client command parsing Errors
 
 var (
@@ -34,6 +29,9 @@ var (
 
 	// ErrValueTooLarge means that the value of a store command (e.g. set) is too large
 	ErrValueTooLarge = errors.New("value too large")
+
+	// ErrKeyLength means that the length of key is invalid
+	ErrKeyLength = errors.New("invalid key")
 
 	// ErrBadDataChunk means that data chunk of a value is not match its size flag.
 	ErrBadDataChunk = errors.New("bad data chunk")
@@ -189,7 +187,7 @@ func (req *Request) Read(b *bufio.Reader) error {
 		if e != nil {
 			return ErrInvalidCmd
 		}
-		if length > MaxValueSize {
+		if !config.IsValidValueSize(uint32(length)) {
 			return ErrValueTooLarge
 		}
 		if length > int(config.MCConf.BodyBig) {
@@ -323,10 +321,9 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			if e2 != nil {
 				return errors.New("invalid response")
 			}
-			if length > MaxValueSize {
-				return errors.New("body too large")
+			if !config.IsValidValueSize(uint32(length)) {
+				return ErrValueTooLarge
 			}
-
 			item := &Item{Flag: flag}
 			if len(parts) == 5 {
 				cas, e := strconv.Atoi(parts[4])
@@ -455,9 +452,9 @@ func (req *Request) Process(store StorageClient, stat *Stats) (resp *Response, e
 
 	case "get", "gets":
 		for _, k := range req.Keys {
-			if len(k) > MaxKeyLength {
+			if !config.IsValidKeySize(uint32(len(k))) {
 				resp.Status = "CLIENT_ERROR"
-				resp.Msg = "key too long"
+				resp.Msg = ErrKeyLength.Error()
 				return
 			}
 		}

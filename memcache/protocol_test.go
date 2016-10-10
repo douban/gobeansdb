@@ -66,7 +66,11 @@ var reqTests = []reqTest{
 	},
 	reqTest{
 		"get  " + strings.Repeat("a", 300) + " \r\n",
-		"CLIENT_ERROR key too long\r\n",
+		"CLIENT_ERROR invalid key\r\n",
+	},
+	reqTest{
+		"set hello 0 0 92160\r\n" + strings.Repeat("a", 1024*90) + "\r\n",
+		"CLIENT_ERROR value too large\r\n",
 	},
 	/* no need to keep origin order
 	reqTest{
@@ -143,6 +147,7 @@ func TestRequest(t *testing.T) {
 	InitTokens()
 	store := NewMapStore()
 	stats := NewStats()
+	config.MCConf.BodyMax = 1000
 
 	for i, test := range reqTests {
 		buf := bytes.NewBufferString(test.cmd)
