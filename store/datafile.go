@@ -126,8 +126,12 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 		return
 	}
 	wrec.decodeHeader()
-	if !config.IsValidKVSzie(wrec.ksz, wrec.vsz) {
-		err = fmt.Errorf("bad kv size %s:%d, wrec %v", path, offset, wrec)
+	if !config.IsValidKeySize(wrec.ksz) {
+		err = fmt.Errorf("bad key size %s:%d, wrec %v", path, offset, wrec)
+		logger.Errorf(err.Error())
+		return
+	} else if !config.IsValidValueSize(wrec.vsz) {
+		err = fmt.Errorf("bad value size %s:%d, wrec %v", path, offset, wrec)
 		logger.Errorf(err.Error())
 		return
 	}

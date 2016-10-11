@@ -10,38 +10,39 @@ import (
 )
 
 type reqTest struct {
-	cmd    string
-	anwser string
+	cmd     string
+	answer  string
+	maxSize int64
 }
 
 var reqTests = []reqTest{
 	reqTest{
-		"get  abc cdf \r\n",
-		"END\r\n",
+		cmd:    "get  abc cdf \r\n",
+		answer: "END\r\n",
 	},
 	reqTest{
-		"set abc 2 3 2 noreply\r\nok\r\n",
-		"",
+		cmd:    "set abc 2 3 2 noreply\r\nok\r\n",
+		answer: "",
 	},
 	reqTest{
-		"set abc a 3 2 noreply\r\nok\r\n",
-		"CLIENT_ERROR invalid cmd\r\n",
+		cmd:    "set abc a 3 2 noreply\r\nok\r\n",
+		answer: "CLIENT_ERROR invalid cmd\r\n",
 	},
 	reqTest{
-		"set cdf 0 0 2\r\nok\r\n",
-		"STORED\r\n",
+		cmd:    "set cdf 0 0 2\r\nok\r\n",
+		answer: "STORED\r\n",
 	},
 	reqTest{
-		"get cdf\r\n",
-		"VALUE cdf 0 2\r\nok\r\nEND\r\n",
+		cmd:    "get cdf\r\n",
+		answer: "VALUE cdf 0 2\r\nok\r\nEND\r\n",
 	},
 	reqTest{
-		"get  abc  \r\n",
-		"VALUE abc 2 2\r\nok\r\nEND\r\n",
+		cmd:    "get  abc  \r\n",
+		answer: "VALUE abc 2 2\r\nok\r\nEND\r\n",
 	},
 	reqTest{
-		"stats curr_items cmd_get cmd_set get_hits get_misses\r\n",
-		"STAT curr_items 2\r\n" +
+		cmd: "stats curr_items cmd_get cmd_set get_hits get_misses\r\n",
+		answer: "STAT curr_items 2\r\n" +
 			"STAT cmd_get 4\r\n" +
 			"STAT cmd_set 2\r\n" +
 			"STAT get_hits 2\r\n" +
@@ -49,24 +50,44 @@ var reqTests = []reqTest{
 			"END\r\n",
 	},
 	reqTest{
-		"set abc 3 3 3 2 noreply\r\nok\r\n",
-		"CLIENT_ERROR invalid cmd\r\n",
+		cmd:    "set abc 3 3 3 2 noreply\r\nok\r\n",
+		answer: "CLIENT_ERROR invalid cmd\r\n",
 	},
 	reqTest{
-		"set abc a 3 2 noreply\r\nok\r\n",
-		"CLIENT_ERROR invalid cmd\r\n",
+		cmd:    "set abc a 3 2 noreply\r\nok\r\n",
+		answer: "CLIENT_ERROR invalid cmd\r\n",
 	},
 	reqTest{
-		"set abc 3 3 10\r\nok\r\n",
-		"CLIENT_ERROR network error\r\n",
+		cmd:    "set abc 3 3 10\r\nok\r\n",
+		answer: "CLIENT_ERROR network error\r\n",
 	},
 	reqTest{
-		"get   \r\n",
-		"CLIENT_ERROR invalid cmd\r\n",
+		cmd:    "get   \r\n",
+		answer: "CLIENT_ERROR invalid cmd\r\n",
 	},
 	reqTest{
-		"get  " + strings.Repeat("a", 300) + " \r\n",
-		"CLIENT_ERROR key too long\r\n",
+		cmd:    "get  " + strings.Repeat("a", 300) + " \r\n",
+		answer: "CLIENT_ERROR key length error\r\n",
+	},
+	reqTest{
+		cmd:     "set hello 0 0 92160\r\n" + strings.Repeat("a", 1024*90) + "\r\n",
+		answer:  "CLIENT_ERROR value too large\r\n",
+		maxSize: 1000,
+	},
+	reqTest{
+		cmd:     "set hello 0 0 1000\r\n" + strings.Repeat("a", 1000) + "\r\n",
+		answer:  "STORED\r\n",
+		maxSize: 1000,
+	},
+	reqTest{
+		cmd:     "set hello 0 0 1000\r\n" + strings.Repeat("a", 1000) + "\r\n",
+		answer:  "CLIENT_ERROR value too large\r\n",
+		maxSize: 999,
+	},
+	reqTest{
+		cmd:     "set hello 0 0 1000\r\n" + strings.Repeat("a", 1000) + "\r\n",
+		answer:  "STORED\r\n",
+		maxSize: 1001,
 	},
 	/* no need to keep origin order
 	reqTest{
@@ -79,63 +100,63 @@ var reqTests = []reqTest{
 	//     "STORED\r\n",
 	// },
 	reqTest{
-		"delete abc\r\n",
-		"DELETED\r\n",
+		cmd:    "delete abc\r\n",
+		answer: "DELETED\r\n",
 	},
 	reqTest{
-		"delete abc noreply\r\n",
-		"",
+		cmd:    "delete abc noreply\r\n",
+		answer: "",
 	},
 	reqTest{
-		"append cdf 0 0 2\r\n 2\r\n",
-		"STORED\r\n",
+		cmd:    "append cdf 0 0 2\r\n 2\r\n",
+		answer: "STORED\r\n",
 	},
 	// reqTest{
 	//     "prepend cdf 0 0 2\r\n1 \r\n",
 	//     "STORED",
 	// },
 	reqTest{
-		"get cdf\r\n",
-		"VALUE cdf 0 4\r\nok 2\r\nEND\r\n",
+		cmd:    "get cdf\r\n",
+		answer: "VALUE cdf 0 4\r\nok 2\r\nEND\r\n",
 	},
 	reqTest{
-		"append ap 0 0 2\r\nap\r\n",
-		"NOT_STORED\r\n",
-	},
-
-	reqTest{
-		"set n 4 0 1\r\n5\r\n",
-		"STORED\r\n",
-	},
-	reqTest{
-		"incr n 3\r\n",
-		"8\r\n",
-	},
-	reqTest{
-		"incr nn 7\r\n",
-		"7\r\n",
+		cmd:    "append ap 0 0 2\r\nap\r\n",
+		answer: "NOT_STORED\r\n",
 	},
 
 	reqTest{
-		"flush_all\r\n",
-		"OK\r\n",
+		cmd:    "set n 4 0 1\r\n5\r\n",
+		answer: "STORED\r\n",
 	},
 	reqTest{
-		"verbosity 1\r\n",
-		"OK\r\n",
+		cmd:    "incr n 3\r\n",
+		answer: "8\r\n",
 	},
 	reqTest{
-		"version\r\n",
-		"VERSION " + config.Version + "\r\n",
+		cmd:    "incr nn 7\r\n",
+		answer: "7\r\n",
 	},
 
 	reqTest{
-		"quit\r\n",
-		"",
+		cmd:    "flush_all\r\n",
+		answer: "OK\r\n",
 	},
 	reqTest{
-		"error\r\n",
-		"CLIENT_ERROR non memcache command\r\n",
+		cmd:    "verbosity 1\r\n",
+		answer: "OK\r\n",
+	},
+	reqTest{
+		cmd:    "version\r\n",
+		answer: "VERSION " + config.Version + "\r\n",
+	},
+
+	reqTest{
+		cmd:    "quit\r\n",
+		answer: "",
+	},
+	reqTest{
+		cmd:    "error\r\n",
+		answer: "CLIENT_ERROR non memcache command\r\n",
 	},
 }
 
@@ -145,6 +166,9 @@ func TestRequest(t *testing.T) {
 	stats := NewStats()
 
 	for i, test := range reqTests {
+		if test.maxSize > 0 {
+			config.MCConf.BodyMax = test.maxSize
+		}
 		buf := bytes.NewBufferString(test.cmd)
 		req := new(Request)
 		e := req.Read(bufio.NewReader(buf))
@@ -161,10 +185,10 @@ func TestRequest(t *testing.T) {
 			resp.Write(wr)
 		}
 		ans := wr.String()
-		if test.anwser != ans {
+		if test.answer != ans {
 			fmt.Print(req, resp)
 			t.Errorf("test %d(%#v): expect %#v[%d], bug got %#v[%d]\n", i, test.cmd,
-				test.anwser, len(test.anwser), ans, len(ans))
+				test.answer, len(test.answer), ans, len(ans))
 		}
 		req.Clear()
 	}
