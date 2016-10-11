@@ -31,7 +31,7 @@ var (
 	ErrValueTooLarge = errors.New("value too large")
 
 	// ErrKeyLength means that the length of key is invalid
-	ErrKeyLength = errors.New("invalid key")
+	ErrKeyLength = errors.New("key length error")
 
 	// ErrBadDataChunk means that data chunk of a value is not match its size flag.
 	ErrBadDataChunk = errors.New("bad data chunk")
