@@ -44,8 +44,9 @@ type DataConfig struct {
 	FlushInterval int   `yaml:"flush_interval,omitempty"` // the flush go routine run at this interval
 	NoGCDays      int   `yaml:"no_gc_days,omitempty"`     // not data files whose mtime in recent NoGCDays days
 
-	FlushWakeStr   string `yaml:"flush_wake_str"` //
-	DataFileMaxStr string `yaml:"datafile_max_str,omitempty"`
+	FlushWakeStr   string          `yaml:"flush_wake_str"` //
+	DataFileMaxStr string          `yaml:"datafile_max_str,omitempty"`
+	NotCompress    map[string]bool `yaml:"not_compress,omitempty"` // kind do not compress
 }
 
 type HTreeConfig struct {

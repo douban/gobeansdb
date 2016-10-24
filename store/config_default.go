@@ -42,6 +42,10 @@ var (
 		FlushWakeStr:   "0",
 
 		NoGCDays: 0,
+		NotCompress: map[string]bool{
+			"audio/wave": true,
+			"audio/mpeg": true,
+		},
 	}
 
 	DefaultDBLocalConfig = DBLocalConfig{

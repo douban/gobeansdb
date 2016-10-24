@@ -25,6 +25,11 @@ hstore:
     datafile_max_str: 4000M
     check_vhash: true
     no_gc_days: 7
+    not_compress:
+      "audio/mpeg": true
+      "audio/wave": true
+      "audio/ogg": true
+      "audio/midi": true
   hint:
     hint_no_merged: true
     hint_split_cap_str: 1M
