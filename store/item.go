@@ -7,6 +7,7 @@ import (
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
 	"github.intra.douban.com/coresys/gobeansdb/quicklz"
 	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"net/http"
 )
 
 const (
@@ -16,6 +17,7 @@ const (
 	COMPRESS_RATIO_LIMIT = 0.7
 	TRY_COMPRESS_SIZE    = 1024 * 10
 	PADDING              = 256
+	HEADER_SIZE          = 512
 )
 
 type Meta struct {
@@ -108,6 +110,12 @@ func (p *Payload) RawValueSize() int {
 	}
 }
 
+func NeedCompress(header []byte) bool {
+	typeValue := http.DetectContentType(header)
+	_, ok := Conf.NotCompress[typeValue]
+	return !ok
+}
+
 func (rec *Record) TryCompress() {
 	if rec.Payload.Ver < 0 {
 		return
@@ -124,6 +132,9 @@ func (rec *Record) TryCompress() {
 	try := body
 	if len(body) > TRY_COMPRESS_SIZE {
 		try = try[:TRY_COMPRESS_SIZE]
+	}
+	if !NeedCompress(try) {
+		return
 	}
 	compressed, ok := quicklz.CCompress(try)
 	if !ok {
