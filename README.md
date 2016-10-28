@@ -1,4 +1,4 @@
-# GoBeansDB [![Build Status](http://qa-ci.intra.douban.com/job/peteris-coresys_gobeansdb-master-unittest/badge/icon)](http://qa-ci.intra.douban.com/job/peteris-coresys_gobeansdb-master-unittest/)
+# GoBeansDB [![Build Status](http://qa-ci.intra.douban.com/job/peteris-coresys-gobeansdb-master-unittest/badge/icon)](http://qa-ci.intra.douban.com/job/peteris-coresys-gobeansdb-master-unittest/)
 
 Yet anonther distributed key-value storage system from Douban Inc.
 
