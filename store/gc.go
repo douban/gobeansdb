@@ -317,10 +317,10 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 				return
 			}
 			// logger.Infof("%s %v %v", ki.StringKey, newPos, meta)
-			if isCoverdByCollision {
-				mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
-			}
 			if found {
+				if isCoverdByCollision {
+					mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
+				}
 				mgr.UpdateHtreePos(bkt, ki, oldPos, newPos)
 			}
 

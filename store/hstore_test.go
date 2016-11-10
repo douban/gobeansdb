@@ -377,6 +377,185 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	}
 }
 
+func testGCAfterRebuildHTree(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+	config.MCConf.BodyMax = 512
+	defer func() {
+		config.MCConf.BodyMax = 50 << 20
+	}()
+	gen := newKVGen(16)
+
+	var ki KeyInfo
+
+	N := numRecPerFile / 2
+	Conf.DataFileMax = 256 * int64(N)
+	logger.Infof("test gc numRecPerFile = %d", numRecPerFile)
+
+	// 000.data
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 0)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store.Close()
+	logger.Infof("closed")
+
+	store, err := NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+
+	// 001.data
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 1)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 002.data
+	for i := 0; i < N; i++ {
+		payload := gen.gen(&ki, i, 2)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	store.flushdatas(true)
+
+	// 003.data delete key
+	tsShift := 8
+	for i := 0; i < N; i++ {
+		gen.gen(&ki, i, 4)
+		p := GetPayloadForDelete()
+		p.TS = uint32(i + tsShift)
+		if err := store.Set(&ki, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 004.data
+	for i := 0; i < N/2; i++ {
+		payload := gen.gen(&ki, i, 3)
+		cmem.DBRL.SetData.AddSizeAndCount(payload.CArray.Cap)
+		if err := store.Set(&ki, payload); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	store.Close()
+	store, err = NewHStore()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	store.flushdatas(true)
+	bkt := store.buckets[bucketID]
+
+	n := N * 256
+	dir := utils.NewDir()
+	dir.Set("000.data", int64(n))
+	dir.Set("000.000.idx.s", -1)
+	dir.Set("001.data", int64(n))
+	dir.Set("001.000.idx.s", -1)
+	dir.Set("002.data", int64(n))
+	dir.Set("002.000.idx.s", -1)
+	dir.Set("003.data", int64(n))
+	dir.Set("003.000.idx.s", -1)
+	dir.Set("004.data", int64(n/2))
+	dir.Set("004.000.idx.s", -1)
+	dir.Set("004.000.idx.hash", -1)
+	dir.Set("collision.yaml", -1)
+	checkFiles(t, bkt.Home, dir)
+
+	gen.gen(&ki, N-4, 2)
+
+	payload2, _, err := store.Get(&ki, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload2 == nil {
+		t.Fatalf("nil")
+	}
+	if payload2.Ver != -4 {
+		t.Fatalf("bad ver %#v", payload2)
+	}
+	store.Close()
+
+	// remove the hash tree
+	utils.Remove(bkt.Home + "/004.000.idx.hash")
+	utils.Remove(bkt.Home + "/004.000.idx.hash")
+	store, err = NewHStore()
+	if err != nil {
+		t.Fatal("%v", err)
+	}
+
+	// GC
+	bkt = store.buckets[bucketID]
+	store.gcMgr.gc(bkt, 1, 3, true)
+	dir = utils.NewDir()
+	dir.Set("000.data", int64(n))
+	dir.Set("000.000.idx.s", -1)
+	//dir.Set("000.001.idx.s", -1)
+	dir.Set("001.data", int64(n/2))
+	dir.Set("001.000.idx.s", -1)
+	dir.Set("004.data", int64(n/2))
+	dir.Set("004.000.idx.s", -1)
+	dir.Set("nextgc.txt", -1)
+	dir.Set("collision.yaml", -1)
+	checkFiles(t, bkt.Home, dir)
+
+	store.Close()
+	// check the fils
+	dir = utils.NewDir()
+	dir.Set("000.data", int64(n))
+	dir.Set("000.000.idx.s", -1)
+	//dir.Set("000.001.idx.s", -1)
+	dir.Set("001.data", int64(n/2))
+	dir.Set("001.000.idx.s", -1)
+	dir.Set("004.000.idx.hash", -1)
+	dir.Set("004.data", int64(n/2))
+	dir.Set("004.000.idx.s", -1)
+	dir.Set("nextgc.txt", -1)
+	dir.Set("collision.yaml", -1)
+	checkFiles(t, bkt.Home, dir)
+
+	// remove the hash tree
+	utils.Remove(bkt.Home + "/004.000.idx.hash")
+	dir = utils.NewDir()
+	dir.Set("000.data", int64(n))
+	dir.Set("000.000.idx.s", -1)
+	dir.Set("001.data", int64(n/2))
+	dir.Set("001.000.idx.s", -1)
+	dir.Set("004.data", int64(n/2))
+	dir.Set("004.000.idx.s", -1)
+	dir.Set("nextgc.txt", -1)
+	dir.Set("collision.yaml", -1)
+	checkFiles(t, bkt.Home, dir)
+
+	store, err = NewHStore()
+	if err != nil {
+		t.Fatal("%v", err)
+	}
+
+	// GC begin with 0
+	bkt = store.buckets[bucketID]
+	store.gcMgr.gc(bkt, 0, 1, true)
+	if store.gcMgr.stat.Begin > 0 {
+		t.Fatalf("Begin 0")
+	}
+	store.Close()
+	dir = utils.NewDir()
+	// dir.Set("000.data", int64(n/2))
+	// dir.Set("000.000.idx.s", -1)
+	dir.Set("004.data", int64(n/2))
+	dir.Set("004.000.idx.s", -1)
+	dir.Set("004.000.idx.hash", -1)
+	dir.Set("nextgc.txt", -1)
+	dir.Set("collision.yaml", -1)
+	checkFiles(t, bkt.Home, dir)
+}
+
 func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 
@@ -406,7 +585,17 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 		t.Fatal(err)
 	}
 	store.flushdatas(true)
+	n := N * 256
 	bkt := store.buckets[bucketID]
+	dir := utils.NewDir()
+	dir.Set("000.data", int64(n*2))
+	//	dir.Set("000.000.idx.s", -1)
+	dir.Set("001.data", 256)
+	//dir.Set("001.000.idx.s", -1)
+	//	dir.Set("nextgc.txt", 1)
+	//	dir.Set("collision.yaml", -1)
+	checkFiles(t, bkt.Home, dir)
+
 	store.gcMgr.gc(bkt, 0, 0, true)
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
@@ -426,9 +615,8 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 			t.Fatalf("%d: %#v %#v", i, payload2.Meta, pos)
 		}
 	}
-	n := N * 256
 	checkDataSize(t, bkt.datas, []uint32{uint32(n), 256})
-	dir := utils.NewDir()
+	dir = utils.NewDir()
 	dir.Set("000.data", int64(n))
 	dir.Set("000.000.idx.s", -1)
 	dir.Set("001.data", 256)
@@ -723,6 +911,10 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 
 func TestGCMultiBigBuffer(t *testing.T) {
 	testGC(t, testGCMulti, "multiBig", 10000)
+}
+
+func TestGCAfterRebuildHtree(t *testing.T) {
+	testGC(t, testGCAfterRebuildHTree, "gc build htree", 1000)
 }
 
 func TestGCMultiSmallBuffer(t *testing.T) {
