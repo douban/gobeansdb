@@ -272,8 +272,6 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 							if p == oldPos {
 								isNewest = true
 								meta.ValueHash = hintit.Vhash
-							} else {
-
 							}
 						} else {
 							isNewest = true // guess
@@ -282,8 +280,13 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 					}
 				}
 			} else {
-				// deleted recs is removed from htree during start up
+				// when rebuiding the HTree, the deleted recs are removed from HTree
+				// we are not sure whether the `set rec` is still in datafiles while `auto GC`, so we need to write a copy of `del rec` in datafile.
+				// but we can remove the `del rec` while GC begin with 0
 				fileState.NumNotInHtree++
+				if gc.Begin > 0 && rec.Payload.Ver < 0 {
+					isNewest = true
+				}
 			}
 
 			wrec := wrapRecord(rec)
@@ -314,10 +317,12 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 				return
 			}
 			// logger.Infof("%s %v %v", ki.StringKey, newPos, meta)
-			if isCoverdByCollision {
-				mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
+			if found {
+				if isCoverdByCollision {
+					mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
+				}
+				mgr.UpdateHtreePos(bkt, ki, oldPos, newPos)
 			}
-			mgr.UpdateHtreePos(bkt, ki, oldPos, newPos)
 
 			rotated := bkt.hints.set(ki, &meta, newPos, recsize, "gc")
 			if rotated {
