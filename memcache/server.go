@@ -58,6 +58,10 @@ func (c *ServerConn) Shutdown() {
 	c.closeAfterReply = true
 }
 
+func overdue(recvtime, now time.Time) bool {
+	return now.Sub(recvtime) > time.Duration(config.MCConf.TimeoutMS) * time.Millisecond
+}
+
 func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err error) {
 	req := c.req
 	var resp *Response = nil
@@ -88,6 +92,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 
 	err = req.Read(c.rbuf)
 	t := time.Now()
+	readTimeout := false
 
 	if err != nil {
 		if req.Item != nil {
@@ -115,6 +120,12 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			resp.Msg = err.Error()
 			err = nil
 		}
+	} else if overdue(req.ReceiveTime, t) {
+		req.SetStat("recv_timeout")
+		resp = new(Response)
+		resp.Status = "RECV_TIMEOUT"
+		resp.Msg = "recv_timeout"
+		readTimeout = true
 	} else {
 		// 由于 set 等命令的 req.Item.Body 释放时间不确定，所以这里提前记录下 Body 的大小，
 		// 后面在记录 access log 时会用到
@@ -124,6 +135,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 		}
 
 		// process memcache commands, e.g. 'set', 'get', 'incr'.
+		req.SetStat("process")
 		resp, err = req.Process(storageClient, stats)
 		dt := time.Since(t)
 		if dt > SlowCmdTime {
@@ -141,6 +153,15 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	}
 
 	if !resp.Noreply {
+		if  !readTimeout && overdue(req.ReceiveTime, time.Now()) {
+			req.SetStat("process_timeout")
+			resp = new(Response)
+			resp.Status = "PROCESS_TIMEOUT"
+			resp.Msg = "process_timeout"
+			return
+		}
+
+		req.SetStat("resp")
 		if err = resp.Write(c.wbuf); err != nil {
 			return
 		}
