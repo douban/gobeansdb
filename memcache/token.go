@@ -54,6 +54,7 @@ func (rl *ReqLimiter) Get(req *Request) {
 		Cmd:        req.Cmd,
 		Keys:       req.Keys,
 		ServeStart: time.Now(),
+		WaitTime: d,
 		Working:    true,
 	}
 	if d > rl.MaxWait {
