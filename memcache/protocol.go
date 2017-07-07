@@ -155,7 +155,6 @@ func (req *Request) Write(w io.Writer) (e error) {
 func (req *Request) Read(b *bufio.Reader) error {
 	var s string
 	var e error
-	req.ReceiveTime = time.Now()
 	if s, e = b.ReadString('\n'); e != nil {
 		return ErrNetworkError
 	}
@@ -163,7 +162,7 @@ func (req *Request) Read(b *bufio.Reader) error {
 	if !strings.HasSuffix(s, "\r\n") {
 		return ErrInvalidCmd
 	}
-
+	req.ReceiveTime = time.Now()
 	parts := splitKeys(s)
 	if len(parts) < 1 {
 		return ErrInvalidCmd
