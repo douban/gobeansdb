@@ -8,6 +8,7 @@ var (
 		BodyBigStr:  "1M",
 		BodyInCStr:  "4K",
 		FlushMaxStr: "100M",
+		TimeoutMS: "3000",
 	}
 )
 
@@ -26,6 +27,7 @@ type MCConfig struct {
 	BodyBigStr  string `yaml:"body_big_str,omitempty"`
 
 	BodyInCStr string `yaml:"body_c_str,omitempty"`
+	TimeoutMS  int `yaml:"timeout_ms,omitempty`
 }
 
 func IsValidKeySize(ksz uint32) bool {
