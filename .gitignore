@@ -5,6 +5,7 @@
 *.py[co]
 
 # Folders
+.idea/
 _obj
 _test
 unittest.xml

@@ -66,10 +66,10 @@ func (it *Item) String() (s string) {
 
 type Request struct {
 	ReceiveTime time.Time
-	Cmd     string   // get, set, delete, quit, etc.
-	Keys    []string // keys
-	Item    *Item
-	NoReply bool
+	Cmd         string   // get, set, delete, quit, etc.
+	Keys        []string // keys
+	Item        *Item
+	NoReply     bool
 
 	Token   int
 	Working bool
@@ -88,9 +88,11 @@ func (req *Request) Clear() {
 }
 
 func (req *Request) SetStat(stat string) {
-	his :=  RL.Histories[req.Token]
+	his := RL.Histories[req.Token]
 	his.Stat = stat
 	his.StatStart = time.Now()
+	RL.Histories[req.Token] = his
+	return
 }
 
 func WriteFull(w io.Writer, buf []byte) error {
