@@ -13,6 +13,8 @@ type ReqHistoy struct {
 	WaitTime   time.Duration
 	ServeStart time.Time
 	ServeTime  time.Duration
+	Stat 	   string
+	StatStart  time.Time
 	Working    bool
 }
 

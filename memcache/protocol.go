@@ -86,6 +86,12 @@ func (req *Request) Clear() {
 	}
 }
 
+func (req *Request) SetStat(stat string) {
+	his =  	RL.Histories[req.Token]
+	hst.Stat = stat
+	hst.StatStart = time.Now()
+}
+
 func WriteFull(w io.Writer, buf []byte) error {
 	n, e := w.Write(buf)
 	for e != nil && n > 0 {

@@ -124,6 +124,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 		}
 
 		// process memcache commands, e.g. 'set', 'get', 'incr'.
+		req.SetStat("process")
 		resp, err = req.Process(storageClient, stats)
 		dt := time.Since(t)
 		if dt > SlowCmdTime {
@@ -141,6 +142,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	}
 
 	if !resp.Noreply {
+		req.SetStat("resp")
 		if err = resp.Write(c.wbuf); err != nil {
 			return
 		}
