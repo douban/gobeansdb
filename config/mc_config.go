@@ -8,7 +8,7 @@ var (
 		BodyBigStr:  "1M",
 		BodyInCStr:  "4K",
 		FlushMaxStr: "100M",
-		TimeoutMS: "3000",
+		TimeoutMS: 3000,
 	}
 )
 
