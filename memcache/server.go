@@ -126,6 +126,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 		resp.Status = "RECV_TIMEOUT"
 		resp.Msg = "recv_timeout"
 		readTimeout = true
+		logger.Errorf("recv_timeout cmd %s, keys %v", req.Cmd, req.Keys)
 	} else {
 		// 由于 set 等命令的 req.Item.Body 释放时间不确定，所以这里提前记录下 Body 的大小，
 		// 后面在记录 access log 时会用到
@@ -158,6 +159,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 			resp = new(Response)
 			resp.Status = "PROCESS_TIMEOUT"
 			resp.Msg = "process_timeout"
+			logger.Errorf("process_timeout cmd %s, keys %v", req.Cmd, req.Keys)
 			return
 		}
 
