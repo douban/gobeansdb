@@ -65,6 +65,7 @@ func (it *Item) String() (s string) {
 }
 
 type Request struct {
+	ReceiveTime time.Time
 	Cmd     string   // get, set, delete, quit, etc.
 	Keys    []string // keys
 	Item    *Item
@@ -87,9 +88,9 @@ func (req *Request) Clear() {
 }
 
 func (req *Request) SetStat(stat string) {
-	his =  	RL.Histories[req.Token]
-	hst.Stat = stat
-	hst.StatStart = time.Now()
+	his :=  RL.Histories[req.Token]
+	his.Stat = stat
+	his.StatStart = time.Now()
 }
 
 func WriteFull(w io.Writer, buf []byte) error {
@@ -152,6 +153,7 @@ func (req *Request) Write(w io.Writer) (e error) {
 func (req *Request) Read(b *bufio.Reader) error {
 	var s string
 	var e error
+	req.ReceiveTime = time.Now()
 	if s, e = b.ReadString('\n'); e != nil {
 		return ErrNetworkError
 	}
