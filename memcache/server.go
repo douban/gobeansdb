@@ -13,17 +13,19 @@ import (
 	"syscall"
 	"time"
 
+	"sync/atomic"
+
 	"github.intra.douban.com/coresys/gobeansdb/config"
 	"github.intra.douban.com/coresys/gobeansdb/loghub"
 	"github.intra.douban.com/coresys/gobeansdb/utils"
-	"sync/atomic"
 )
 
 var (
-	SlowCmdTime  = time.Millisecond * 100 // 100ms
-	RL           *ReqLimiter
-	logger       = loghub.ErrorLogger
-	accessLogger = loghub.AccessLogger
+	SlowCmdTime    = time.Millisecond * 100 // 100ms
+	RL             *ReqLimiter
+	logger         = loghub.ErrorLogger
+	accessLogger   = loghub.AccessLogger
+	analysisLogger = loghub.AnalysisLogger
 )
 
 type ServerConn struct {
@@ -59,7 +61,7 @@ func (c *ServerConn) Shutdown() {
 }
 
 func overdue(recvtime, now time.Time) bool {
-	return now.Sub(recvtime) > time.Duration(config.MCConf.TimeoutMS) * time.Millisecond
+	return now.Sub(recvtime) > time.Duration(config.MCConf.TimeoutMS)*time.Millisecond
 }
 
 func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err error) {
@@ -154,7 +156,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	}
 
 	if !resp.Noreply {
-		if  !readTimeout && overdue(req.ReceiveTime, time.Now()) {
+		if !readTimeout && overdue(req.ReceiveTime, time.Now()) {
 			req.SetStat("process_timeout")
 			resp = new(Response)
 			resp.Status = "PROCESS_TIMEOUT"
@@ -330,7 +332,7 @@ func (s *Server) Shutdown() {
 	//s.Unlock()
 }
 
-func (s *Server) HandleSignals(errorlog string, accesslog string) {
+func (s *Server) HandleSignals(errorlog string, accesslog string, analysislog string) {
 	sch := make(chan os.Signal, 10)
 	signal.Notify(sch, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT,
 		syscall.SIGHUP, syscall.SIGSTOP, syscall.SIGQUIT, syscall.SIGUSR1)
@@ -346,6 +348,12 @@ func (s *Server) HandleSignals(errorlog string, accesslog string) {
 				if accessLogger.Hub != nil {
 					if err := accessLogger.Hub.Reopen(accesslog); err != nil {
 						logger.Warnf("open %s failed: %s", accesslog, err.Error())
+					}
+				}
+
+				if analysisLogger.Hub != nil {
+					if err := analysisLogger.Hub.Reopen(analysislog); err != nil {
+						logger.Warnf("open %s failed: %s", analysislog, err.Error())
 					}
 				}
 			} else {

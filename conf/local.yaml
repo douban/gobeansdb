@@ -5,7 +5,8 @@ server:
   port: 7980
   webport: 7988
   errorlog: ./gobeansdb.log
-  accesslog: ""
+  accesslog: ./access.log
+  analysislog: ./gobeansdb_analysis.log
   #zk: ["zk1:2181"]
 hstore:
   data:

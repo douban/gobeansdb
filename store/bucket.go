@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.intra.douban.com/coresys/gobeansdb/loghub"
 	"github.intra.douban.com/coresys/gobeansdb/utils"
 )
 
@@ -29,6 +31,8 @@ const (
 	BUCKET_STAT_NOT_EMPTY
 	BUCKET_STAT_READY
 )
+
+var analysisLogger = loghub.AnalysisLogger
 
 type BucketStat struct {
 	// pre open init
@@ -437,6 +441,8 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	} else if bytes.Compare(rec.Key, ki.Key) == 0 {
 		payload = rec.Payload
 		payload.Ver = meta.Ver
+		now := time.Now().Unix()
+		analysisLogger.Infof("%s %d %d %d %d %s", config.AnalysisLogVersion, now, rec.Payload.TS, bkt.ID, pos.Offset, ki.StringKey)
 		return
 	}
 	defer func() {

@@ -54,7 +54,7 @@ func main() {
 		return
 	}
 
-	loghub.InitLogger(conf.ErrorLog, conf.AccessLog)
+	loghub.InitLogger(conf.ErrorLog, conf.AccessLog, conf.AnalysisLog)
 	logger.Infof("gobeansdb version %s starting at %d, config: %#v",
 		config.Version, conf.Port, conf)
 
@@ -83,7 +83,7 @@ func main() {
 	logger.Infof("mc server listen at %s", addr)
 	log.Println("ready")
 
-	server.HandleSignals(conf.ErrorLog, conf.AccessLog)
+	server.HandleSignals(conf.ErrorLog, conf.AccessLog, conf.AnalysisLog)
 	go storage.hstore.HintDumper(1 * time.Minute) // it may start merge go routine
 	go storage.hstore.Flusher()
 	config.AllowReload = true

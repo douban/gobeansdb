@@ -97,7 +97,7 @@ func (l *Logger) Logf(level int, format string, v ...interface{}) {
 	l.Hub.Log(l.name, level, file, line, msg)
 }
 
-func InitLogger(errorlog string, accesslog string) {
+func InitLogger(errorlog, accesslog, analysislog string) {
 	if errorlog != "" {
 		log.Printf("log to errorlog %s", errorlog)
 		InitErrorLog(errorlog, INFO, 200)
@@ -105,5 +105,9 @@ func InitLogger(errorlog string, accesslog string) {
 	if accesslog != "" {
 		log.Printf("open accesslog %s", accesslog)
 		InitAccessLog(accesslog, INFO)
+	}
+	if analysislog != "" {
+		log.Printf("log to analysislog %s", analysislog)
+		InitAnalysisLog(analysislog, INFO, 200)
 	}
 }
