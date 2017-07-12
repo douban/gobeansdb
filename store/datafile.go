@@ -157,6 +157,7 @@ func readRecordAt(path string, f *os.File, offset uint32) (wrec *WriteRecord, er
 	copy(wrec.rec.Key, kv.Body[:wrec.ksz])
 	wrec.rec.Payload.CArray = kv
 	wrec.rec.Payload.Body = kv.Body[wrec.ksz:]
+	wrec.rec.Payload.RecSize = wrec.vsz
 	crc := wrec.getCRC()
 	if wrec.crc != crc {
 		err = fmt.Errorf("crc check fail %s:%d, rec %v; %d != %d",
