@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	AnalysisLogFormat = "%s %15s:%4d - %s"
+	AnalysisLogFormat = "%s"
 	AnalysisLogFlag   = log.LstdFlags | log.Lmicroseconds
 	AnalysisLogger    *Logger
 )
@@ -38,7 +38,7 @@ func InitAnalysisLog(path string, level int, bufferSize int) (err error) {
 }
 
 func (hub *AnalysisLogHub) Log(name string, level int, file string, line int, msg string) {
-	hub.logger.Printf(AnalysisLogFormat, levelString[level], file, line, msg)
+	hub.logger.Printf(AnalysisLogFormat, msg)
 	bufline := &BufferLine{time.Now(), level, file, line, msg}
 	hub.Add(bufline)
 	hub.Last[level] = bufline

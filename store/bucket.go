@@ -428,8 +428,9 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 		payload.Meta = *meta
 		return // omit collision
 	}
-
+	beforeGetRecord := time.Now()
 	rec, inbuffer, err := bkt.datas.GetRecordByPos(pos)
+	getRecordTimeCost := time.Now().Sub(beforeGetRecord).Seconds()
 	if err != nil {
 		// not remove for now: it may cause many sync
 		// bkt.htree.remove(ki, pos)
@@ -441,8 +442,9 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	} else if bytes.Compare(rec.Key, ki.Key) == 0 {
 		payload = rec.Payload
 		payload.Ver = meta.Ver
-		now := time.Now().Unix()
-		analysisLogger.Infof("%s %d %d %d %d %s", config.AnalysisLogVersion, now, rec.Payload.TS, bkt.ID, pos.Offset, ki.StringKey)
+		analysisLogger.Infof("%s %d %f %d %d %d %v %s",
+			config.AnalysisLogVersion, rec.Payload.TS, getRecordTimeCost,
+			pos.ChunkID, pos.Offset, rec.Payload.RecSize, inbuffer, ki.StringKey)
 		return
 	}
 	defer func() {
