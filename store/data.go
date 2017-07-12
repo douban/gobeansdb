@@ -3,6 +3,7 @@ package store
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -187,7 +188,7 @@ func GetStreamWriter(path string, isappend bool) (*DataStreamWriter, error) {
 		}
 		if isappend {
 			offset = uint32(stat.Size())
-			offset, err := fd.Seek(0, os.SEEK_END)
+			offset, err := fd.Seek(0, io.SeekEnd)
 			if err != nil {
 				logger.Infof(err.Error())
 				return nil, err

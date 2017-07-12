@@ -17,16 +17,17 @@ var (
 )
 
 type ServerConfig struct {
-	Hostname  string   `yaml:",omitempty"`
-	ZKPath    string   `yaml:",omitempty"` // root path in zk
-	ZKServers []string `yaml:",omitempty"` // e.g. "zk1:2181,zk2:2181"
-	Listen    string   `yaml:",omitempty"` // ip
-	Port      int      `yaml:",omitempty"`
-	WebPort   int      `yaml:",omitempty"`
-	Threads   int      `yaml:",omitempty"` // NumCPU
-	ErrorLog  string   `yaml:",omitempty"`
-	AccessLog string   `yaml:",omitempty"`
-	StaticDir string   `yaml:",omitempty"` // directory for static files, e.g. *.html
+	Hostname    string   `yaml:",omitempty"`
+	ZKPath      string   `yaml:",omitempty"` // root path in zk
+	ZKServers   []string `yaml:",omitempty"` // e.g. "zk1:2181,zk2:2181"
+	Listen      string   `yaml:",omitempty"` // ip
+	Port        int      `yaml:",omitempty"`
+	WebPort     int      `yaml:",omitempty"`
+	Threads     int      `yaml:",omitempty"` // NumCPU
+	ErrorLog    string   `yaml:",omitempty"`
+	AccessLog   string   `yaml:",omitempty"`
+	AnalysisLog string   `yanl:",omitempty"`
+	StaticDir   string   `yaml:",omitempty"` // directory for static files, e.g. *.html
 
 }
 

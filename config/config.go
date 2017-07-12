@@ -11,9 +11,10 @@ import (
 )
 
 // `Version` can be changed in gobeansproxy.
-var Version = "2.1.0.16"
+var Version = "2.1.0.17"
 
 const AccessLogVersion = "V1"
+const AnalysisLogVersion = "V1"
 
 var (
 	ServerConf  ServerConfig = DefaultServerConfig
