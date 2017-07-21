@@ -98,6 +98,12 @@ func (bkt *Bucket) buildHintFromData(chunkID int, start uint32) (err error) {
 		rec, offset, _, e := r.Next()
 		if e != nil {
 			err = e
+			switch err {
+			case io.ErrUnexpectedEOF:
+				dataPath := fmt.Sprintf("%s/%03d.data", bkt.Home, chunkID)
+				os.Truncate(dataPath, int64(offset))
+			default:
+			}
 			return
 		}
 		if rec == nil {
