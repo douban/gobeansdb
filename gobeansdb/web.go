@@ -7,6 +7,7 @@ import (
 	_ "net/http/pprof"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 
 	yaml "gopkg.in/yaml.v2"
@@ -53,6 +54,7 @@ func init() {
 	http.HandleFunc("/route/reload", handleReloadRoute)
 
 	http.HandleFunc("/statgetset", handleStatGetSet)
+	http.HandleFunc("/freememory", handleFreeMemory)
 
 }
 
@@ -71,7 +73,7 @@ func initWeb() {
 }
 
 func checkStarting(w http.ResponseWriter) (starting bool) {
-	starting = (storage == nil)
+	starting = storage == nil
 	if starting {
 		w.Write([]byte("starting"))
 	}
@@ -245,6 +247,17 @@ func handleStatGetSet(w http.ResponseWriter, r *http.Request) {
 		res[i] = count
 	}
 	handleYaml(w, res)
+	return
+}
+
+func handleFreeMemory(w http.ResponseWriter, r *http.Request) {
+	if checkStarting(w) {
+		return
+	}
+	defer handleWebPanic(w)
+	// attempt to free memory immediately
+	go debug.FreeOSMemory()
+	w.Write([]byte("Start free memory manually..."))
 	return
 }
 

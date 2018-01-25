@@ -11,7 +11,7 @@ import (
 )
 
 // `Version` can be changed in gobeansproxy.
-var Version = "2.1.0.17"
+var Version = "2.1.0.18"
 
 const AccessLogVersion = "V1"
 const AnalysisLogVersion = "V2"
