@@ -14,7 +14,7 @@ import (
 var Version = "2.1.0.17"
 
 const AccessLogVersion = "V1"
-const AnalysisLogVersion = "V1"
+const AnalysisLogVersion = "V2"
 
 var (
 	ServerConf  ServerConfig = DefaultServerConfig
