@@ -245,7 +245,6 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 	}
 	wrec.rec.Payload.Body = make([]byte, wrec.vsz)
 	if _, err = io.ReadFull(stream.rbuf, wrec.rec.Payload.Body); err != nil {
-		offset = stream.offset
 		logger.Errorf(err.Error())
 		return
 	}
