@@ -257,6 +257,7 @@ func handleFreeMemory(w http.ResponseWriter, r *http.Request) {
 	defer handleWebPanic(w)
 	// attempt to free memory immediately
 	go debug.FreeOSMemory()
+	w.Write([]byte("Start free memory manually..."))
 	return
 }
 
