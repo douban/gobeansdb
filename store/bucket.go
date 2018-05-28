@@ -430,7 +430,7 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	}
 	beforeGetRecord := time.Now()
 	rec, inbuffer, err := bkt.datas.GetRecordByPos(pos)
-	getRecordTimeCost := time.Now().Sub(beforeGetRecord).Seconds()
+	getRecordTimeCost := time.Now().Sub(beforeGetRecord).Seconds() * 1000 // Millisecond
 	if err != nil {
 		// not remove for now: it may cause many sync
 		// bkt.htree.remove(ki, pos)
