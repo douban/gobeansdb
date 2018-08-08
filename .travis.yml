@@ -4,5 +4,8 @@ go:
   - "1.10"
   - master
 
+before_install:
+  - go get -u golang.org/x/vgo
+
 script:
   - make test
