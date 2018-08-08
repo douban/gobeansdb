@@ -13,7 +13,7 @@ type ReqHistoy struct {
 	WaitTime   time.Duration
 	ServeStart time.Time
 	ServeTime  time.Duration
-	Stat 	   string
+	Stat       string
 	StatStart  time.Time
 	Working    bool
 }
@@ -56,7 +56,7 @@ func (rl *ReqLimiter) Get(req *Request) {
 		Cmd:        req.Cmd,
 		Keys:       req.Keys,
 		ServeStart: time.Now(),
-		WaitTime: d,
+		WaitTime:   d,
 		Working:    true,
 	}
 	if d > rl.MaxWait {

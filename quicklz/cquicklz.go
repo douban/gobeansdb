@@ -9,9 +9,10 @@ size_t qlz_compress(const void *source, char *destination, size_t size, char *sc
 import "C"
 import (
 	"fmt"
+	"unsafe"
+
 	"github.com/douban/gobeansdb/cmem"
 	"github.com/douban/gobeansdb/utils"
-	"unsafe"
 )
 
 const (

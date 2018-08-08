@@ -1,11 +1,17 @@
 language: go
 
+os:
+  - linux
+  - osx
+
 go:
   - "1.10"
   - master
 
-before_install:
+install:
   - go get -u golang.org/x/vgo
+  - go get -u golang.org/x/tools/cmd/goimports
 
 script:
+  - diff <(goimports -d .) <(printf "")
   - make test
