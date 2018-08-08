@@ -11,7 +11,7 @@ func TestQuicklz(t *testing.T) {
 	l := len(orig)
 	lc := len(compressed)
 	if lc != 116 {
-		t.Errorf("wrong compressed len %s", lc)
+		t.Errorf("wrong compressed len %d", lc)
 	}
 	s := SizeDecompressed(compressed)
 	sc := SizeCompressed(compressed)
@@ -21,7 +21,7 @@ func TestQuicklz(t *testing.T) {
 	decompressed := Decompress(compressed)
 	ld := len(decompressed)
 	if ld != l {
-		t.Errorf("wrong decompressed len %s", lc)
+		t.Errorf("wrong decompressed len %d", lc)
 	}
 	compressed2, ok := CCompress([]byte(orig))
 	if !ok {
