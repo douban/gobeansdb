@@ -2,6 +2,8 @@
 
 Yet anonther distributed key-value storage system from Douban Inc.
 
+Any memcached client cache interactive with GobeansDB without any modification.
+
 # Install
 
 ```shell
@@ -22,4 +24,16 @@ $ make pytest  # Integrated test
 
 ```shell
 $ ${GOPATH}/bin/gobeansdb -h
+```
+
+# Python Example
+
+```
+import libmc
+
+
+mc = libmc.Client(['localhost:7900'])
+mc.set("foo", "bar")
+mc.get("foo")
+
 ```
