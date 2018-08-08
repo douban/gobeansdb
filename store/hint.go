@@ -680,7 +680,7 @@ func (hm *hintMgr) loadHintsByChunk(chunkID int) (datasize uint32) {
 		} else {
 			logger.Infof("load hint %s datasize = %d", p, sp.file.datasize)
 			if sp.file.datasize < datasize {
-				logger.Errorf("later hint has smaller datasize %p %d < %d", p, sp.file.datasize, datasize)
+				logger.Errorf("later hint has smaller datasize %s %d < %d", p, sp.file.datasize, datasize)
 			} else {
 				datasize = sp.file.datasize
 			}

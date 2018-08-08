@@ -145,7 +145,7 @@ func (req *Request) Write(w io.Writer) (e error) {
 		_, e = io.WriteString(w, "\r\n")
 
 	default:
-		logger.Errorf("unkown request cmd: ", req.Cmd)
+		logger.Errorf("unkown request cmd: %s", req.Cmd)
 		return errors.New("unknown cmd: " + req.Cmd)
 	}
 
@@ -377,7 +377,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 			if len(parts) > 1 {
 				resp.Msg = parts[1]
 			}
-			logger.Errorf("error:", resp)
+			logger.Errorf("error: %v", resp)
 
 		default:
 			// try to convert to int
@@ -387,7 +387,7 @@ func (resp *Response) Read(b *bufio.Reader) error {
 				resp.Msg = resp.Status
 				resp.Status = "INCR"
 			} else {
-				logger.Errorf("unknown status:", s, resp.Status)
+				logger.Errorf("unknown status: %s %s", s, resp.Status)
 				return errors.New("unknown response:" + resp.Status)
 			}
 		}
@@ -643,7 +643,7 @@ func (req *Request) Check(resp *Response) error {
 		if resp.Items != nil {
 			for key, _ := range resp.Items {
 				if !contain(req.Keys, key) {
-					logger.Errorf("unexpected key in response: ", key)
+					logger.Errorf("unexpected key in response: %s", key)
 					return errors.New("unexpected key in response: " + key)
 				}
 			}
