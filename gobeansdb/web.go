@@ -12,12 +12,12 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/config"
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
-	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
-	"github.intra.douban.com/coresys/gobeansdb/store"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/cmem"
+	"github.com/douban/gobeansdb/config"
+	"github.com/douban/gobeansdb/loghub"
+	mc "github.com/douban/gobeansdb/memcache"
+	"github.com/douban/gobeansdb/store"
+	"github.com/douban/gobeansdb/utils"
 )
 
 // TODO:

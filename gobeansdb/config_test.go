@@ -7,7 +7,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/utils"
 )
 
 func TestConfig(t *testing.T) {

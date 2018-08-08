@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
+	"github.com/douban/gobeansdb/loghub"
 )
 
 func Remove(path string) error {

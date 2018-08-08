@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.com/douban/gobeansdb/config"
 )
 
 var (

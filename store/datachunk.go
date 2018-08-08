@@ -6,8 +6,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/cmem"
+	"github.com/douban/gobeansdb/utils"
 )
 
 var (

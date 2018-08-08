@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/utils"
 )
 
 type Stats struct {

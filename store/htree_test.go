@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/utils"
 )
 
 func TestHash(t *testing.T) {

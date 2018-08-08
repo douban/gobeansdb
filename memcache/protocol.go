@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.com/douban/gobeansdb/cmem"
+	"github.com/douban/gobeansdb/config"
 )
 
 const VERSION = "0.1.0"

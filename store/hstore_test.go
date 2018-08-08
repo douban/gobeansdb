@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/config"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/cmem"
+	"github.com/douban/gobeansdb/config"
+	"github.com/douban/gobeansdb/utils"
 )
 
 var (

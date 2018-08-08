@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
+	"github.com/douban/gobeansdb/cmem"
 )
 
 const (

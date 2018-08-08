@@ -1,5 +1,5 @@
 {
-	"ImportPath": "github.intra.douban.com/coresys/gobeansdb",
+	"ImportPath": "github.com/douban/gobeansdb",
 	"GoVersion": "go1.5",
 	"Packages": [
 		"./..."
