@@ -51,7 +51,7 @@ func (rt *RouteTable) GetDBRouteConfig(addr string) (r DBRouteConfig) {
 	if !found {
 		return
 	}
-	for b, _ := range buckets {
+	for b := range buckets {
 		r.BucketsStat[b] = 1
 		r.BucketsHex = append(r.BucketsHex, BucketIDHex(b, rt.NumBucket))
 	}

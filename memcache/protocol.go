@@ -641,7 +641,7 @@ func (req *Request) Check(resp *Response) error {
 	switch req.Cmd {
 	case "get", "gets":
 		if resp.Items != nil {
-			for key, _ := range resp.Items {
+			for key := range resp.Items {
 				if !contain(req.Keys, key) {
 					logger.Errorf("unexpected key in response: %s", key)
 					return errors.New("unexpected key in response: " + key)
