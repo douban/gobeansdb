@@ -4,6 +4,11 @@ Yet anonther distributed key-value storage system from Douban Inc.
 
 Any memcached client cache interactive with GobeansDB without any modification.
 
+# Prepare
+
+GoBeansDB use `vgo` manage dependencies, please install vgo first.
+
+
 # Install
 
 ```shell

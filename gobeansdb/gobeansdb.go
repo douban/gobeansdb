@@ -1,4 +1,4 @@
-package main
+package gobeansdb
 
 import (
 	"flag"
@@ -20,7 +20,7 @@ var (
 	logger  = loghub.ErrorLogger
 )
 
-func main() {
+func Main() {
 	var version = flag.Bool("version", false, "print version of gobeansdb")
 	var confdir = flag.String("confdir", "", "path of server config dir")
 	var dumpconf = flag.Bool("dumpconf", false, "print configuration")

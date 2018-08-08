@@ -62,7 +62,7 @@ func UpdateLocalRoute(content []byte) {
 	log.Printf("update local route %s", LocalRoutePath)
 	fd, err := os.OpenFile(LocalRoutePath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatalf("fail to write", LocalRoutePath)
+		log.Fatalf("fail to write: %s", LocalRoutePath)
 	}
 	fd.Write(content)
 	fd.Close()

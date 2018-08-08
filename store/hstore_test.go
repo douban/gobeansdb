@@ -1040,7 +1040,7 @@ func checkDataWithHints(dir string, chunk int) error {
 			}
 			n := len(hm)
 			if n > 0 {
-				for k, _ := range dm {
+				for k := range dm {
 					return fmt.Errorf("%d hint key not in data, one of them: %s", n, k)
 				}
 			}
