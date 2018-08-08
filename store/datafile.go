@@ -328,7 +328,7 @@ func (stream *DataStreamWriter) Offset() uint32 {
 func (stream *DataStreamWriter) Close() error {
 	if err := stream.wbuf.Flush(); err != nil {
 		st, _ := stream.fd.Stat()
-		logger.Errorf("flush err: %s %v %s", stream.fd.Name, err, st.Mode())
+		logger.Errorf("flush err: %s %v %s", stream.fd.Name(), err, st.Mode())
 		return err
 	}
 	return stream.fd.Close()

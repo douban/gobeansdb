@@ -196,7 +196,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 					bkt.TreeID = id
 				}
 			} else {
-				logger.Errorf("found old htree: htree=%s, currenct_htree_id=%s", treepath, bkt.TreeID)
+				logger.Errorf("found old htree: htree=%s, currenct_htree_id=%v", treepath, bkt.TreeID)
 				utils.Remove(treepath)
 			}
 		}
