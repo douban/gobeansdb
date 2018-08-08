@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	"github.intra.douban.com/coresys/gobeansdb/quicklz"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/cmem"
+	"github.com/douban/gobeansdb/quicklz"
+	"github.com/douban/gobeansdb/utils"
 	"net/http"
 )
 

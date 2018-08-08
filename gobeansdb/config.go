@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.intra.douban.com/coresys/gobeansdb/config"
-	"github.intra.douban.com/coresys/gobeansdb/store"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/config"
+	"github.com/douban/gobeansdb/store"
+	"github.com/douban/gobeansdb/utils"
 )
 
 type DBConfig struct {

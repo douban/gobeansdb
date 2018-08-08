@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.com/douban/gobeansdb/config"
 	"strings"
 	"testing"
 )

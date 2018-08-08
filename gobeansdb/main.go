@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.intra.douban.com/coresys/gobeansdb/config"
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
-	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
-	"github.intra.douban.com/coresys/gobeansdb/store"
+	"github.com/douban/gobeansdb/config"
+	"github.com/douban/gobeansdb/loghub"
+	mc "github.com/douban/gobeansdb/memcache"
+	"github.com/douban/gobeansdb/store"
 )
 
 var (

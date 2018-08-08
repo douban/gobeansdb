@@ -13,14 +13,14 @@ savedep: godep
 
 test:
 	go version
-	go test github.intra.douban.com/coresys/gobeansdb/memcache
-	go test github.intra.douban.com/coresys/gobeansdb/loghub
-	go test github.intra.douban.com/coresys/gobeansdb/cmem
-	go test github.intra.douban.com/coresys/gobeansdb/quicklz
-	ulimit -n 1024; go test github.intra.douban.com/coresys/gobeansdb/store
+	go test github.com/douban/gobeansdb/memcache
+	go test github.com/douban/gobeansdb/loghub
+	go test github.com/douban/gobeansdb/cmem
+	go test github.com/douban/gobeansdb/quicklz
+	ulimit -n 1024; go test github.com/douban/gobeansdb/store
 
 pytest:install
 	./tests/run_test.sh
 
 install:
-	go install github.intra.douban.com/coresys/gobeansdb/gobeansdb
+	go install github.com/douban/gobeansdb/gobeansdb

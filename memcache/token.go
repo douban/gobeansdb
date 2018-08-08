@@ -4,7 +4,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.com/douban/gobeansdb/config"
 )
 
 type ReqHistoy struct {

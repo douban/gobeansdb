@@ -4,7 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/utils"
 )
 
 type mergeReader struct {

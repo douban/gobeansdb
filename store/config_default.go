@@ -1,6 +1,6 @@
 package store
 
-import "github.intra.douban.com/coresys/gobeansdb/config"
+import "github.com/douban/gobeansdb/config"
 
 /*
 

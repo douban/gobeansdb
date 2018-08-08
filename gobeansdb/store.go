@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.intra.douban.com/coresys/gobeansdb/cmem"
-	mc "github.intra.douban.com/coresys/gobeansdb/memcache"
-	"github.intra.douban.com/coresys/gobeansdb/store"
+	"github.com/douban/gobeansdb/cmem"
+	mc "github.com/douban/gobeansdb/memcache"
+	"github.com/douban/gobeansdb/store"
 )
 
 var (

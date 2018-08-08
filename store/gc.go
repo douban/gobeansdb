@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.intra.douban.com/coresys/gobeansdb/config"
+	"github.com/douban/gobeansdb/config"
 )
 
 type GCMgr struct {

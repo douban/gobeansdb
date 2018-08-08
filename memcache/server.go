@@ -15,9 +15,9 @@ import (
 
 	"sync/atomic"
 
-	"github.intra.douban.com/coresys/gobeansdb/config"
-	"github.intra.douban.com/coresys/gobeansdb/loghub"
-	"github.intra.douban.com/coresys/gobeansdb/utils"
+	"github.com/douban/gobeansdb/config"
+	"github.com/douban/gobeansdb/loghub"
+	"github.com/douban/gobeansdb/utils"
 )
 
 var (

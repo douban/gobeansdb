@@ -1,25 +1,25 @@
-# GoBeansDB [![Build Status](//qa-ci.intra.douban.com/job/peteris-coresys-gobeansdb-master-unittest/badge/icon)](//qa-ci.intra.douban.com/job/peteris-coresys-gobeansdb-master-unittest/)
+# GoBeansDB 
 
 Yet anonther distributed key-value storage system from Douban Inc.
 
 # Install
 
-```
-$ cd ${GOHOME}
-$ git clone http://github.intra.douban.com/coresys/gobeansdb.git src/github.intra.douban.com/coresys/gobeansdb
-$ cd src/github.intra.douban.com/coresys/gobeansdb
+```shell
+$ cd ${GOPATH}
+$ git clone http://github.com/douban/gobeansdb.git src/github.com/douban/gobeansdb
+$ cd src/github.com/douban/gobeansdb
 $ make
 ```
 
 # test
 
-```
+```shell
 $ make test  # unit test
 $ make pytest  # Integrated test
 ```
 
 # run
 
-```
-$ ${GOHOME}/bin/gobeansdb -h
+```shell
+$ ${GOPATH}/bin/gobeansdb -h
 ```
