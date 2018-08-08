@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"fmt"
 
+	"net/http"
+
 	"github.com/douban/gobeansdb/cmem"
 	"github.com/douban/gobeansdb/quicklz"
 	"github.com/douban/gobeansdb/utils"
-	"net/http"
 )
 
 const (
@@ -202,7 +203,7 @@ type Record struct {
 }
 
 func (rec *Record) LogString() string {
-	return fmt.Sprintf("ksz %d, vsz %d %d, meta %#v [%s] ",
+	return fmt.Sprintf("ksz %d, vsz %d, meta %#v [%s] ",
 		len(rec.Key),
 		len(rec.Payload.Body),
 		rec.Payload.Meta,

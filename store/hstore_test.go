@@ -246,7 +246,7 @@ func checkDataSize(t *testing.T, ds *dataStore, sizes0 []uint32) {
 			}
 		} else {
 			if ck.size != 0 {
-				t.Fatalf("chunk %d wrong mem size %d != 0", i, ck.size, 0)
+				t.Fatalf("chunk %d wrong mem size %d != 0", i, ck.size)
 			}
 			st, err := os.Stat(ck.path)
 			if err == nil {
@@ -487,7 +487,7 @@ func testGCAfterRebuildHTree(t *testing.T, store *HStore, bucketID, numRecPerFil
 	utils.Remove(bkt.Home + "/004.000.idx.hash")
 	store, err = NewHStore()
 	if err != nil {
-		t.Fatal("%v", err)
+		t.Fatalf("%v", err)
 	}
 
 	// GC
@@ -535,7 +535,7 @@ func testGCAfterRebuildHTree(t *testing.T, store *HStore, bucketID, numRecPerFil
 
 	store, err = NewHStore()
 	if err != nil {
-		t.Fatal("%v", err)
+		t.Fatalf("%v", err)
 	}
 
 	// GC begin with 0
@@ -983,9 +983,9 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 }
 
 func checkDataWithHints(dir string, chunk int) error {
-	dpath := fmt.Sprintf("%s/%03d.data")
+	dpath := "%s/%03d.data"
 	_, err := os.Stat(dpath)
-	hpat := fmt.Sprintf("%s/%03d.*")
+	hpat := "%s/%03d.*"
 	hpaths, _ := filepath.Glob(hpat)
 	if err != nil {
 		if len(hpaths) > 0 {
