@@ -86,7 +86,7 @@ mc_client --- cache
 - htree 高度（决定 merkle tree 部分内存大小）
 
 
-# 与 [beansdb](https://github.com/douban/gobeansdb) 关系
+# 与 [beansdb](https://github.com/douban/beansdb) 关系
 
 - 兼容
   - 数据文件格式不变
