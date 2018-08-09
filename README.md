@@ -31,7 +31,7 @@ $ make pytest  # Integrated test
 $ ${GOPATH}/bin/gobeansdb -h
 ```
 
-# Python Example
+## Python Example
 
 ```
 import libmc
