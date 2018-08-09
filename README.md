@@ -4,12 +4,12 @@ Yet anonther distributed key-value storage system from Douban Inc.
 
 Any memcached client cache interactive with GobeansDB without any modification.
 
-# Prepare
+## Prepare
 
-GoBeansDB use `vgo` manage dependencies, please install vgo first.
+GoBeansDB use `vgo` manage dependencies, please install [vgo](https://godoc.org/golang.org/x/vgo) first.
 
 
-# Install
+## Install
 
 ```shell
 $ cd ${GOPATH}
@@ -18,14 +18,14 @@ $ cd src/github.com/douban/gobeansdb
 $ make
 ```
 
-# test
+## test
 
 ```shell
 $ make test  # unit test
 $ make pytest  # Integrated test
 ```
 
-# run
+## run
 
 ```shell
 $ ${GOPATH}/bin/gobeansdb -h
@@ -43,7 +43,7 @@ mc.get("foo")
 
 ```
 
-# Features
+## Features
 
 - 协议： memcached。推荐 libmc 客户端（c++ 实现，目前支持 go 和 python，基于 poll 的并发 get_multi/set_multi）
 - sharding： 静态 hash 路由，分桶数 16 整数倍
@@ -51,7 +51,7 @@ mc.get("foo")
 - 最终一致性：同步脚本不断比较一个桶三副本 htree（每个桶一个 16 叉的内存 merkle tree）做同步，比较时间戳。
 - 文件格式：data 文件可以看成 log（顺序写入）； 每个 record 256 bytes 对齐，有 crc 校验。
 
-# 在 douban 使用方法
+## 在 douban 使用方法
 
 ```
 mc_client --- cache
@@ -66,7 +66,7 @@ mc_client --- cache
 - 可以视情况保留一段时间完整的写记录。
 
 
-# 入坑指南
+## 入坑指南
 
 优点
 
@@ -86,7 +86,7 @@ mc_client --- cache
 - htree 高度（决定 merkle tree 部分内存大小）
 
 
-# 与 [beansdb](https://github.com/douban/beansdb) 关系
+## 与 [beansdb](https://github.com/douban/beansdb) 关系
 
 - 兼容
   - 数据文件格式不变
