@@ -97,3 +97,6 @@ mc_client --- cache
   - 内存开销变小
   - hint 文件格式和后缀变了
   - 同一个节点不同数据文件不在混部署，以避免坏一个损失整个点数据
+
+
+# 一些设计/实现要点见 [wiki](https://github.com/douban/gobeansdb/wiki)
