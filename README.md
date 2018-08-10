@@ -4,6 +4,12 @@ Yet anonther distributed key-value storage system from Douban Inc.
 
 Any memcached client cache interactive with GobeansDB without any modification.
 
+## related
+
+- [libmc](https://github.com/douban/gobeansproxy) : a high performance python/go mc client
+- [gobeansproxy](https://github.com/douban/gobeansproxy) : routing to gobeansdb cluster with three copy
+- beansdbadmin(coming soon): webUI, sync ...
+
 ## Prepare
 
 GoBeansDB use `vgo` manage dependencies, please install [vgo](https://godoc.org/golang.org/x/vgo) first.
