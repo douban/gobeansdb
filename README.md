@@ -65,6 +65,20 @@ mc_client --- cache
 - 支持离线  [dpark](https://github.com/douban/dpark) 读写，读支持本地化。
 - 可以视情况保留一段时间完整的写记录。
 
+磁盘上的样子（256分区）：
+
+* /var/lib/beansdb
+	* 0/
+		* 0/  -> /data1/beansdb/0/0
+			* 000.data
+			* 000.000.idx.s
+			* 000.001.idx.s
+			* ...
+			* 008.000.idx.hash
+			* ...
+			* 009.data
+			* 009.000.idx.s		
+
 
 ## 入坑指南
 
