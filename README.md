@@ -64,6 +64,8 @@ mc_client --- cache
 - 两个集群： 分别存储 图片类 （cache 为 CDN）  和 长文本 （cache 为 mc 集群）。
 - 支持离线  [dpark](https://github.com/douban/dpark) 读写，读支持本地化。
 - 可以视情况保留一段时间完整的写记录。
+- 借助 python 脚本 管理，近期整理后会部分开源，包 admin UI（readonly），同步脚本等
+
 
 磁盘上的样子（256分区）：
 
@@ -93,6 +95,7 @@ mc_client --- cache
 1. 一致性支持较弱，时间戳目前是秒级（受限于数据文件格式）。
 2. 全内存索引，有一定内存开销，在启动载入索引略慢（约十几秒到半分钟， 决定于key 数量）。
 3. 数据文件格式的 padding 对小 value 有一定浪费。
+
 
 配置重点
 
