@@ -103,10 +103,10 @@ mc_client --- cache
 3. 数据文件格式的 padding 对小 value 有一定浪费。
 
 
-配置重点
+配置重点（详见 wiki）
 
 - 分桶数
-- htree 高度（决定 merkle tree 部分内存大小）
+- htree 高度（决定 merkle tree 部分内存大小和 溢出链表的平均长度）
 
 
 ## 与 [beansdb](https://github.com/douban/beansdb) 关系
