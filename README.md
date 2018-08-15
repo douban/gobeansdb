@@ -19,9 +19,8 @@ Supported Go version: 1.10.1+
 ## Install
 
 ```shell
-$ cd ${GOPATH}
-$ git clone http://github.com/douban/gobeansdb.git src/github.com/douban/gobeansdb
-$ cd src/github.com/douban/gobeansdb
+$ git clone http://github.com/douban/gobeansdb.git
+$ cd gobeansdb
 $ make
 ```
 
