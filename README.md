@@ -6,7 +6,7 @@ Any memcached client cache interactive with GobeansDB without any modification.
 
 ## Related
 
-- [libmc](https://github.com/douban/gobeansproxy) : a high performance python/go mc client
+- [libmc](https://github.com/douban/libmc) : a high performance python/go mc client
 - [gobeansproxy](https://github.com/douban/gobeansproxy) : routing to gobeansdb cluster with three copy
 - beansdbadmin(coming soon): webUI, sync ...
 
