@@ -13,6 +13,7 @@ Any memcached client cache interactive with GobeansDB without any modification.
 ## Prepare
 
 GoBeansDB use `vgo` manage dependencies, please install [vgo](https://godoc.org/golang.org/x/vgo) first.
+Supported Go version: 1.10.1+ 
 
 
 ## Install
@@ -62,7 +63,7 @@ mc.get("foo")
 ```
 mc_client --- cache
           |
-          --- any beansdb proxy（即将开源） -- beansdb servers 
+          --- any beansdb proxy -- beansdb servers 
 ```
 
 - 用于单个 key 并发写很少的数据
