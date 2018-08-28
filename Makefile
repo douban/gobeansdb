@@ -14,14 +14,14 @@ endif
 
 test:
 	go version
-	vgo test github.com/douban/gobeansdb/memcache
-	vgo test github.com/douban/gobeansdb/loghub
-	vgo test github.com/douban/gobeansdb/cmem
-	vgo test github.com/douban/gobeansdb/quicklz
-	ulimit -n 1024; vgo test github.com/douban/gobeansdb/store
+	go test github.com/douban/gobeansdb/memcache
+	go test github.com/douban/gobeansdb/loghub
+	go test github.com/douban/gobeansdb/cmem
+	go test github.com/douban/gobeansdb/quicklz
+	ulimit -n 1024; go test github.com/douban/gobeansdb/store
 
 pytest:install
 	./tests/run_test.sh
 
 install:
-	CC=$(COMPILER) vgo install ./
+	CC=$(COMPILER) go install ./

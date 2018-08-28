@@ -5,11 +5,14 @@ os:
   - osx
 
 go:
-  - "1.10"
-  - master
+  - "1.10.x"
+  - "1.11.x"
+
+env:
+  - GO111MODULE=on
 
 install:
-  - go get -u golang.org/x/vgo
+  - go get -t -v ./...
   - go get -u golang.org/x/tools/cmd/goimports
 
 script:
