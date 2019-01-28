@@ -26,7 +26,7 @@ type GCState struct {
 	Dst int
 
 	Err     error
-	Running bool
+	Running map[int]struct{}
 
 	// sum
 	GCFileState
@@ -187,13 +187,15 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 
 	logger.Infof("begin GC bucket %d chunk [%d, %d]", bkt.ID, startChunkID, endChunkID)
 
-	bkt.GCHistory = append(bkt.GCHistory, GCState{})
+	bkt.GCHistory = append(bkt.GCHistory, GCState{Running: make(map[int]struct{})})
 	gc := &bkt.GCHistory[len(bkt.GCHistory)-1]
 	mgr.stat = gc
-	gc.Running = true
+	gc.Running[bkt.ID] = struct{}{}
 	gc.BeginTS = time.Now()
 	defer func() {
-		gc.Running = false
+		if _, exists := gc.Running[bkt.ID]; exists {
+			delete(gc.Running, bkt.ID)
+		}
 		gc.EndTS = time.Now()
 	}()
 	gc.Begin = startChunkID

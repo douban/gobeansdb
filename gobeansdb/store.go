@@ -254,7 +254,7 @@ func (s *StorageClient) Process(cmd string, args []string) (status string, msg s
 		if gcstat == nil {
 			status = "none"
 		} else {
-			if gcstat.Running {
+			if _, exists := gcstat.Running[bucketid]; exists {
 				status = "running"
 				msg = fmt.Sprintf("bitcast 0x%x", bucketid)
 			} else if gcstat.Err == nil {

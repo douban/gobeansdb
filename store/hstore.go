@@ -96,7 +96,7 @@ func NewHStore() (store *HStore, err error) {
 
 	for i := 0; i < Conf.NumBucket; i++ {
 		need := Conf.BucketsStat[i] > 0
-		found := (store.buckets[i].State >= BUCKET_STAT_NOT_EMPTY)
+		found := store.buckets[i].State >= BUCKET_STAT_NOT_EMPTY
 		if need {
 			if !found {
 				err = store.allocBucket(i)
@@ -254,9 +254,12 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 		err = fmt.Errorf("no datay for bucket id: %d", bucketID)
 		return
 	}
-	if store.gcMgr.stat != nil && store.gcMgr.stat.Running {
-		err = fmt.Errorf("already running")
-		return
+
+	if store.gcMgr.stat != nil {
+		if _, exists := store.gcMgr.stat.Running[bucketID]; exists {
+			err = fmt.Errorf("already running")
+			return
+		}
 	}
 	begin, end, err = bkt.gcCheckRange(beginChunkID, endChunkID, noGCDays)
 	if err != nil {
