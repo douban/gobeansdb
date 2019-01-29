@@ -2,15 +2,15 @@ package store
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/douban/gobeansdb/config"
 )
 
 type GCMgr struct {
-	bucketID int
-	stat     *GCState // curr or last
-	ki       KeyInfo
+	mu   sync.RWMutex
+	stat map[int]*GCState // map[bucketID]*GCState
 }
 
 type GCState struct {
@@ -25,9 +25,7 @@ type GCState struct {
 	Src int
 	Dst int
 
-	Err     error
-	Running bool
-
+	Err error
 	// sum
 	GCFileState
 }
@@ -189,11 +187,15 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 
 	bkt.GCHistory = append(bkt.GCHistory, GCState{})
 	gc := &bkt.GCHistory[len(bkt.GCHistory)-1]
-	mgr.stat = gc
-	gc.Running = true
+	// add gc to mgr's stat map
+	mgr.mu.Lock()
+	mgr.stat[bkt.ID] = gc
+	mgr.mu.Unlock()
 	gc.BeginTS = time.Now()
 	defer func() {
-		gc.Running = false
+		mgr.mu.Lock()
+		delete(mgr.stat, bkt.ID)
+		mgr.mu.Unlock()
 		gc.EndTS = time.Now()
 	}()
 	gc.Begin = startChunkID

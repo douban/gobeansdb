@@ -83,7 +83,7 @@ func NewHStore() (store *HStore, err error) {
 	cmem.DBRL.ResetAll()
 	st := time.Now()
 	store = new(HStore)
-	store.gcMgr = new(GCMgr)
+	store.gcMgr = &GCMgr{stat: make(map[int]*GCState)}
 	store.buckets = make([]*Bucket, Conf.NumBucket)
 	for i := 0; i < Conf.NumBucket; i++ {
 		store.buckets[i] = &Bucket{}
@@ -96,7 +96,7 @@ func NewHStore() (store *HStore, err error) {
 
 	for i := 0; i < Conf.NumBucket; i++ {
 		need := Conf.BucketsStat[i] > 0
-		found := (store.buckets[i].State >= BUCKET_STAT_NOT_EMPTY)
+		found := store.buckets[i].State >= BUCKET_STAT_NOT_EMPTY
 		if need {
 			if !found {
 				err = store.allocBucket(i)
@@ -254,10 +254,20 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 		err = fmt.Errorf("no datay for bucket id: %d", bucketID)
 		return
 	}
-	if store.gcMgr.stat != nil && store.gcMgr.stat.Running {
-		err = fmt.Errorf("already running")
+
+	checkGC := func() error {
+		store.gcMgr.mu.RLock()
+		defer store.gcMgr.mu.RUnlock()
+		if _, exists := store.gcMgr.stat[bucketID]; exists {
+			err := fmt.Errorf("gc on bkt: %d already running", bucketID)
+			return err
+		}
+		return nil
+	}
+	if err = checkGC(); err != nil {
 		return
 	}
+
 	begin, end, err = bkt.gcCheckRange(beginChunkID, endChunkID, noGCDays)
 	if err != nil {
 		return
@@ -269,8 +279,15 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 	return
 }
 
-func (store *HStore) GCStat() (int, *GCState) {
-	return store.gcMgr.bucketID, store.gcMgr.stat
+func (store *HStore) IsGCRunning() bool {
+	var result bool
+	store.gcMgr.mu.RLock()
+	defer store.gcMgr.mu.RUnlock()
+	if len(store.gcMgr.stat) > 0 {
+		result = true
+	}
+
+	return result
 }
 
 func (store *HStore) GetBucketInfo(bucketID int) *BucketInfo {
