@@ -31,8 +31,6 @@ type GCState struct {
 	Dst int
 
 	Err     error
-	Running bool
-
 	// sum
 	GCFileState
 }
@@ -198,10 +196,11 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	mgr.mu.Lock()
 	mgr.stat[bkt.ID] = gc
 	mgr.mu.Unlock()
-	gc.Running = true
 	gc.BeginTS = time.Now()
 	defer func() {
-		gc.Running = false
+		mgr.mu.Lock()
+		delete(mgr.stat, bkt.ID)
+		mgr.mu.Unlock()
 		gc.EndTS = time.Now()
 	}()
 	gc.Begin = startChunkID
