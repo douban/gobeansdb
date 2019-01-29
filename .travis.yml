@@ -17,4 +17,5 @@ install:
 
 script:
   - diff <(goimports -d .) <(printf "")
+  - make install
   - make test

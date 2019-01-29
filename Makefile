@@ -24,4 +24,5 @@ pytest:install
 	./tests/run_test.sh
 
 install:
+	GO111MODULE=on go mod vendor
 	CC=$(COMPILER) go install ./
