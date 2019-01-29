@@ -83,7 +83,7 @@ func NewHStore() (store *HStore, err error) {
 	cmem.DBRL.ResetAll()
 	st := time.Now()
 	store = new(HStore)
-	store.gcMgr = &GCMgr{stat:make(map[int]*GCState)}
+	store.gcMgr = &GCMgr{stat: make(map[int]*GCState)}
 	store.buckets = make([]*Bucket, Conf.NumBucket)
 	for i := 0; i < Conf.NumBucket; i++ {
 		store.buckets[i] = &Bucket{}
@@ -280,17 +280,15 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 	return
 }
 
-func (store *HStore) GCStat() (int, *GCState) {
-	var bucketID int
-	var stat  *GCState
+func (store *HStore) IsGCRunning() bool {
+	var result bool
 	store.gcMgr.mu.RLock()
 	defer store.gcMgr.mu.RUnlock()
-	for k := range store.gcMgr.stat{
-		bucketID = k
-		stat = store.gcMgr.stat[bucketID]
-		break
+	if len(store.gcMgr.stat) > 0 {
+		result = true
 	}
-	return bucketID, stat
+
+	return result
 }
 
 func (store *HStore) GetBucketInfo(bucketID int) *BucketInfo {

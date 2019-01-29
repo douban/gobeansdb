@@ -250,21 +250,10 @@ func (s *StorageClient) Process(cmd string, args []string) (status string, msg s
 	switch cmd {
 	case "optimize_stat":
 		msg = ""
-		bucketid, gcstat := s.hstore.GCStat()
-		if gcstat == nil {
-			status = "none"
+		if s.hstore.IsGCRunning() {
+			status = "running"
 		} else {
-			if gcstat.Err != nil {
-				if gcstat.Err == nil {
-					status = "success"
-				} else {
-					status = fmt.Sprintf("fail %s", gcstat.Err.Error())
-				}
-			} else {
-				status = "running"
-				msg = fmt.Sprintf("bitcast 0x%x", bucketid)
-
-			}
+			status = "none"
 		}
 
 	default:
