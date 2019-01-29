@@ -4,14 +4,20 @@ os:
   - linux
   - osx
 
-compiler:
-  - gcc
-
 go:
   - "1.11.x"
 
 env:
   - GO111MODULE=on
+
+addons:
+  apt:
+    packages:
+      - gcc
+
+before_install:
+  - if [[ "TRAVIS_OS_NAME" == "osx" ]]; then brew update     ; fi
+  - if [[ "TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc; fi
 
 install:
   - go get -u golang.org/x/tools/cmd/goimports
