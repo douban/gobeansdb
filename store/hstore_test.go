@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"github.com/douban/gobeansdb/cmem"
@@ -45,9 +46,6 @@ var (
 	dir           string
 	recordPerFile = 6 // even numb
 )
-
-type HashFuncWithBucketType func([]byte, int) uint64
-var getKeyHashWithBucket HashFuncWithBucketType
 
 func init() {
 	os.MkdirAll(*tBase, 0777)
@@ -118,7 +116,6 @@ func (g *KVGen) genConcurrency(ki *KeyInfo, i int, ver int, bktID int) (payload 
 			Ver: 0},
 	}
 	payload.Body = []byte(value)
-
 	return
 }
 
@@ -137,10 +134,15 @@ func makeKeyHasherFixBucket(depth uint, bucket int) HashFuncType {
 	}
 }
 
-func makeKeyHasherWithBucket(depth uint) HashFuncWithBucketType {
-	return func(key []byte, bkt int) uint64 {
+func makeKeyHasherWithBucket(depth uint) HashFuncType {
+	return func(key []byte) uint64 {
 		shift := depth * 4
-		return (getKeyHashDefalut(key) >> shift) | (uint64(bkt) << (64 - shift))
+		// parse bucket_id from key(k_bkt_ver), eg: key1_f_1
+		bktBeginIndex := bytes.IndexByte(key, byte('_')) + 1
+		bktEndIndex := bytes.LastIndexByte(key, byte('_'))
+		bktHex := string(key[bktBeginIndex:bktEndIndex])
+		bucketID, _ := strconv.ParseInt(bktHex, 16, 64)
+		return (getKeyHashDefalut(key) >> shift) | (uint64(bucketID) << (64 - shift))
 	}
 }
 
@@ -565,7 +567,8 @@ func testGCAfterRebuildHTree(t *testing.T, store *HStore, bucketID, numRecPerFil
 	// GC begin with 0
 	bkt = store.buckets[bucketID]
 	store.gcMgr.gc(bkt, 0, 1, true)
-	if store.gcMgr.stat[bucketID].Begin > 0 {
+	stat := bkt.GCHistory[len(bkt.GCHistory)-1]
+	if stat.Begin > 0 {
 		t.Fatalf("Begin 0")
 	}
 	store.Close()
@@ -1006,7 +1009,7 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 	checkAllDataWithHints(bucketDir)
 }
 func TestGCConcurrency(t *testing.T) {
-	testGCConcurrency(t, 100)
+	testGCConcurrency(t, 10000)
 }
 
 func testGCConcurrency(t *testing.T, numRecPerFile int) {
@@ -1021,7 +1024,10 @@ func testGCConcurrency(t *testing.T, numRecPerFile int) {
 		Conf.BucketsStat[bkt] = 1
 	}
 	Conf.TreeHeight = 3
-	getKeyHashWithBucket = makeKeyHasherWithBucket(1)
+	getKeyHash = makeKeyHasherWithBucket(1)
+	defer func() {
+		getKeyHash = getKeyHashDefalut
+	}()
 
 	Conf.DataFileMaxStr = strconv.Itoa(int(256 * uint32(numRecPerFile)))
 	Conf.Init()
@@ -1045,9 +1051,8 @@ func testGCConcurrency(t *testing.T, numRecPerFile int) {
 	}
 
 	store.Close()
-	for _, bkt := range bucketIDs {
-		bucketDir := filepath.Join(Conf.Home, fmt.Sprintf("%x", bkt))
-		checkAllBucketDataWithHints(bucketDir, bkt)
+	for _, bucketDir := range bucketDirs {
+		checkAllDataWithHints(bucketDir)
 	}
 }
 
@@ -1313,83 +1318,6 @@ func checkDataWithHints(dir string, chunk int) error {
 func checkAllDataWithHints(dir string) error {
 	for i := 0; i < 256; i++ {
 		err := checkDataWithHints(dir, i)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func checkBucketDataWithHints(dir string, chunk int, bkt int) error {
-	dpath := "%s/%03d.data"
-	_, err := os.Stat(dpath)
-	hpat := "%s/%03d.*"
-	hpaths, _ := filepath.Glob(hpat)
-	if err != nil {
-		if len(hpaths) > 0 {
-			return fmt.Errorf("%v should not exist", hpaths)
-		}
-	} else {
-		if len(hpaths) == 0 {
-			return fmt.Errorf("%v has no hints", dpath)
-		} else {
-			dm := make(map[string]*HintItemMeta)
-			ds, _ := newDataStreamReader(dpath, 1<<20)
-			defer ds.Close()
-			for {
-				rec, offset, _, err := ds.Next()
-				if err != nil {
-					return err
-				}
-				if rec == nil {
-					break
-				}
-				rec.Payload.Decompress()
-				rec.Payload.CalcValueHash()
-				dm[string(rec.Key)] = &HintItemMeta{getKeyHashWithBucket(rec.Key, bkt), Position{0, offset}, rec.Payload.Ver, rec.Payload.ValueHash}
-			}
-			hm := make(map[string]*HintItemMeta)
-			for _, hp := range hpaths {
-				hs := newHintFileReader(hp, 0, 4<<10)
-				err := hs.open()
-				if err != nil {
-					return err
-				}
-				for {
-					it, err := hs.next()
-					if err != nil {
-						return err
-					}
-					if it == nil {
-						break
-					}
-					hm[it.Key] = &it.HintItemMeta
-				}
-			}
-			for k, v := range dm {
-				it, ok := hm[k]
-				if !ok {
-					return fmt.Errorf("data key %s not in hint", k)
-				}
-				if *it != *v {
-					return fmt.Errorf("key %s diff: %#v != %#v", k, it, v)
-				}
-				delete(hm, k)
-			}
-			n := len(hm)
-			if n > 0 {
-				for k := range dm {
-					return fmt.Errorf("%d hint key not in data, one of them: %s", n, k)
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func checkAllBucketDataWithHints(dir string, bkt int) error {
-	for i := 0; i < 256; i++ {
-		err := checkBucketDataWithHints(dir, i, bkt)
 		if err != nil {
 			return err
 		}
