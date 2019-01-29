@@ -255,20 +255,19 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 		return
 	}
 
-	if store.gcMgr.stat != nil {
-		checkGC := func() error {
-			store.gcMgr.mu.RLock()
-			defer store.gcMgr.mu.RUnlock()
-			if _, exists := store.gcMgr.stat[bucketID]; exists {
-				err := fmt.Errorf("gc on bkt: %d already running", bucketID)
-				return err
-			}
-			return nil
+	checkGC := func() error {
+		store.gcMgr.mu.RLock()
+		defer store.gcMgr.mu.RUnlock()
+		if _, exists := store.gcMgr.stat[bucketID]; exists {
+			err := fmt.Errorf("gc on bkt: %d already running", bucketID)
+			return err
 		}
-		if err = checkGC(); err != nil {
-			return
-		}
+		return nil
 	}
+	if err = checkGC(); err != nil {
+		return
+	}
+
 	begin, end, err = bkt.gcCheckRange(beginChunkID, endChunkID, noGCDays)
 	if err != nil {
 		return
