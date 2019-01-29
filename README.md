@@ -12,8 +12,7 @@ Any memcached client cache interactive with GobeansDB without any modification.
 
 ## Prepare
 
-GoBeansDB use `vgo` manage dependencies, please install [vgo](https://godoc.org/golang.org/x/vgo) first.
-Supported Go version: 1.10.1+ 
+GoBeansDB use `go mod` manage dependencies, please make sure your Go version >= 1.11.0 first.
 
 
 ## Install
