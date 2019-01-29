@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/douban/gobeansdb/cmem"
-	"github.com/douban/gobeansdb/config"
-	"github.com/douban/gobeansdb/utils"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,6 +12,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/douban/gobeansdb/cmem"
+	"github.com/douban/gobeansdb/config"
+	"github.com/douban/gobeansdb/utils"
 )
 
 var (
