@@ -8,14 +8,9 @@ import (
 	"github.com/douban/gobeansdb/config"
 )
 
-//type GCMgr struct {
-//	GCStateWrapper
-//	//ki       KeyInfo
-//}
-
 type GCMgr struct {
-	mu     sync.RWMutex
-	stat     map[int]*GCState // map[bucketID]*GCState
+	mu   sync.RWMutex
+	stat map[int]*GCState // map[bucketID]*GCState
 }
 
 type GCState struct {
@@ -30,7 +25,7 @@ type GCState struct {
 	Src int
 	Dst int
 
-	Err     error
+	Err error
 	// sum
 	GCFileState
 }
