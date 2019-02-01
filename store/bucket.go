@@ -212,7 +212,7 @@ func (bkt *Bucket) open(bucketID int, home string) (err error) {
 		e := bkt.checkHintWithData(i)
 		if e != nil {
 			err = e
-			logger.Fatalf("fail to start for bad data: %s", e.Error())
+			logger.Fatalf("fail to start for bad data, bkt:%02x, chuck:%d, err: %s", bkt.ID, i, e.Error())
 		}
 		splits := bkt.hints.chunks[i].splits
 		numhintfile := len(splits) - 1
