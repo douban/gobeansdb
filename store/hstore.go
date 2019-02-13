@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,8 +19,14 @@ import (
 )
 
 var (
-	logger    = loghub.ErrorLogger
-	mergeChan chan int
+	logger       = loghub.ErrorLogger
+	mergeChan    chan int
+	gcLock       sync.Mutex
+	gcContext    = context.Background()
+	gcContextMap = struct {
+		m  map[int]GCCancelCtx
+		rw sync.RWMutex
+	}{m: make(map[int]GCCancelCtx)}
 )
 
 type HStore struct {
@@ -288,7 +295,34 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 	if pretend {
 		return
 	}
-	go store.gcMgr.gc(bkt, begin, end, merge)
+
+	ctx, cancel := context.WithCancel(gcContext)
+	gcContextMap.rw.Lock()
+	gcContextMap.m[bucketID] = GCCancelCtx{Cancel: cancel, ChunkChan: make(chan int, 1)}
+	ch := gcContextMap.m[bucketID].ChunkChan
+	gcContextMap.rw.Unlock()
+
+	go store.gcMgr.gc(ctx, ch, bkt, begin, end, merge)
+	return
+}
+
+func (store *HStore) CancelGC(bucketID int) (result string) {
+	// prevent gc same bucket concurrent
+	gcLock.Lock()
+	defer gcLock.Unlock()
+
+	// will delete key in goroutine
+	gcContextMap.rw.RLock()
+	gcCancelCtx, ok := gcContextMap.m[bucketID]
+	gcContextMap.rw.RUnlock()
+
+	if ok {
+		gcCancelCtx.Cancel()
+		chunkID := <-gcCancelCtx.ChunkChan
+		result = fmt.Sprintf("cancel gc on bucket %d when gc chunk %d finished", bucketID, chunkID)
+	} else {
+		result = fmt.Sprintf("bucket %d not gcing", bucketID)
+	}
 	return
 }
 
