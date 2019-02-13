@@ -10,7 +10,7 @@ import (
 	"runtime/debug"
 	"strconv"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/douban/gobeansdb/cmem"
 	"github.com/douban/gobeansdb/config"
@@ -55,7 +55,6 @@ func init() {
 
 	http.HandleFunc("/statgetset", handleStatGetSet)
 	http.HandleFunc("/freememory", handleFreeMemory)
-
 }
 
 func initWeb() {
@@ -314,19 +313,6 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var bucketID int64
 	var pretend bool
-	defer func() {
-		if err != nil {
-			e := fmt.Sprintf("<p> err : %s </p>", err.Error())
-			w.Write([]byte(e))
-			showBucket(w, "gc")
-		} else {
-			if !pretend {
-				result2 := fmt.Sprintf(" <a href='/bucket/%d'> /bucket/%d </a> <p/>", bucketID, bucketID)
-				result = result2 + result
-			}
-			w.Write([]byte(result))
-		}
-	}()
 
 	isQuery := getGCQuery(r)
 	if isQuery {
@@ -338,6 +324,8 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+	bktID := int(bucketID)
+
 	r.ParseForm()
 	start, err := getFormValueInt(r, "start", -1)
 	if err != nil {
@@ -353,16 +341,36 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s := r.FormValue("run")
-	pretend = (s != "true")
+	pretend = s != "true"
 
 	s = r.FormValue("merge")
-	merge := (s == "true")
+	merge := s == "true"
 
-	start, end, err = storage.hstore.GC(int(bucketID), start, end, noGCDays, merge, pretend)
-	if err == nil {
+	s = r.FormValue("cancel")
+	gcCancel := s == "true"
+
+	if gcCancel {
+		result := storage.hstore.CancelGC(bktID)
+		fmt.Fprint(w, result)
+		return
+	}
+
+	start, end, err = storage.hstore.GC(bktID, start, end, noGCDays, merge, pretend)
+
+	if err != nil {
+		e := fmt.Sprintf("<p> err : %s </p>", err.Error())
+		w.Write([]byte(e))
+		showBucket(w, "gc")
+	} else {
 		result = fmt.Sprintf("<p/> bucket %d, start %d, end %d, merge %v, pretend %v <p/>",
 			bucketID, start, end, merge, pretend)
+		if !pretend {
+			result2 := fmt.Sprintf(" <a href='/bucket/%d'> /bucket/%d </a> <p/>", bucketID, bucketID)
+			result = result2 + result
+		}
+		w.Write([]byte(result))
 	}
+	return
 }
 
 func handleDU(w http.ResponseWriter, r *http.Request) {

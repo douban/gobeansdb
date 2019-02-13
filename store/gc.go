@@ -1,12 +1,18 @@
 package store
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/douban/gobeansdb/config"
 )
+
+type GCCancelCtx struct {
+	Cancel    context.CancelFunc
+	ChunkChan chan int
+}
 
 type GCMgr struct {
 	mu   sync.RWMutex
@@ -181,7 +187,7 @@ func (bkt *Bucket) gcCheckRange(startChunkID, endChunkID, noGCDays int) (start, 
 	return
 }
 
-func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
+func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 
 	logger.Infof("begin GC bucket %d chunk [%d, %d]", bkt.ID, startChunkID, endChunkID)
 
@@ -227,6 +233,21 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	defer func() {
 		dstchunk.endGCWriting()
 		bkt.hints.trydump(gc.Dst, true)
+	}()
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			tmp := gc.End
+			if gc.Src <= gc.End {
+				gc.End = gc.Src
+			}
+			logger.Infof("change bucket %d gc end to current [%d -> %d]", bkt.ID, tmp, gc.End)
+			ch <- gc.End
+			gcContextMap.rw.Lock()
+			delete(gcContextMap.m, bkt.ID)
+			gcContextMap.rw.Unlock()
+		}
 	}()
 
 	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {

@@ -2,8 +2,12 @@ package store
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
+	"github.com/douban/gobeansdb/cmem"
+	"github.com/douban/gobeansdb/config"
+	"github.com/douban/gobeansdb/utils"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,10 +16,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-
-	"github.com/douban/gobeansdb/cmem"
-	"github.com/douban/gobeansdb/config"
-	"github.com/douban/gobeansdb/utils"
 )
 
 var (
@@ -283,7 +283,7 @@ func checkDataSize(t *testing.T, ds *dataStore, sizes0 []uint32) {
 	}
 }
 
-func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+func testGCUpdateSame(t *testing.T, ctx context.Context, ch chan<- int, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 
 	var ki KeyInfo
@@ -312,7 +312,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	}
 	store.flushdatas(true)
 	bkt := store.buckets[bucketID]
-	store.gcMgr.gc(bkt, 0, 0, true)
+	store.gcMgr.gc(ctx, ch, bkt, 0, 0, true)
 
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
@@ -347,7 +347,7 @@ func testGCUpdateSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	}
 }
 
-func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+func testGCNothing(t *testing.T, ctx context.Context, ch chan<- int, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 
 	var ki KeyInfo
@@ -369,7 +369,7 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	store.flushdatas(true)
 
 	bkt := store.buckets[bucketID]
-	store.gcMgr.gc(bkt, 0, 0, true)
+	store.gcMgr.gc(ctx, ch, bkt, 0, 0, true)
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 0)
 		payload2, pos, err := store.Get(&ki, false)
@@ -404,7 +404,7 @@ func testGCNothing(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	}
 }
 
-func testGCAfterRebuildHTree(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+func testGCAfterRebuildHTree(t *testing.T, ctx context.Context, ch chan<- int, store *HStore, bucketID, numRecPerFile int) {
 	config.MCConf.BodyMax = 512
 	defer func() {
 		config.MCConf.BodyMax = 50 << 20
@@ -519,7 +519,7 @@ func testGCAfterRebuildHTree(t *testing.T, store *HStore, bucketID, numRecPerFil
 
 	// GC
 	bkt = store.buckets[bucketID]
-	store.gcMgr.gc(bkt, 1, 3, true)
+	store.gcMgr.gc(ctx, ch, bkt, 1, 3, true)
 	dir = utils.NewDir()
 	dir.Set("000.data", int64(n))
 	dir.Set("000.000.idx.s", -1)
@@ -567,7 +567,7 @@ func testGCAfterRebuildHTree(t *testing.T, store *HStore, bucketID, numRecPerFil
 
 	// GC begin with 0
 	bkt = store.buckets[bucketID]
-	store.gcMgr.gc(bkt, 0, 1, true)
+	store.gcMgr.gc(ctx, ch, bkt, 0, 1, true)
 	stat := bkt.GCHistory[len(bkt.GCHistory)-1]
 	if stat.Begin > 0 {
 		t.Fatalf("Begin 0")
@@ -584,7 +584,7 @@ func testGCAfterRebuildHTree(t *testing.T, store *HStore, bucketID, numRecPerFil
 	checkFiles(t, bkt.Home, dir)
 }
 
-func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+func testGCDeleteSame(t *testing.T, ctx context.Context, ch chan<- int, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 
 	var ki KeyInfo
@@ -624,7 +624,7 @@ func testGCDeleteSame(t *testing.T, store *HStore, bucketID, numRecPerFile int) 
 	//	dir.Set("collision.yaml", -1)
 	checkFiles(t, bkt.Home, dir)
 
-	store.gcMgr.gc(bkt, 0, 0, true)
+	store.gcMgr.gc(ctx, ch, bkt, 0, 0, true)
 	for i := 0; i < N; i++ {
 		payload := gen.gen(&ki, i, 1)
 		payload2, pos, err := store.Get(&ki, false)
@@ -680,7 +680,7 @@ func readHStore(t *testing.T, store *HStore, n, v int) {
 	}
 }
 
-func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+func testGCMulti(t *testing.T, ctx context.Context, ch chan<- int, store *HStore, bucketID, numRecPerFile int) {
 	config.MCConf.BodyMax = 512
 	defer func() {
 		config.MCConf.BodyMax = 50 << 20
@@ -786,7 +786,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	// 002: [n/2  ,    n)
 	// 004: -1
 
-	store.gcMgr.gc(bkt, 1, 3, true)
+	store.gcMgr.gc(ctx, ch, bkt, 1, 3, true)
 	stop = true
 	readfunc()
 
@@ -839,7 +839,7 @@ func testGCMulti(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	readfunc()
 }
 
-func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+func testGCToLast(t *testing.T, ctx context.Context, ch chan<- int, store *HStore, bucketID, numRecPerFile int) {
 	config.MCConf.BodyMax = 512
 	defer func() {
 		config.MCConf.BodyMax = 50 << 20
@@ -887,7 +887,7 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 		t.Fatal(err)
 	}
 	store.flushdatas(true)
-	store.gcMgr.gc(bkt, 1, 1, true)
+	store.gcMgr.gc(ctx, ch, bkt, 1, 1, true)
 	readfunc := func() {
 		for i := 0; i < N; i++ {
 			payload := gen.gen(&ki, i, 1)
@@ -961,13 +961,19 @@ func TestGCDeleteSame(t *testing.T) {
 	testGC(t, testGCDeleteSame, "deleteSame", 100)
 }
 
-type testGCFunc func(t *testing.T, hstore *HStore, bucket, numRecPerFile int)
+type testGCFunc func(t *testing.T, ctx context.Context, ch chan<- int, hstore *HStore, bucket, numRecPerFile int)
 
 // numRecPerFile should be even
 func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 
 	setupTest(fmt.Sprintf("testGC_%s", name))
+	ctx, cancel := context.WithCancel(gcContext)
+	chunkCh := make(chan int, 1)
 	defer clearTest()
+	defer func() {
+		cancel()
+		<-chunkCh
+	}()
 
 	numbucket := 16
 	bkt := numbucket - 1
@@ -992,7 +998,7 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 		t.Fatal(err)
 	}
 	logger.Infof("%#v", Conf)
-	casefunc(t, store, bkt, numRecPerFile)
+	casefunc(t, ctx, chunkCh, store, bkt, numRecPerFile)
 
 	if !cmem.DBRL.IsZero() {
 		t.Fatalf("%#v", cmem.DBRL)
@@ -1007,7 +1013,13 @@ func TestGCConcurrency(t *testing.T) {
 
 func testGCConcurrency(t *testing.T, numRecPerFile int) {
 	setupTest(fmt.Sprintf("testGC_%s", "testGCConcurrency"))
+	ctx, cancel := context.WithCancel(gcContext)
+	chunkCh := make(chan int, 1)
 	defer clearTest()
+	defer func() {
+		cancel()
+		<-chunkCh
+	}()
 
 	numbucket := 16
 	Conf.NumBucket = numbucket
@@ -1037,7 +1049,7 @@ func testGCConcurrency(t *testing.T, numRecPerFile int) {
 		t.Fatal(err)
 	}
 	logger.Infof("%#v", Conf)
-	execConcurrencyTest(t, store, bucketIDs, numRecPerFile)
+	execConcurrencyTest(t, ctx, chunkCh, store, bucketIDs, numRecPerFile)
 
 	if !cmem.DBRL.IsZero() {
 		t.Fatalf("%#v", cmem.DBRL)
@@ -1049,7 +1061,7 @@ func testGCConcurrency(t *testing.T, numRecPerFile int) {
 	}
 }
 
-func execConcurrencyTest(t *testing.T, store *HStore, bucketIDs []int, numRecPerFile int) {
+func execConcurrencyTest(t *testing.T, ctx context.Context, ch chan<- int, store *HStore, bucketIDs []int, numRecPerFile int) {
 	config.MCConf.BodyMax = 512
 	defer func() {
 		config.MCConf.BodyMax = 50 << 20
@@ -1166,7 +1178,7 @@ func execConcurrencyTest(t *testing.T, store *HStore, bucketIDs []int, numRecPer
 	var wg sync.WaitGroup
 	gcExec := func(wgg *sync.WaitGroup, b *Bucket) {
 		defer wgg.Done()
-		store.gcMgr.gc(b, 1, 3, true)
+		store.gcMgr.gc(ctx, ch, b, 1, 3, true)
 	}
 	for _, bucketID := range bucketIDs {
 		wg.Add(1)
@@ -1318,7 +1330,7 @@ func checkAllDataWithHints(dir string) error {
 	return nil
 }
 
-func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
+func testGCReserveDelete(t *testing.T, ctx context.Context, ch chan<- int, store *HStore, bucketID, numRecPerFile int) {
 	gen := newKVGen(16)
 	var ki KeyInfo
 	logger.Infof("test gc all updated in the same file")
@@ -1354,7 +1366,7 @@ func testGCReserveDelete(t *testing.T, store *HStore, bucketID, numRecPerFile in
 	store.flushdatas(true)
 
 	bkt := store.buckets[bucketID]
-	store.gcMgr.gc(bkt, 1, 1, true)
+	store.gcMgr.gc(ctx, ch, bkt, 1, 1, true)
 
 	gen.gen(&ki, 0, 0)
 	payload2, _, err := store.Get(&ki, false)
@@ -1412,7 +1424,13 @@ func TestHStoreCollision(t *testing.T) {
 func TestChunk256(t *testing.T) {
 	Conf.InitDefault()
 	setupTest("TestChunk256")
+	ctx, cancel := context.WithCancel(gcContext)
+	ch := make(chan int, 1)
 	defer clearTest()
+	defer func() {
+		cancel()
+		<-ch
+	}()
 
 	numbucket := 16
 	bucketID := numbucket - 1
@@ -1475,7 +1493,7 @@ func TestChunk256(t *testing.T) {
 			}
 		}
 		bkt := store.buckets[bucketID]
-		store.gcMgr.gc(bkt, 0, N-1, true)
+		store.gcMgr.gc(ctx, ch, bkt, 0, N-1, true)
 	}
 	store.Close()
 }
