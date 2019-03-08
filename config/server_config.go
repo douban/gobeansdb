@@ -26,7 +26,7 @@ type ServerConfig struct {
 	Threads     int      `yaml:",omitempty"` // NumCPU
 	ErrorLog    string   `yaml:",omitempty"`
 	AccessLog   string   `yaml:",omitempty"`
-	AnalysisLog string   `yanl:",omitempty"`
+	AnalysisLog string   `yaml:",omitempty"`
 	StaticDir   string   `yaml:",omitempty"` // directory for static files, e.g. *.html
 
 }
