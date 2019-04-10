@@ -41,7 +41,9 @@ func (hub *AnalysisLogHub) Log(name string, level int, file string, line int, ms
 	hub.logger.Printf(AnalysisLogFormat, msg)
 	bufline := &BufferLine{time.Now(), level, file, line, msg}
 	hub.Add(bufline)
+	hub.Lock()
 	hub.Last[level] = bufline
+	hub.Unlock()
 	if level == FATAL {
 		os.Exit(1)
 	}

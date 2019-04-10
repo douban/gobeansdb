@@ -178,6 +178,8 @@ type DataStreamReader struct {
 
 	chunk  int
 	offset uint32
+
+	maxBodyBuf []byte
 }
 
 func newDataStreamReader(path string, bufsz int) (*DataStreamReader, error) {
@@ -187,11 +189,12 @@ func newDataStreamReader(path string, bufsz int) (*DataStreamReader, error) {
 		return nil, err
 	}
 	rbuf := bufio.NewReaderSize(fd, bufsz)
-	return &DataStreamReader{path: path, fd: fd, rbuf: rbuf, offset: 0}, nil
+	maxBodyBuf := make([]byte, 0, config.MCConf.BodyMax)
+	return &DataStreamReader{path: path, fd: fd, rbuf: rbuf, offset: 0, maxBodyBuf: maxBodyBuf}, nil
 }
 
 func (stream *DataStreamReader) seek(offset uint32) {
-	stream.fd.Seek(int64(offset), os.SEEK_SET)
+	stream.fd.Seek(int64(offset), io.SeekStart)
 	stream.offset = offset
 }
 
@@ -208,7 +211,7 @@ func (stream *DataStreamReader) nextValid() (rec *Record, offset uint32, sizeBro
 			logger.Infof("crc fail end offset 0x%x, sizeBroken 0x%x", offset2, sizeBroken)
 			_, rsize := wrec.rec.Sizes()
 			offset3 := offset2 + rsize
-			stream.fd.Seek(int64(offset3), 0)
+			stream.fd.Seek(int64(offset3), io.SeekStart)
 			stream.rbuf.Reset(stream.fd)
 			stream.offset = offset2 + rsize
 			return wrec.rec, offset2, sizeBroken, nil
@@ -233,8 +236,13 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 		return
 	}
 	wrec.decodeHeader()
-	if wrec.ksz > 250 || wrec.ksz <= 0 { // TODO
-		logger.Errorf("bad key len %s %d %d %d", stream.fd.Name(), stream.offset, wrec.ksz, wrec.vsz)
+	if !config.IsValidKeySize(wrec.ksz) {
+		logger.Errorf("gc: bad key len %s %d %d %d", stream.fd.Name(), stream.offset, wrec.ksz, wrec.vsz)
+		return stream.nextValid()
+	}
+
+	if !config.IsValidValueSize(wrec.vsz) {
+		logger.Errorf("gc: bad value len %s %d %d %d", stream.fd.Name(), stream.offset, wrec.ksz, wrec.vsz)
 		return stream.nextValid()
 	}
 
@@ -243,7 +251,7 @@ func (stream *DataStreamReader) Next() (res *Record, offset uint32, sizeBroken u
 		logger.Errorf(err.Error())
 		return
 	}
-	wrec.rec.Payload.Body = make([]byte, wrec.vsz)
+	wrec.rec.Payload.Body = stream.maxBodyBuf[:wrec.vsz]
 	if _, err = io.ReadFull(stream.rbuf, wrec.rec.Payload.Body); err != nil {
 		logger.Errorf(err.Error())
 		return

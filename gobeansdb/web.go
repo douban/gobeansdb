@@ -137,6 +137,11 @@ func handleYaml(w http.ResponseWriter, v interface{}) {
 	}
 }
 
+func getGCQuery(r *http.Request) bool {
+	s := filepath.Base(r.URL.Path)
+	return s == "query"
+}
+
 func getBucket(r *http.Request) (bucketID int64, err error) {
 	s := filepath.Base(r.URL.Path)
 	return strconv.ParseInt(s, 16, 16)
@@ -322,6 +327,12 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(result))
 		}
 	}()
+
+	isQuery := getGCQuery(r)
+	if isQuery {
+		result = storage.hstore.GCBuckets()
+		return
+	}
 
 	bucketID, err = getBucket(r)
 	if err != nil {

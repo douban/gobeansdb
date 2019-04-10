@@ -937,19 +937,11 @@ func testGCToLast(t *testing.T, store *HStore, bucketID, numRecPerFile int) {
 	readfunc()
 }
 
-func TestGCMultiBigBuffer(t *testing.T) {
-	testGC(t, testGCMulti, "multiBig", 10000)
-}
-
 func TestGCAfterRebuildHtree(t *testing.T) {
 	testGC(t, testGCAfterRebuildHTree, "gc build htree", 1000)
 }
 
-func TestGCMultiSmallBuffer(t *testing.T) {
-	GCWriteBufferSize = 256
-	defer func() {
-		GCWriteBufferSize = GCWriteBufferSizeDefault
-	}()
+func TestGCMultiBuffer(t *testing.T) {
 	testGC(t, testGCMulti, "multiSmalll", 1000)
 }
 
