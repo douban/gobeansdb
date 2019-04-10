@@ -46,6 +46,8 @@ type DataConfig struct {
 
 	FlushWakeStr   string          `yaml:"flush_wake_str"` //
 	DataFileMaxStr string          `yaml:"datafile_max_str,omitempty"`
+	BufIOCap       int             `yaml:"-"` // for bufio reader/writer, if value is big, then enlarge this cap, defalult: 1MB
+	BufIOCapStr    string          `yaml:"bufio_cap_str,omitempty"`
 	NotCompress    map[string]bool `yaml:"not_compress,omitempty"` // kind do not compress
 }
 

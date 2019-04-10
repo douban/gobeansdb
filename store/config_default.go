@@ -18,7 +18,7 @@ import "github.com/douban/gobeansdb/config"
 	NoMerged: false
 	MergeInterval: 1
 
-3. reasonabe setting for others
+3. reasonable setting for others
 
 */
 
@@ -40,6 +40,7 @@ var (
 		CheckVHash:     false,
 		FlushInterval:  0,
 		FlushWakeStr:   "0",
+		BufIOCapStr:    "1M",
 
 		NoGCDays: 0,
 		NotCompress: map[string]bool{

@@ -45,7 +45,9 @@ func (hub *ErrorLogHub) Log(name string, level int, file string, line int, msg s
 	hub.logger.Printf(ErrorLogFormat, levelString[level], file, line, msg)
 	bufline := &BufferLine{time.Now(), level, file, line, msg}
 	hub.Add(bufline)
+	hub.Lock()
 	hub.Last[level] = bufline
+	hub.Unlock()
 	if level == FATAL {
 		os.Exit(1)
 	}

@@ -294,7 +294,7 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 			wrec := wrapRecord(rec)
 			recsize := wrec.rec.Payload.RecSize
 			fileState.addRecord(recsize, isNewest, isDeleted, sizeBroken)
-			// logger.Infof("%v %v %v %v", ki.StringKey, isNewest, isCoverdByCollision, isDeleted)
+			//logger.Infof("key stat: %v %v %v %v", ki.StringKey, isNewest, isCoverdByCollision, isDeleted)
 			if !isNewest {
 				continue
 			}

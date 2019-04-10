@@ -10,11 +10,6 @@ import (
 	"github.com/douban/gobeansdb/utils"
 )
 
-var (
-	GCWriteBufferSizeDefault = uint32(1 << 20)
-	GCWriteBufferSize        = GCWriteBufferSizeDefault
-)
-
 type dataChunk struct {
 	sync.Mutex
 
@@ -63,7 +58,6 @@ func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error
 	wrec.pos.ChunkID = dc.chunkid
 	offset = dc.writingHead
 	wrec.pos.Offset = offset
-	dc.wbuf = append(dc.wbuf, wrec)
 	size := wrec.rec.Payload.RecSize
 
 	dc.writingHead += size
@@ -72,10 +66,14 @@ func (dc *dataChunk) AppendRecordGC(wrec *WriteRecord) (offset uint32, err error
 	}
 	dc.Unlock()
 
-	dc.gcbufsize += size
-	if dc.gcbufsize > GCWriteBufferSize {
-		_, err = dc.flush(dc.gcWriter, true)
-		dc.gcbufsize = 0
+	_, err = dc.gcWriter.append(wrec)
+	if err != nil {
+		logger.Fatalf("fail to append, stop! err: %v", err)
+	}
+
+	if err = dc.gcWriter.wbuf.Flush(); err != nil {
+		logger.Fatalf("write data fail, stop! err: %v", err)
+		return 0, err
 	}
 	return
 }
@@ -203,7 +201,7 @@ func (dc *dataChunk) beginGCWriting(srcChunk int) (err error) {
 func (dc *dataChunk) endGCWriting() (err error) {
 	logger.Infof("endGCWriting chunk %d rewrite %v size %d wsize%d ", dc.chunkid, dc.rewriting, dc.size, dc.writingHead)
 	if dc.gcWriter != nil {
-		_, err = dc.flush(dc.gcWriter, true)
+		err = dc.gcWriter.wbuf.Flush()
 		dc.gcWriter.Close()
 		dc.gcWriter = nil
 	}
