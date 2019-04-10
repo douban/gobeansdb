@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -242,6 +244,17 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 		return bkt.listDir(ki)
 	}
 	return store.ListUpper(ki)
+}
+
+func (store *HStore) GCBuckets() string {
+	var result strings.Builder
+	store.gcMgr.mu.Lock()
+	for k := range store.gcMgr.stat {
+		result.WriteString(strconv.FormatInt(int64(k), 16))
+		result.WriteString(",")
+	}
+	store.gcMgr.mu.Unlock()
+	return strings.TrimSuffix(result.String(), ",")
 }
 
 func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge, pretend bool) (begin, end int, err error) {

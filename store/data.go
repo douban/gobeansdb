@@ -173,7 +173,7 @@ func (ds *dataStore) ListFiles() (max int, err error) {
 
 func (ds *dataStore) GetStreamReader(chunk int) (*DataStreamReader, error) {
 	path := ds.genPath(chunk)
-	return newDataStreamReader(path, 1<<20)
+	return newDataStreamReader(path, Conf.BufIOCap)
 }
 
 func GetStreamWriter(path string, isappend bool) (*DataStreamWriter, error) {
@@ -204,7 +204,7 @@ func GetStreamWriter(path string, isappend bool) (*DataStreamWriter, error) {
 			return nil, err
 		}
 	}
-	wbuf := bufio.NewWriterSize(fd, 1<<20)
+	wbuf := bufio.NewWriterSize(fd, Conf.BufIOCap)
 	w := &DataStreamWriter{path: path, fd: fd, wbuf: wbuf, offset: offset}
 	return w, nil
 }
