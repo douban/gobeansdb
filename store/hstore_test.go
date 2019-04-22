@@ -967,13 +967,9 @@ type testGCFunc func(t *testing.T, ctx context.Context, ch chan<- int, hstore *H
 func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 
 	setupTest(fmt.Sprintf("testGC_%s", name))
-	ctx, cancel := context.WithCancel(gcContext)
+	ctx, _ := context.WithCancel(gcContext)
 	chunkCh := make(chan int, 1)
 	defer clearTest()
-	defer func() {
-		cancel()
-		<-chunkCh
-	}()
 
 	numbucket := 16
 	bkt := numbucket - 1
@@ -1007,19 +1003,16 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 	store.Close()
 	checkAllDataWithHints(bucketDir)
 }
+
 func TestGCConcurrency(t *testing.T) {
 	testGCConcurrency(t, 10000)
 }
 
 func testGCConcurrency(t *testing.T, numRecPerFile int) {
 	setupTest(fmt.Sprintf("testGC_%s", "testGCConcurrency"))
-	ctx, cancel := context.WithCancel(gcContext)
+	ctx, _ := context.WithCancel(gcContext)
 	chunkCh := make(chan int, 1)
 	defer clearTest()
-	defer func() {
-		cancel()
-		<-chunkCh
-	}()
 
 	numbucket := 16
 	Conf.NumBucket = numbucket
@@ -1424,13 +1417,9 @@ func TestHStoreCollision(t *testing.T) {
 func TestChunk256(t *testing.T) {
 	Conf.InitDefault()
 	setupTest("TestChunk256")
-	ctx, cancel := context.WithCancel(gcContext)
+	ctx, _ := context.WithCancel(gcContext)
 	ch := make(chan int, 1)
 	defer clearTest()
-	defer func() {
-		cancel()
-		<-ch
-	}()
 
 	numbucket := 16
 	bucketID := numbucket - 1
