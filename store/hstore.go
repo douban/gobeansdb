@@ -306,22 +306,22 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 	return
 }
 
-func (store *HStore) CancelGC(bucketID int) (result string) {
-	// prevent gc same bucket concurrent
+func (store *HStore) CancelGC(bucketID int) (bktID, chunkID int) {
+	// prevent same bucket concurrent request
 	gcLock.Lock()
 	defer gcLock.Unlock()
 
-	// will delete key in goroutine
+	// will delete key at goroutine in store/gc.go
 	gcContextMap.rw.RLock()
-	gcCancelCtx, ok := gcContextMap.m[bucketID]
+	bktGCCancelCtx, ok := gcContextMap.m[bucketID]
 	gcContextMap.rw.RUnlock()
 
+	bktID = bucketID
 	if ok {
-		gcCancelCtx.Cancel()
-		chunkID := <-gcCancelCtx.ChunkChan
-		result = fmt.Sprintf("cancel gc on bucket %d when gc chunk %d finished", bucketID, chunkID)
+		bktGCCancelCtx.Cancel()
+		chunkID = <-bktGCCancelCtx.ChunkChan
 	} else {
-		result = fmt.Sprintf("bucket %d not gcing", bucketID)
+		chunkID = -1
 	}
 	return
 }
