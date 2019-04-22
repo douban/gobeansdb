@@ -202,6 +202,9 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 		mgr.mu.Lock()
 		delete(mgr.stat, bkt.ID)
 		mgr.mu.Unlock()
+		gcContextMap.rw.Lock()
+		delete(gcContextMap.m, bkt.ID)
+		gcContextMap.rw.Unlock()
 		gc.EndTS = time.Now()
 	}()
 	gc.Begin = startChunkID
@@ -233,9 +236,6 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 	defer func() {
 		dstchunk.endGCWriting()
 		bkt.hints.trydump(gc.Dst, true)
-		gcContextMap.rw.Lock()
-		delete(gcContextMap.m, bkt.ID)
-		gcContextMap.rw.Unlock()
 	}()
 
 	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {
@@ -253,7 +253,7 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 			logger.Errorf("gc failed: %s", err.Error())
 			return
 		}
-READRECORD:
+	READRECORD:
 		for {
 			select {
 			case <-ctx.Done():
