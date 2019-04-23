@@ -203,7 +203,10 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 		delete(mgr.stat, bkt.ID)
 		mgr.mu.Unlock()
 		gcContextMap.rw.Lock()
-		delete(gcContextMap.m, bkt.ID)
+		_, exist := gcContextMap.m[bkt.ID]
+		if exist {
+			delete(gcContextMap.m, bkt.ID)
+		}
 		gcContextMap.rw.Unlock()
 		gc.EndTS = time.Now()
 	}()
@@ -253,98 +256,101 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 			logger.Errorf("gc failed: %s", err.Error())
 			return
 		}
-	READRECORD:
+
 		for {
 			select {
 			case <-ctx.Done():
 				logger.Infof("cancel gc, src: %d, dst: %d", gc.Src, gc.Dst)
+				gcContextMap.rw.Lock()
+				delete(gcContextMap.m, bkt.ID)
+				gcContextMap.rw.Unlock()
 				ch <- gc.Src
 				return
 			default:
-				var sizeBroken uint32
-				rec, oldPos.Offset, sizeBroken, err = r.Next()
-				if err != nil {
-					gc.Err = err
-					logger.Errorf("gc failed: %s", err.Error())
-					return
-				}
-				if rec == nil {
-					break READRECORD
-				}
+			}
+			var sizeBroken uint32
+			rec, oldPos.Offset, sizeBroken, err = r.Next()
+			if err != nil {
+				gc.Err = err
+				logger.Errorf("gc failed: %s", err.Error())
+				return
+			}
+			if rec == nil {
+				break
+			}
 
-				var isNewest, isCoverdByCollision, isDeleted bool
-				meta := rec.Payload.Meta
-				ki := NewKeyInfoFromBytes(rec.Key, getKeyHash(rec.Key), false)
-				treeMeta, treePos, found := bkt.htree.get(ki)
-				if found {
-					if oldPos == treePos { // easy
-						meta.ValueHash = treeMeta.ValueHash
-						isNewest = true
-					} else {
-						isDeleted = treeMeta.Ver < 0
-						hintit, hintchunkid, isCoverdByCollision := bkt.hints.getCollisionGC(ki)
-						if isCoverdByCollision {
-							if hintit != nil {
-								p := Position{hintchunkid, hintit.Pos.Offset}
-								if p == oldPos {
-									isNewest = true
-									meta.ValueHash = hintit.Vhash
-								}
-							} else {
-								isNewest = true // guess
-								meta.ValueHash = rec.Payload.Getvhash()
+			var isNewest, isCoverdByCollision, isDeleted bool
+			meta := rec.Payload.Meta
+			ki := NewKeyInfoFromBytes(rec.Key, getKeyHash(rec.Key), false)
+			treeMeta, treePos, found := bkt.htree.get(ki)
+			if found {
+				if oldPos == treePos { // easy
+					meta.ValueHash = treeMeta.ValueHash
+					isNewest = true
+				} else {
+					isDeleted = treeMeta.Ver < 0
+					hintit, hintchunkid, isCoverdByCollision := bkt.hints.getCollisionGC(ki)
+					if isCoverdByCollision {
+						if hintit != nil {
+							p := Position{hintchunkid, hintit.Pos.Offset}
+							if p == oldPos {
+								isNewest = true
+								meta.ValueHash = hintit.Vhash
 							}
+						} else {
+							isNewest = true // guess
+							meta.ValueHash = rec.Payload.Getvhash()
 						}
 					}
-				} else {
-					// when rebuiding the HTree, the deleted recs are removed from HTree
-					// we are not sure whether the `set rec` is still in datafiles while `auto GC`, so we need to write a copy of `del rec` in datafile.
-					// but we can remove the `del rec` while GC begin with 0
-					fileState.NumNotInHtree++
-					if gc.Begin > 0 && rec.Payload.Ver < 0 {
-						isNewest = true
-					}
 				}
-
-				wrec := wrapRecord(rec)
-				recsize := wrec.rec.Payload.RecSize
-				fileState.addRecord(recsize, isNewest, isDeleted, sizeBroken)
-				//logger.Infof("key stat: %v %v %v %v", ki.StringKey, isNewest, isCoverdByCollision, isDeleted)
-				if !isNewest {
-					continue READRECORD
+			} else {
+				// when rebuiding the HTree, the deleted recs are removed from HTree
+				// we are not sure whether the `set rec` is still in datafiles while `auto GC`, so we need to write a copy of `del rec` in datafile.
+				// but we can remove the `del rec` while GC begin with 0
+				fileState.NumNotInHtree++
+				if gc.Begin > 0 && rec.Payload.Ver < 0 {
+					isNewest = true
 				}
+			}
 
-				if recsize+dstchunk.writingHead > uint32(Conf.DataFileMax) {
-					dstchunk.endGCWriting()
-					bkt.hints.trydump(gc.Dst, true)
+			wrec := wrapRecord(rec)
+			recsize := wrec.rec.Payload.RecSize
+			fileState.addRecord(recsize, isNewest, isDeleted, sizeBroken)
+			//logger.Infof("key stat: %v %v %v %v", ki.StringKey, isNewest, isCoverdByCollision, isDeleted)
+			if !isNewest {
+				continue
+			}
 
-					gc.Dst++
-					newPos.ChunkID = gc.Dst
-					logger.Infof("continue GC bucket %d, file %d -> %d", bkt.ID, gc.Src, gc.Dst)
-					dstchunk = &bkt.datas.chunks[gc.Dst]
-					err = dstchunk.beginGCWriting(gc.Src)
-					if err != nil {
-						gc.Err = err
-						return
-					}
-				}
-				if newPos.Offset, err = dstchunk.AppendRecordGC(wrec); err != nil {
+			if recsize+dstchunk.writingHead > uint32(Conf.DataFileMax) {
+				dstchunk.endGCWriting()
+				bkt.hints.trydump(gc.Dst, true)
+
+				gc.Dst++
+				newPos.ChunkID = gc.Dst
+				logger.Infof("continue GC bucket %d, file %d -> %d", bkt.ID, gc.Src, gc.Dst)
+				dstchunk = &bkt.datas.chunks[gc.Dst]
+				err = dstchunk.beginGCWriting(gc.Src)
+				if err != nil {
 					gc.Err = err
-					logger.Errorf("gc failed: %s", err.Error())
 					return
 				}
-				// logger.Infof("%s %v %v", ki.StringKey, newPos, meta)
-				if found {
-					if isCoverdByCollision {
-						mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
-					}
-					mgr.UpdateHtreePos(bkt, ki, oldPos, newPos)
+			}
+			if newPos.Offset, err = dstchunk.AppendRecordGC(wrec); err != nil {
+				gc.Err = err
+				logger.Errorf("gc failed: %s", err.Error())
+				return
+			}
+			// logger.Infof("%s %v %v", ki.StringKey, newPos, meta)
+			if found {
+				if isCoverdByCollision {
+					mgr.UpdateCollision(bkt, ki, oldPos, newPos, rec)
 				}
+				mgr.UpdateHtreePos(bkt, ki, oldPos, newPos)
+			}
 
-				rotated := bkt.hints.set(ki, &meta, newPos, recsize, "gc")
-				if rotated {
-					bkt.hints.trydump(gc.Dst, false)
-				}
+			rotated := bkt.hints.set(ki, &meta, newPos, recsize, "gc")
+			if rotated {
+				bkt.hints.trydump(gc.Dst, false)
 			}
 		}
 
