@@ -369,11 +369,11 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	gcCancel := s == "true"
 
 	if gcCancel {
-		chunkID := storage.hstore.CancelGC(bktID)
-		if chunkID == -1 {
+		src, dst := storage.hstore.CancelGC(bktID)
+		if src == -1 {
 			result = fmt.Sprintf("bucket %d is not gcing", bktID)
 		} else {
-			result = fmt.Sprintf("cancel gc on bucket %d, chunk: %d", bktID, chunkID)
+			result = fmt.Sprintf("cancel gc on bucket %d, src: %d -> dst: %d", bktID, src, dst)
 		}
 	} else {
 		start, end, err = storage.hstore.GC(bktID, start, end, noGCDays, merge, pretend)

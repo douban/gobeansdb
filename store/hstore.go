@@ -2,7 +2,6 @@ package store
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,14 +17,9 @@ import (
 )
 
 var (
-	logger       = loghub.ErrorLogger
-	mergeChan    chan int
-	gcLock       sync.Mutex
-	gcContext    = context.Background()
-	gcContextMap = struct {
-		m  map[int]GCCancelCtx
-		rw sync.RWMutex
-	}{m: make(map[int]GCCancelCtx)}
+	logger    = loghub.ErrorLogger
+	mergeChan chan int
+	gcLock    sync.Mutex
 )
 
 type HStore struct {
@@ -295,31 +289,25 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 		return
 	}
 
-	ctx, cancel := context.WithCancel(gcContext)
-	gcContextMap.rw.Lock()
-	gcContextMap.m[bucketID] = GCCancelCtx{Cancel: cancel, ChunkChan: make(chan int, 1)}
-	ch := gcContextMap.m[bucketID].ChunkChan
-	gcContextMap.rw.Unlock()
-
-	go store.gcMgr.gc(ctx, ch, bkt, begin, end, merge)
+	go store.gcMgr.gc(bkt, begin, end, merge)
 	return
 }
 
-func (store *HStore) CancelGC(bucketID int) (chunkID int) {
+func (store *HStore) CancelGC(bucketID int) (src, dst int) {
 	// prevent same bucket concurrent request
 	gcLock.Lock()
 	defer gcLock.Unlock()
 
 	// will delete key at goroutine in store/gc.go
-	gcContextMap.rw.RLock()
-	bktGCCancelCtx, ok := gcContextMap.m[bucketID]
-	gcContextMap.rw.RUnlock()
+	store.gcMgr.mu.RLock()
+	stat, exists := store.gcMgr.stat[bucketID]
+	store.gcMgr.mu.RUnlock()
 
-	if ok {
-		bktGCCancelCtx.Cancel()
-		chunkID = <-bktGCCancelCtx.ChunkChan
+	if exists {
+		stat.CancelFlag = true
+		src, dst = stat.Src, stat.Dst
 	} else {
-		chunkID = -1
+		src, dst = -1, -1
 	}
 	return
 }
