@@ -10,7 +10,7 @@ import (
 )
 
 type GCCancelCtx struct {
-	Cancel    context.CancelFunc
+	Ctx    context.Context
 	ChunkChan chan int
 }
 
@@ -32,6 +32,7 @@ type GCState struct {
 	Dst int
 
 	Err error
+	CancelFlag bool
 	// sum
 	GCFileState
 }
@@ -187,7 +188,7 @@ func (bkt *Bucket) gcCheckRange(startChunkID, endChunkID, noGCDays int) (start, 
 	return
 }
 
-func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunkID, endChunkID int, merge bool) {
+func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 
 	logger.Infof("begin GC bucket %d chunk [%d, %d]", bkt.ID, startChunkID, endChunkID)
 
@@ -202,9 +203,6 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 		mgr.mu.Lock()
 		delete(mgr.stat, bkt.ID)
 		mgr.mu.Unlock()
-		gcContextMap.rw.Lock()
-		delete(gcContextMap.m, bkt.ID)
-		gcContextMap.rw.Unlock()
 		gc.EndTS = time.Now()
 	}()
 	gc.Begin = startChunkID
@@ -219,10 +217,20 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 	defer mgr.AfterBucket(bkt)
 
 	gc.Dst = startChunkID
-	for i := 0; i < startChunkID; i++ {
+	// try to find the nearest chunk that small than start chunk
+	for i := startChunkID - 1; i >= 0; i-- {
 		sz := bkt.datas.chunks[i].size
-		if sz > 0 && (int64(sz) < Conf.DataFileMax-config.MCConf.BodyMax) {
-			gc.Dst = i
+		if sz > 0 {
+			if int64(sz) < Conf.DataFileMax-config.MCConf.BodyMax {
+				// previous one available and not full, use it.
+				gc.Dst = i
+				break
+			} else {
+				if i < startChunkID-1 { // not previous one
+					gc.Dst = i + 1
+				}
+				break
+			}
 		}
 	}
 
@@ -239,6 +247,10 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 	}()
 
 	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {
+		if gc.CancelFlag {
+			logger.Infof("GC canceled: src %d dst %d", gc.Src, gc.Dst)
+			return
+		}
 		if bkt.datas.chunks[gc.Src].size <= 0 {
 			logger.Infof("skip empty chunk %d", gc.Src)
 			continue
@@ -255,16 +267,6 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 		}
 
 		for {
-			select {
-			case <-ctx.Done():
-				logger.Infof("cancel gc, src: %d, dst: %d", gc.Src, gc.Dst)
-				gcContextMap.rw.Lock()
-				delete(gcContextMap.m, bkt.ID)
-				gcContextMap.rw.Unlock()
-				ch <- gc.Src
-				return
-			default:
-			}
 			var sizeBroken uint32
 			rec, oldPos.Offset, sizeBroken, err = r.Next()
 			if err != nil {
