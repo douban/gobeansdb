@@ -316,8 +316,9 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 
 	isQuery := getGCQuery(r)
 	if isQuery {
-		result = storage.hstore.GCBuckets()
-		w.Write([]byte("gcing: " + result))
+		gcResult := storage.hstore.GCBuckets()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(gcResult)
 		return
 	}
 
@@ -368,7 +369,7 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	gcCancel := s == "true"
 
 	if gcCancel {
-		bktID, chunkID := storage.hstore.CancelGC(bktID)
+		chunkID := storage.hstore.CancelGC(bktID)
 		if chunkID == -1 {
 			result = fmt.Sprintf("bucket %d is not gcing", bktID)
 		} else {

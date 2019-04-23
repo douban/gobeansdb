@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -253,15 +252,15 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 	return store.ListUpper(ki)
 }
 
-func (store *HStore) GCBuckets() string {
-	var result strings.Builder
+func (store *HStore) GCBuckets() []string {
+
 	store.gcMgr.mu.Lock()
+	result := make([]string, 0, len(store.gcMgr.stat))
 	for k := range store.gcMgr.stat {
-		result.WriteString(strconv.FormatInt(int64(k), 16))
-		result.WriteString(",")
+		result = append(result, strconv.FormatInt(int64(k), 16))
 	}
 	store.gcMgr.mu.Unlock()
-	return strings.TrimSuffix(result.String(), ",")
+	return result
 }
 
 func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge, pretend bool) (begin, end int, err error) {
@@ -306,7 +305,7 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 	return
 }
 
-func (store *HStore) CancelGC(bucketID int) (bktID, chunkID int) {
+func (store *HStore) CancelGC(bucketID int) (chunkID int) {
 	// prevent same bucket concurrent request
 	gcLock.Lock()
 	defer gcLock.Unlock()
@@ -316,7 +315,6 @@ func (store *HStore) CancelGC(bucketID int) (bktID, chunkID int) {
 	bktGCCancelCtx, ok := gcContextMap.m[bucketID]
 	gcContextMap.rw.RUnlock()
 
-	bktID = bucketID
 	if ok {
 		bktGCCancelCtx.Cancel()
 		chunkID = <-bktGCCancelCtx.ChunkChan
