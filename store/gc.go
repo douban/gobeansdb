@@ -1,18 +1,12 @@
 package store
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/douban/gobeansdb/config"
 )
-
-type GCCancelCtx struct {
-	Ctx    context.Context
-	ChunkChan chan int
-}
 
 type GCMgr struct {
 	mu   sync.RWMutex
@@ -31,7 +25,7 @@ type GCState struct {
 	Src int
 	Dst int
 
-	Err error
+	Err        error
 	CancelFlag bool
 	// sum
 	GCFileState
