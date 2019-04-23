@@ -317,9 +317,23 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	isQuery := getGCQuery(r)
 	if isQuery {
 		result = storage.hstore.GCBuckets()
-		w.Write([]byte(result))
+		w.Write([]byte("gcing: " + result))
 		return
 	}
+
+	defer func() {
+		if err != nil {
+			e := fmt.Sprintf("<p> err : %s </p>", err.Error())
+			w.Write([]byte(e))
+			showBucket(w, "gc")
+		} else {
+			if !pretend {
+				result2 := fmt.Sprintf(" <a href='/bucket/%d'> /bucket/%d </a> <p/>", bucketID, bucketID)
+				result = result2 + result
+			}
+			w.Write([]byte(result))
+		}
+	}()
 
 	bucketID, err = getBucket(r)
 	if err != nil {
@@ -327,7 +341,10 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	}
 	bktID := int(bucketID)
 
-	r.ParseForm()
+	err = r.ParseForm()
+	if err != nil {
+		return
+	}
 	start, err := getFormValueInt(r, "start", -1)
 	if err != nil {
 		return
@@ -351,31 +368,16 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	gcCancel := s == "true"
 
 	if gcCancel {
-		var result string
 		bktID, chunkID := storage.hstore.CancelGC(bktID)
 		if chunkID == -1 {
 			result = fmt.Sprintf("bucket %d is not gcing", bktID)
 		} else {
 			result = fmt.Sprintf("cancel gc on bucket %d, chunk: %d", bktID, chunkID)
 		}
-		fmt.Fprint(w, result)
-		return
-	}
-
-	start, end, err = storage.hstore.GC(bktID, start, end, noGCDays, merge, pretend)
-
-	if err != nil {
-		e := fmt.Sprintf("<p> err : %s </p>", err.Error())
-		w.Write([]byte(e))
-		showBucket(w, "gc")
 	} else {
+		start, end, err = storage.hstore.GC(bktID, start, end, noGCDays, merge, pretend)
 		result = fmt.Sprintf("<p/> bucket %d, start %d, end %d, merge %v, pretend %v <p/>",
 			bucketID, start, end, merge, pretend)
-		if !pretend {
-			result2 := fmt.Sprintf(" <a href='/bucket/%d'> /bucket/%d </a> <p/>", bucketID, bucketID)
-			result = result2 + result
-		}
-		w.Write([]byte(result))
 	}
 	return
 }
