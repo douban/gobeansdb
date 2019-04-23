@@ -203,10 +203,7 @@ func (mgr *GCMgr) gc(ctx context.Context, ch chan<- int, bkt *Bucket, startChunk
 		delete(mgr.stat, bkt.ID)
 		mgr.mu.Unlock()
 		gcContextMap.rw.Lock()
-		_, exist := gcContextMap.m[bkt.ID]
-		if exist {
-			delete(gcContextMap.m, bkt.ID)
-		}
+		delete(gcContextMap.m, bkt.ID)
 		gcContextMap.rw.Unlock()
 		gc.EndTS = time.Now()
 	}()
