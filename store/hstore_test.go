@@ -1001,6 +1001,7 @@ func testGC(t *testing.T, casefunc testGCFunc, name string, numRecPerFile int) {
 	store.Close()
 	checkAllDataWithHints(bucketDir)
 }
+
 func TestGCConcurrency(t *testing.T) {
 	testGCConcurrency(t, 10000)
 }

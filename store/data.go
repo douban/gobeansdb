@@ -132,7 +132,9 @@ func (ds *dataStore) flush(chunk int, force bool) error {
 			filessize, w.offset, ds.genPath(chunk), &ds.chunks[chunk])
 	}
 	nflushed, err := ds.chunks[chunk].flush(w, false)
+	ds.Lock()
 	ds.wbufSize -= nflushed
+	ds.Unlock()
 	w.Close()
 
 	return nil

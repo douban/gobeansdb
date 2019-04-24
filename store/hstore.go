@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,6 +19,7 @@ import (
 var (
 	logger    = loghub.ErrorLogger
 	mergeChan chan int
+	gcLock    sync.Mutex
 )
 
 type HStore struct {
@@ -246,15 +246,15 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 	return store.ListUpper(ki)
 }
 
-func (store *HStore) GCBuckets() string {
-	var result strings.Builder
+func (store *HStore) GCBuckets() []string {
+
 	store.gcMgr.mu.Lock()
+	result := make([]string, 0, len(store.gcMgr.stat))
 	for k := range store.gcMgr.stat {
-		result.WriteString(strconv.FormatInt(int64(k), 16))
-		result.WriteString(",")
+		result = append(result, strconv.FormatInt(int64(k), 16))
 	}
 	store.gcMgr.mu.Unlock()
-	return strings.TrimSuffix(result.String(), ",")
+	return result
 }
 
 func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge, pretend bool) (begin, end int, err error) {
@@ -288,7 +288,27 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 	if pretend {
 		return
 	}
+
 	go store.gcMgr.gc(bkt, begin, end, merge)
+	return
+}
+
+func (store *HStore) CancelGC(bucketID int) (src, dst int) {
+	// prevent same bucket concurrent request
+	gcLock.Lock()
+	defer gcLock.Unlock()
+
+	// will delete key at goroutine in store/gc.go
+	store.gcMgr.mu.RLock()
+	stat, exists := store.gcMgr.stat[bucketID]
+	store.gcMgr.mu.RUnlock()
+
+	if exists {
+		stat.CancelFlag = true
+		src, dst = stat.Src, stat.Dst
+	} else {
+		src, dst = -1, -1
+	}
 	return
 }
 

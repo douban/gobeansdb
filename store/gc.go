@@ -25,7 +25,8 @@ type GCState struct {
 	Src int
 	Dst int
 
-	Err error
+	Err        error
+	CancelFlag bool
 	// sum
 	GCFileState
 }
@@ -210,10 +211,20 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	defer mgr.AfterBucket(bkt)
 
 	gc.Dst = startChunkID
-	for i := 0; i < startChunkID; i++ {
+	// try to find the nearest chunk that small than start chunk
+	for i := startChunkID - 1; i >= 0; i-- {
 		sz := bkt.datas.chunks[i].size
-		if sz > 0 && (int64(sz) < Conf.DataFileMax-config.MCConf.BodyMax) {
-			gc.Dst = i
+		if sz > 0 {
+			if int64(sz) < Conf.DataFileMax-config.MCConf.BodyMax {
+				// previous one available and not full, use it.
+				gc.Dst = i
+				break
+			} else {
+				if i < startChunkID-1 { // not previous one
+					gc.Dst = i + 1
+				}
+				break
+			}
 		}
 	}
 
@@ -230,6 +241,10 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	}()
 
 	for gc.Src = gc.Begin; gc.Src <= gc.End; gc.Src++ {
+		if gc.CancelFlag {
+			logger.Infof("GC canceled: src %d dst %d", gc.Src, gc.Dst)
+			return
+		}
 		if bkt.datas.chunks[gc.Src].size <= 0 {
 			logger.Infof("skip empty chunk %d", gc.Src)
 			continue

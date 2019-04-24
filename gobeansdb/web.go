@@ -10,7 +10,7 @@ import (
 	"runtime/debug"
 	"strconv"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/douban/gobeansdb/cmem"
 	"github.com/douban/gobeansdb/config"
@@ -55,7 +55,6 @@ func init() {
 
 	http.HandleFunc("/statgetset", handleStatGetSet)
 	http.HandleFunc("/freememory", handleFreeMemory)
-
 }
 
 func initWeb() {
@@ -314,6 +313,15 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var bucketID int64
 	var pretend bool
+
+	isQuery := getGCQuery(r)
+	if isQuery {
+		gcResult := storage.hstore.GCBuckets()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(gcResult)
+		return
+	}
+
 	defer func() {
 		if err != nil {
 			e := fmt.Sprintf("<p> err : %s </p>", err.Error())
@@ -328,17 +336,16 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	isQuery := getGCQuery(r)
-	if isQuery {
-		result = storage.hstore.GCBuckets()
-		return
-	}
-
 	bucketID, err = getBucket(r)
 	if err != nil {
 		return
 	}
-	r.ParseForm()
+	bktID := int(bucketID)
+
+	err = r.ParseForm()
+	if err != nil {
+		return
+	}
 	start, err := getFormValueInt(r, "start", -1)
 	if err != nil {
 		return
@@ -353,16 +360,27 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s := r.FormValue("run")
-	pretend = (s != "true")
+	pretend = s != "true"
 
 	s = r.FormValue("merge")
-	merge := (s == "true")
+	merge := s == "true"
 
-	start, end, err = storage.hstore.GC(int(bucketID), start, end, noGCDays, merge, pretend)
-	if err == nil {
+	s = r.FormValue("cancel")
+	gcCancel := s == "true"
+
+	if gcCancel {
+		src, dst := storage.hstore.CancelGC(bktID)
+		if src == -1 {
+			result = fmt.Sprintf("bucket %d is not gcing", bktID)
+		} else {
+			result = fmt.Sprintf("cancel gc on bucket %d, src: %d -> dst: %d", bktID, src, dst)
+		}
+	} else {
+		start, end, err = storage.hstore.GC(bktID, start, end, noGCDays, merge, pretend)
 		result = fmt.Sprintf("<p/> bucket %d, start %d, end %d, merge %v, pretend %v <p/>",
 			bucketID, start, end, merge, pretend)
 	}
+	return
 }
 
 func handleDU(w http.ResponseWriter, r *http.Request) {
