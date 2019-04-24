@@ -336,6 +336,12 @@ func handleGC(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	isQuery := getGCQuery(r)
+	if isQuery {
+		result = storage.hstore.GCBuckets()
+		return
+	}
+
 	bucketID, err = getBucket(r)
 	if err != nil {
 		return
