@@ -25,6 +25,9 @@ type GCState struct {
 	Src int
 	Dst int
 
+	// For beansdbadmin check status.
+	Running bool
+
 	Err        error
 	CancelFlag bool
 	// sum
@@ -192,11 +195,13 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	mgr.mu.Lock()
 	mgr.stat[bkt.ID] = gc
 	mgr.mu.Unlock()
+	gc.Running = true
 	gc.BeginTS = time.Now()
 	defer func() {
 		mgr.mu.Lock()
 		delete(mgr.stat, bkt.ID)
 		mgr.mu.Unlock()
+		gc.Running = false
 		gc.EndTS = time.Now()
 	}()
 	gc.Begin = startChunkID
