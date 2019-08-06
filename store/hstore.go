@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -246,12 +247,16 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 	return store.ListUpper(ki)
 }
 
-func (store *HStore) GCBuckets() []string {
+func (store *HStore) GCBuckets() map[string][]string {
 
 	store.gcMgr.mu.Lock()
-	result := make([]string, 0, len(store.gcMgr.stat))
-	for k := range store.gcMgr.stat {
-		result = append(result, strconv.FormatInt(int64(k), 16))
+	result := make(map[string][]string)
+	for bkt, st := range store.gcMgr.stat {
+		bucket := strconv.FormatInt(int64(bkt), 16)
+		bucketPath := fmt.Sprintf("/var/lib/beansdb/%s", strings.Join(strings.Split(bucket, ""), "/"))
+		disk, _ := utils.DiskUsage(bucketPath)
+		gcResult := fmt.Sprintf("start -> %d, end -> %d, current -> %d", st.Begin, st.End, st.Src)
+		result[disk.Root] = append(result[disk.Root], gcResult)
 	}
 	store.gcMgr.mu.Unlock()
 	return result
