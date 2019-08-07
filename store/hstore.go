@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -86,7 +84,7 @@ func NewHStore() (store *HStore, err error) {
 	cmem.DBRL.ResetAll()
 	st := time.Now()
 	store = new(HStore)
-	store.gcMgr = &GCMgr{stat: make(map[int]*GCState)}
+	store.gcMgr = &GCMgr{stat: make(map[*Bucket]*GCState)}
 	store.buckets = make([]*Bucket, Conf.NumBucket)
 	for i := 0; i < Conf.NumBucket; i++ {
 		store.buckets[i] = &Bucket{}
@@ -249,17 +247,37 @@ func (store *HStore) ListDir(ki *KeyInfo) ([]byte, error) {
 
 func (store *HStore) GCBuckets() map[string][]string {
 
+	fetchRemain := func(current, end int, b *Bucket) int {
+		var cnt int
+		for i := current; i <= end; i++ {
+			if b.datas.chunks[i].size > 0 {
+				cnt++
+			}
+		}
+		return cnt
+	}
+
 	store.gcMgr.mu.Lock()
 	result := make(map[string][]string)
 	for bkt, st := range store.gcMgr.stat {
-		bucket := strconv.FormatInt(int64(bkt), 16)
-		bucketPath := fmt.Sprintf("/var/lib/beansdb/%s", strings.Join(strings.Split(bucket, ""), "/"))
-		disk, _ := utils.DiskUsage(bucketPath)
-		gcResult := fmt.Sprintf("start -> %d, end -> %d, current -> %d", st.Begin, st.End, st.Src)
+		disk, _ := utils.DiskUsage(bkt.Home)
+		remain := fetchRemain(st.Src, st.End, bkt)
+		gcResult := fmt.Sprintf("start -> %d, end -> %d, current -> %d", st.Begin, st.End, remain)
 		result[disk.Root] = append(result[disk.Root], gcResult)
 	}
 	store.gcMgr.mu.Unlock()
 	return result
+}
+
+func (store *HStore) getBucket(bucketID int) *Bucket {
+	if bucketID < 0 || bucketID >= len(store.buckets) {
+		return nil
+	}
+	bkt := store.buckets[bucketID]
+	if bkt.State != BUCKET_STAT_READY {
+		return nil
+	}
+	return bkt
 }
 
 func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge, pretend bool) (begin, end int, err error) {
@@ -269,14 +287,14 @@ func (store *HStore) GC(bucketID, beginChunkID, endChunkID, noGCDays int, merge,
 	}
 	bkt := store.buckets[bucketID]
 	if bkt.State != BUCKET_STAT_READY {
-		err = fmt.Errorf("no datay for bucket id: %d", bucketID)
+		err = fmt.Errorf("no data for bucket id: %d", bucketID)
 		return
 	}
 
 	checkGC := func() error {
 		store.gcMgr.mu.RLock()
 		defer store.gcMgr.mu.RUnlock()
-		if _, exists := store.gcMgr.stat[bucketID]; exists {
+		if _, exists := store.gcMgr.stat[bkt]; exists {
 			err := fmt.Errorf("gc on bkt: %d already running", bucketID)
 			return err
 		}
@@ -302,10 +320,15 @@ func (store *HStore) CancelGC(bucketID int) (src, dst int) {
 	// prevent same bucket concurrent request
 	gcLock.Lock()
 	defer gcLock.Unlock()
-
+	bkt := store.getBucket(bucketID)
+	if bkt == nil {
+		logger.Warnf("get bucket: %02x error", bucketID)
+		src, dst = -1, -1
+		return
+	}
 	// will delete key at goroutine in store/gc.go
 	store.gcMgr.mu.RLock()
-	stat, exists := store.gcMgr.stat[bucketID]
+	stat, exists := store.gcMgr.stat[bkt]
 	store.gcMgr.mu.RUnlock()
 
 	if exists {
@@ -329,14 +352,7 @@ func (store *HStore) IsGCRunning() bool {
 }
 
 func (store *HStore) GetBucketInfo(bucketID int) *BucketInfo {
-	if bucketID < 0 || bucketID >= len(store.buckets) {
-		return nil
-	}
-	bkt := store.buckets[bucketID]
-	if bkt.State != BUCKET_STAT_READY {
-		return nil
-	}
-	return bkt.getInfo()
+	return store.getBucket(bucketID).getInfo()
 }
 
 func (store *HStore) Get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Position, err error) {
