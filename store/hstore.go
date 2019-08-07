@@ -262,7 +262,7 @@ func (store *HStore) GCBuckets() map[string][]string {
 	for bkt, st := range store.gcMgr.stat {
 		disk, _ := utils.DiskUsage(bkt.Home)
 		remain := fetchRemain(st.Src, st.End, bkt)
-		gcResult := fmt.Sprintf("bkt: %02x, start -> %d, end -> %d, current -> %d", bkt.ID, st.Begin, st.End, remain)
+		gcResult := fmt.Sprintf("bkt: %02x, start -> %d, end -> %d, remain -> %d", bkt.ID, st.Begin, st.End, remain)
 		result[disk.Root] = append(result[disk.Root], gcResult)
 	}
 	store.gcMgr.mu.Unlock()
