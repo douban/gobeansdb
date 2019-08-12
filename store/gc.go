@@ -10,7 +10,7 @@ import (
 
 type GCMgr struct {
 	mu   sync.RWMutex
-	stat map[int]*GCState // map[bucketID]*GCState
+	stat map[*Bucket]*GCState // map[bucketID]*GCState
 }
 
 type GCState struct {
@@ -143,7 +143,7 @@ func (bkt *Bucket) gcCheckEnd(start, endChunkID, noGCDays int) (end int, err err
 		}
 		if time.Now().Unix()-ts > int64(noGCDays)*86400 {
 			for end = next - 1; end >= start; end-- {
-				if bkt.datas.chunks[end].size >= 0 {
+				if bkt.datas.chunks[end].size > 0 {
 					return
 				}
 			}
@@ -165,7 +165,7 @@ func (bkt *Bucket) gcCheckStart(startChunkID int) (start int, err error) {
 		start = startChunkID
 	}
 	for ; start < bkt.datas.newHead; start++ {
-		if bkt.datas.chunks[start].size >= 0 {
+		if bkt.datas.chunks[start].size > 0 {
 			break
 		}
 	}
@@ -193,13 +193,13 @@ func (mgr *GCMgr) gc(bkt *Bucket, startChunkID, endChunkID int, merge bool) {
 	gc := &bkt.GCHistory[len(bkt.GCHistory)-1]
 	// add gc to mgr's stat map
 	mgr.mu.Lock()
-	mgr.stat[bkt.ID] = gc
+	mgr.stat[bkt] = gc
 	mgr.mu.Unlock()
 	gc.Running = true
 	gc.BeginTS = time.Now()
 	defer func() {
 		mgr.mu.Lock()
-		delete(mgr.stat, bkt.ID)
+		delete(mgr.stat, bkt)
 		mgr.mu.Unlock()
 		gc.Running = false
 		gc.EndTS = time.Now()
