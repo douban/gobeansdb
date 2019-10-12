@@ -1,7 +1,9 @@
 package utils
 
-import "testing"
-import "os"
+import (
+	"os"
+	"testing"
+)
 
 func TestDir(t *testing.T) {
 	p := "testdir"
