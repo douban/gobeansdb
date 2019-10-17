@@ -158,6 +158,7 @@ func (c *ServerConn) ServeOnce(storageClient StorageClient, stats *Stats) (err e
 	if !resp.Noreply {
 		if !readTimeout && overdue(req.ReceiveTime, time.Now()) {
 			req.SetStat("process_timeout")
+			resp.CleanBuffer()
 			resp = new(Response)
 			resp.Status = "PROCESS_TIMEOUT"
 			resp.Msg = "process_timeout"

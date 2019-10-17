@@ -1,4 +1,4 @@
-# GoBeansDB [![Build Status](https://travis-ci.org/douban/gobeansdb.svg?branch=master)](https://travis-ci.org/douban/gobeansdb) 
+# GoBeansDB [![Build Status](https://travis-ci.org/douban/gobeansdb.svg?branch=master)](https://travis-ci.org/douban/gobeansdb) [![Release](https://img.shields.io/github/v/release/douban/gobeansdb)](https://github.com/douban/gobeansdb/releases)
 
 Yet anonther distributed key-value storage system from Douban Inc.
 
