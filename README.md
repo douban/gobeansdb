@@ -1,4 +1,4 @@
-# GoBeansDB [![Build Status](https://travis-ci.org/douban/gobeansdb.svg?branch=master)](https://travis-ci.org/douban/gobeansdb) [![Release](https://img.shields.io/github/v/release/douban/gobeansdb)](https://github.com/douban/gobeansdb/releases)
+# GoBeansDB ![](https://github.com/douban/gobeansproxy/workflows/GoBeansDB%20Test/badge.svg) [![Release](https://img.shields.io/github/v/release/douban/gobeansdb)](https://github.com/douban/gobeansdb/releases)
 
 Yet anonther distributed key-value storage system from Douban Inc.
 
@@ -20,6 +20,7 @@ GoBeansDB use `go mod` manage dependencies, please make sure your Go version >= 
 ```shell
 $ git clone http://github.com/douban/gobeansdb.git
 $ cd gobeansdb
+$ go mod vendor
 $ make
 ```
 
@@ -98,7 +99,7 @@ mc_client --- cache
 缺点/注意
 
 1. 一致性支持较弱，时间戳目前是秒级（受限于数据文件格式）。
-2. 全内存索引，有一定内存开销，在启动载入索引略慢（约十几秒到半分钟， 决定于key 数量）。
+2. 全内存索引，有一定内存开销，在启动时载入索引略慢（约十几秒到半分钟， 决定于key 数量）。
 3. 数据文件格式的 padding 对小 value 有一定浪费。
 
 
