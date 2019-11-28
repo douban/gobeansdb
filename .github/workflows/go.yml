@@ -20,11 +20,9 @@ jobs:
     - name: Get test tools
       run: go get -u -v golang.org/x/tools/cmd/goimports
     
-    - name: Prepare Test
+    - name: Test
       env:
         CC: ${{ matrix.compiler }}
-    
-    - name: Test
       run: |
         export PATH=${PATH}:`go env GOPATH`/bin
         diff <(goimports -d .) <(printf "")
