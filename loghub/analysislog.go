@@ -19,10 +19,10 @@ type AnalysisLogHub struct {
 }
 
 func init() {
-	logger := openLogWithFd(os.Stderr, AnalysisLogFlag)
-	hub := &AnalysisLogHub{logger: logger}
-	hub.InitBuffer(200)
-	AnalysisLogger = NewLogger("", hub, DEBUG)
+	//logger := openLogWithFd(os.Stderr, AnalysisLogFlag)
+	//hub := &AnalysisLogHub{logger: logger}
+	//hub.InitBuffer(200)
+	AnalysisLogger = NewLogger("", nil, DEBUG)
 }
 
 func InitAnalysisLog(path string, level int, bufferSize int) (err error) {

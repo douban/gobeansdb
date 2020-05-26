@@ -442,9 +442,11 @@ func (bkt *Bucket) get(ki *KeyInfo, memOnly bool) (payload *Payload, pos Positio
 	} else if bytes.Compare(rec.Key, ki.Key) == 0 {
 		payload = rec.Payload
 		payload.Ver = meta.Ver
-		analysisLogger.Infof("%s %d %f BKT_%02x %d %d %d %v %s",
-			config.AnalysisLogVersion, rec.Payload.TS, getRecordTimeCost, bkt.ID,
-			pos.ChunkID, pos.Offset, rec.Payload.RecSize, inbuffer, ki.StringKey)
+		if analysisLogger != nil && analysisLogger.Hub != nil {
+			analysisLogger.Infof("%s %d %f BKT_%02x %d %d %d %v %s",
+				config.AnalysisLogVersion, rec.Payload.TS, getRecordTimeCost, bkt.ID,
+				pos.ChunkID, pos.Offset, rec.Payload.RecSize, inbuffer, ki.StringKey)
+		}
 		return
 	}
 	defer func() {
