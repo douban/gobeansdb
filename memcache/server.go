@@ -346,13 +346,13 @@ func (s *Server) HandleSignals(errorlog string, accesslog string, analysislog st
 				// logger.Hub is always inited, so we call Reopen without check it.
 				logger.Hub.Reopen(errorlog)
 
-				if accessLogger.Hub != nil {
+				if accessLogger != nil && accessLogger.Hub != nil {
 					if err := accessLogger.Hub.Reopen(accesslog); err != nil {
 						logger.Warnf("open %s failed: %s", accesslog, err.Error())
 					}
 				}
 
-				if analysisLogger.Hub != nil {
+				if analysisLogger != nil && analysisLogger.Hub != nil {
 					if err := analysisLogger.Hub.Reopen(analysislog); err != nil {
 						logger.Warnf("open %s failed: %s", analysislog, err.Error())
 					}
