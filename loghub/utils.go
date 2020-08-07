@@ -36,7 +36,7 @@ func reopenLogger(logger **log.Logger, fd **os.File, path string, logFlag int) (
 			log.Println("close old log fd failure with, ", e)
 		}
 	} else {
-		log.Printf("open %s failed: %s", path, err.Error())
+		log.Printf("reopenLogger %s failed: %s", path, err.Error())
 	}
 	return
 }
