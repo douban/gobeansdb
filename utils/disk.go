@@ -45,18 +45,14 @@ func (f *File) isSame(f2 *File) (same bool) {
 
 type FileList []File
 
-func (by FileList) Len() int      { return len(by) }
-func (by FileList) Swap(i, j int) { by[i], by[j] = by[j], by[i] }
-func (by FileList) Less(i, j int) bool {
-	return by[i].Name < by[j].Name
-}
-
 func (d *Dir) ToSlice() []File {
 	s := make([]File, 0, len(d.Files))
 	for k, v := range d.Files {
 		s = append(s, File{k, v})
 	}
-	sort.Sort(FileList(s))
+	sort.Slice(s, func(i, j int) bool {
+		return s[i].Name < s[j].Name
+	})
 	return s
 }
 
