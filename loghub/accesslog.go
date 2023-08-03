@@ -27,7 +27,7 @@ func InitAccessLog(path string, level int) (err error) {
 		AccessLogger.Hub = hub
 		AccessLogger.SetLevel(level)
 	} else {
-		log.Fatalf("open accesss log error, path=[%s], err=[%s]", path, err.Error())
+		log.Fatalf("open access log error, path=[%s], err=[%s]", path, err.Error())
 	}
 	return
 }

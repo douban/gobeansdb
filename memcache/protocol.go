@@ -23,7 +23,7 @@ var (
 	// or the type of a part if invalid.
 	ErrInvalidCmd = errors.New("invalid cmd")
 
-	// ErrNonMemcacheCmd means that the command is not defined in original memcache protocal.
+	// ErrNonMemcacheCmd means that the command is not defined in original memcache protocol.
 	// refer: https://github.com/memcached/memcached/blob/master/doc/protocol.txt
 	ErrNonMemcacheCmd = errors.New("non memcache command")
 
@@ -36,7 +36,7 @@ var (
 	// ErrBadDataChunk means that data chunk of a value is not match its size flag.
 	ErrBadDataChunk = errors.New("bad data chunk")
 
-	// ErrNetworkError means that a failure happend at reading/writing to a client connection.
+	// ErrNetworkError means that a failure happened at reading/writing to a client connection.
 	ErrNetworkError = errors.New("network error")
 
 	ErrOOM = errors.New("memory shortage")
@@ -145,7 +145,7 @@ func (req *Request) Write(w io.Writer) (e error) {
 		_, e = io.WriteString(w, "\r\n")
 
 	default:
-		logger.Errorf("unkown request cmd: %s", req.Cmd)
+		logger.Errorf("unknown request cmd: %s", req.Cmd)
 		return errors.New("unknown cmd: " + req.Cmd)
 	}
 
