@@ -668,7 +668,7 @@ func (hm *hintMgr) loadHintsByChunk(chunkID int) (datasize uint32) {
 	var err error
 	for _, p := range paths0 {
 		if err != nil {
-			logger.Errorf("a failure of loading hint happend before: curr_hint_path=%s", p)
+			logger.Errorf("a failure of loading hint happened before: curr_hint_path=%s", p)
 			utils.Remove(p)
 			continue
 		}

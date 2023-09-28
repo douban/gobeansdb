@@ -358,7 +358,7 @@ func (s *Server) HandleSignals(errorlog string, accesslog string, analysislog st
 					}
 				}
 			} else {
-				logger.Infof("signal recieved " + sig.String())
+				logger.Infof("signal received " + sig.String())
 				s.Shutdown()
 			}
 		}
