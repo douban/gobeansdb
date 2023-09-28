@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -121,7 +122,7 @@ func testDataSameKeyValue(t *testing.T, seq int, key, value []byte, recsize uint
 }
 
 func breakdata(f *os.File, start, offset int) {
-	f.Seek(int64(start*256+offset), os.SEEK_SET)
+	f.Seek(int64(start*256+offset), io.SeekStart)
 	b := []byte("0")
 	f.Write(b)
 }
