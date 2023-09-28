@@ -301,7 +301,7 @@ func (bkt *Bucket) dumpHtree() {
 func (bkt *Bucket) getAllIndex(suffix string) (paths []string, ids []HintID) {
 	pattern := getIndexPath(bkt.Home, -1, -1, suffix)
 	paths0, _ := filepath.Glob(pattern)
-	sort.Sort(sort.StringSlice(paths0))
+	sort.Strings(paths0)
 	for _, p := range paths0 {
 		id, ok := parseIDFromPath(p)
 		if !ok {
