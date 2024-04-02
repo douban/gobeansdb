@@ -1,7 +1,7 @@
 
 # GoBeansDB ![](https://github.com/douban/gobeansdb/workflows/GoBeansDB%20Test/badge.svg) [![Release](https://img.shields.io/github/v/release/douban/gobeansdb)](https://github.com/douban/gobeansdb/releases)
 
-Yet anonther distributed key-value storage system from Douban Inc.
+Yet another distributed key-value storage system from Douban Inc.
 
 Any memcached client cache interactive with GobeansDB without any modification.
 
@@ -13,7 +13,7 @@ Any memcached client cache interactive with GobeansDB without any modification.
 
 ## Prepare
 
-GoBeansDB use `go mod` manage dependencies, please make sure your Go version >= 1.11.0 first.
+GoBeansDB uses `go mod` to manage dependencies, please make sure your Go version >= 1.11.0 first.
 
 
 ## Install
