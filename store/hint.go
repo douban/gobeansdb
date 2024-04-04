@@ -476,7 +476,7 @@ func (h *hintMgr) Merge(forGC bool) (err error) {
 	// TODO: check hint with datas!
 	pattern := h.getPath(-1, -1, false)
 	paths, err := filepath.Glob(pattern)
-	sort.Sort(sort.StringSlice(paths))
+	sort.Strings(paths)
 
 	readers := make([]*hintFileReader, 0, len(paths))
 	var maxid HintID
@@ -639,7 +639,7 @@ func (hm *hintMgr) findValidPaths(chunkID int) (hints []string) {
 		return
 	}
 
-	sort.Sort(sort.StringSlice(paths))
+	sort.Strings(paths)
 	n := 0
 	for _, path := range paths {
 		name := filepath.Base(path)
