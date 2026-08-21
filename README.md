@@ -1,5 +1,7 @@
 
-# GoBeansDB ![](https://github.com/douban/gobeansdb/workflows/GoBeansDB%20Test/badge.svg) [![Release](https://img.shields.io/github/v/release/douban/gobeansdb)](https://github.com/douban/gobeansdb/releases)
+# GoBeansDB
+
+**This project is no longer maintained**. You can refer to [https://github.com/douban/gobeansproxy/pull/17](https://github.com/douban/gobeansproxy/pull/17) to migrate to the Cassandra solution, or fork the repository to maintain it yourself. Thank you.
 
 Yet another distributed key-value storage system from Douban Inc.
 
