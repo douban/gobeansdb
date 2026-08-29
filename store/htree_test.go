@@ -390,7 +390,7 @@ func TestRebuildHtreeFromHints(b *testing.T) {
 
 	tree := newHTree(Conf.TreeDepth, int(pos), Conf.TreeHeight)
 	totalNumKey := 0
-	sort.Sort(sort.StringSlice(files))
+	sort.Strings(files)
 	for i, file := range files {
 		logger.Infof("loading: %s", file)
 		r := newHintFileReader(file, 0, 1024*1024)
